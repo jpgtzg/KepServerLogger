@@ -1,0 +1,96 @@
+*/bin/
+
+############################
+# Build results
+############################
+# Build results (all projects, any depth)
+**/bin/
+**/obj/
+**/Debug/
+**/Release/
+**/out/
+**/publish/
+**/TestResults/
+
+############################
+# User-specific files
+############################
+*.user
+*.userosscache
+*.suo
+*.rsuser
+*.sln.docstates
+
+############################
+# Visual Studio
+############################
+.vs/
+.vscode/
+*.code-workspace
+
+############################
+# Rider
+############################
+.idea/
+
+############################
+# Logs
+############################
+*.log
+
+############################
+# OS generated files
+############################
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+
+############################
+# NuGet
+############################
+*.nupkg
+*.snupkg
+packages/
+.nuget/
+project.lock.json
+project.assets.json
+
+############################
+# Dotnet CLI
+############################
+*.runtimeconfig.dev.json
+
+############################
+# Publish output
+############################
+*.publishsettings
+
+############################
+# Local settings / secrets
+############################
+appsettings.Development.json
+secrets.json
+
+############################
+# Database files
+############################
+*.mdf
+*.ldf
+*.sqlite
+*.db
+
+############################
+# Coverage / profiling
+############################
+*.coverage
+*.coveragexml
+*.trx
+
+############################
+# Azure
+############################
+.azure/
