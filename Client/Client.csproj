@@ -9,6 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Kepware.Api" Version="1.0.198-beta" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.3" />
     <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua" Version="1.5.378.106" />
     <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="10.0.3" />
     <PackageReference Include="System.Management" Version="10.0.3" />
