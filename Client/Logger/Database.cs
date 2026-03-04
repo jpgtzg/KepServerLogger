@@ -2,19 +2,22 @@ using System;
 using Microsoft.Data.Sqlite;
 using Events;
 using System.Net.NetworkInformation;
+using Services;
 
 namespace Logger
 {
     public static class Database
     {
         private static string connectionString = "Data Source=logs.db";
+        private static SqliteConnection? _connection;
+        private static SqliteTransaction? _transaction;
 
         public static void Initialize()
         {
-            using var connection = new SqliteConnection(connectionString);
-            connection.Open();
+            _connection = new SqliteConnection(connectionString);
+            _connection.Open();
 
-            var command = connection.CreateCommand();
+            var command = _connection.CreateCommand();
             command.CommandText =
             @"
                 CREATE TABLE IF NOT EXISTS Events (
@@ -26,6 +29,7 @@ namespace Logger
                 );
             ";
             command.ExecuteNonQuery();
+
 
             command.CommandText =
             @"
@@ -46,8 +50,8 @@ namespace Logger
                     OperationalStatus TEXT NOT NULL,
                     NetworkInterfaceType TEXT NOT NULL,
                     Timestamp TEXT NOT NULL,
-                    KbBytesSent INTEGER NOT NULL,
-                    KbBytesReceived INTEGER NOT NULL
+                    KbBytesSent REAL NOT NULL,
+                    KbBytesReceived REAL NOT NULL
                 );
             ";
             command.ExecuteNonQuery();
@@ -65,12 +69,43 @@ namespace Logger
             command.ExecuteNonQuery();
         }
 
+        public static void OpenTransaction()
+        {
+            verifyConnection();
+            if (_transaction != null)
+                throw new InvalidOperationException("Transaction already open.");
+
+            _transaction = _connection!.BeginTransaction();
+        }
+
+        public static void CloseTransaction()
+        {
+            if (_transaction == null)
+                throw new InvalidOperationException("No transaction is open.");
+
+            _transaction.Commit();
+            _transaction.Dispose();
+            _transaction = null;
+        }
+
+        public static void RollbackTransaction()
+        {
+            if (_transaction != null)
+            {
+                _transaction.Rollback();
+                _transaction.Dispose();
+                _transaction = null;
+            }
+        }
+
         public static void InsertEvent(Event evt)
         {
-            using var connection = new SqliteConnection(connectionString);
-            connection.Open();
+            verifyConnection();
+            var command = _connection!.CreateCommand();
 
-            var command = connection.CreateCommand();
+            if (_transaction != null)
+                command.Transaction = _transaction;
+
             command.CommandText =
             @"
                 INSERT INTO Events (Timestamp, EventName, Source, Message)
@@ -86,10 +121,13 @@ namespace Logger
 
         public static void InsertCPUUsage(float cpuUsage)
         {
-            using var connection = new SqliteConnection(connectionString);
-            connection.Open();
+            verifyConnection();
+            var command = _connection!.CreateCommand();
 
-            var command = connection.CreateCommand();
+            // Use the current transaction if it exists
+            if (_transaction != null)
+                command.Transaction = _transaction;
+
             command.CommandText =
             @"
                 INSERT INTO CpuUsage (Timestamp, Usage)
@@ -103,10 +141,13 @@ namespace Logger
 
         public static void InsertNetworkMetrics(NetworkInterface ni)
         {
-            using var connection = new SqliteConnection(connectionString);
-            connection.Open();
+            verifyConnection();
+            var command = _connection!.CreateCommand();
 
-            var command = connection.CreateCommand();
+            // Use the current transaction if it exists
+            if (_transaction != null)
+                command.Transaction = _transaction;
+
             command.CommandText =
             @"
                 INSERT INTO NetworkUsage (Interface, OperationalStatus, NetworkInterfaceType, Timestamp, KbBytesSent, KbBytesReceived)
@@ -124,10 +165,13 @@ namespace Logger
 
         public static void InsertRAMUsage(ulong totalKb, ulong freeKb)
         {
-            using var connection = new SqliteConnection(connectionString);
-            connection.Open();
+            verifyConnection();
+            var command = _connection!.CreateCommand();
 
-            var command = connection.CreateCommand();
+            // Use the current transaction if it exists
+            if (_transaction != null)
+                command.Transaction = _transaction;
+
             command.CommandText =
             @"
                 INSERT INTO RamUsage (Timestamp, TotalKb, FreeKb)
@@ -138,6 +182,42 @@ namespace Logger
             command.Parameters.AddWithValue("$freeKb", freeKb);
 
             command.ExecuteNonQuery();
+        }
+
+        public static void InsertServiceInfo(ServiceInfo serviceInfo)
+        {
+            verifyConnection();
+            var command = _connection!.CreateCommand();
+
+            if (_transaction != null)
+                command.Transaction = _transaction;
+
+            command.CommandText =
+            @"
+                INSERT INTO Services (Name, Status, ServiceType, MachineName, ProcessIds, Timestamp)
+                VALUES ($name, $status, $serviceType, $machineName, $processIds, $timestamp);
+            ";
+            command.Parameters.AddWithValue("$name", serviceInfo.Name);
+            command.Parameters.AddWithValue("$status", serviceInfo.Status.ToString());
+            command.Parameters.AddWithValue("$serviceType", serviceInfo.ServiceType.ToString());
+            command.Parameters.AddWithValue("$machineName", serviceInfo.MachineName);
+            command.Parameters.AddWithValue("$processIds", string.Join(",", serviceInfo.ProcessIds));
+            command.Parameters.AddWithValue("$timestamp", DateTime.UtcNow.ToString("o"));
+            command.ExecuteNonQuery();
+        }
+
+        public static void Close()
+        {
+            _connection?.Close();
+            _connection = null;
+        }
+
+        private static void verifyConnection()
+        {
+            if (_connection == null)
+            {
+                throw new InvalidOperationException("Database not initialized. Call Initialize() first.");
+            }
         }
     }
 }
