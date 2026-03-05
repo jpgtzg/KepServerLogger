@@ -13,7 +13,9 @@ namespace Events
 
         [JsonPropertyName("message")]
         public string Message { get; }
-        
+
+        public string? Hash { get; set; }        
+    
         public Event(string timestamp, string name, string source, string message)
         {
             Timestamp = timestamp;
