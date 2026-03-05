@@ -46,6 +46,7 @@ internal static class Program
                     foreach (var svcName in ConfigLoader.ServiceNames)
                     {
                         ServiceInfo serviceInfo = ServiceManager.GetServiceInfo(svcName);
+                        Database.InsertServiceInfo(serviceInfo);
                     }
                     loggedSystemCount++;
                 }
