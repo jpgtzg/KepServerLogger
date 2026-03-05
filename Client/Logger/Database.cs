@@ -21,7 +21,7 @@ namespace Logger
             command.CommandText =
             @"
                 CREATE TABLE IF NOT EXISTS Events (
-                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    HASH TEXT PRIMARY KEY NOT NULL,
                     Timestamp TEXT NOT NULL,
                     EventName TEXT NOT NULL,
                     Source TEXT NOT NULL,
@@ -108,9 +108,10 @@ namespace Logger
 
             command.CommandText =
             @"
-                INSERT INTO Events (Timestamp, EventName, Source, Message)
-                VALUES ($timestamp, $eventName, $source, $message);
+                INSERT OR IGNORE INTO Events (HASH, Timestamp, EventName, Source, Message)
+                VALUES ($hash, $timestamp, $eventName, $source, $message);
             ";
+            command.Parameters.AddWithValue("$hash", evt.Hash);
             command.Parameters.AddWithValue("$timestamp", evt.Timestamp);
             command.Parameters.AddWithValue("$eventName", evt.Name);
             command.Parameters.AddWithValue("$source", evt.Source);
@@ -204,6 +205,17 @@ namespace Logger
             command.Parameters.AddWithValue("$processIds", string.Join(",", serviceInfo.ProcessIds));
             command.Parameters.AddWithValue("$timestamp", DateTime.UtcNow.ToString("o"));
             command.ExecuteNonQuery();
+        }
+
+        public static void CleanupOldEvents()
+        {
+            verifyConnection();
+            var command = _connection!.CreateCommand();
+
+            command.CommandText = "DELETE FROM Events WHERE Timestamp < datetime('now', '-7 days');";
+
+            int rowsDeleted = command.ExecuteNonQuery();
+            Console.WriteLine($"Maintenance: Cleaned up {rowsDeleted} old logs.");
         }
 
         public static void Close()
