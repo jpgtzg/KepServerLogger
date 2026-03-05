@@ -66,6 +66,21 @@ namespace Logger
                 );
             ";
             command.ExecuteNonQuery();
+
+            
+            command.CommandText =
+            @"
+                CREATE TABLE IF NOT EXISTS Services (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Name TEXT NOT NULL,
+                    Status TEXT NOT NULL,
+                    ServiceType TEXT NOT NULL,
+                    MachineName TEXT NOT NULL,
+                    ProcessIds TEXT NOT NULL,
+                    Timestamp TEXT NOT NULL
+                );
+            ";
+            command.ExecuteNonQuery();
         }
 
         public static void OpenTransaction()
