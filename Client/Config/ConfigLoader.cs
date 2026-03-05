@@ -6,7 +6,8 @@ namespace Config
         Cpu,
         Ram,
         Network,
-        Services
+        Services,
+        KepServerEvents
     }
     public static class ConfigLoader
     {
@@ -49,6 +50,7 @@ namespace Config
                     "ram" => MetricType.Ram,
                     "network" => MetricType.Network,
                     "services" => MetricType.Services,
+                    "kepserverevents" => MetricType.KepServerEvents,
                     _ => throw new Exception($"Unknown metric type: {m}")
                 }).ToArray();
             }

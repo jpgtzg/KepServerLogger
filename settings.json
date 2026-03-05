@@ -4,7 +4,8 @@
         "cpu",
         "ram",
         "network",
-        "services"
+        "services",
+        "kepserverevents"
     ],
     "services": [
         "KEPServerEX 6.18 Config API Service",
@@ -13,7 +14,6 @@
         "KEPServerEX 6.18 IoT Gateway",
         "KEPServerEX 6.18 Key Service",
         "KEPServerEX 6.18 Runtime",
-        "KEPServerEX 6.18 Script Engine",
         "KEPServerEX 6.18 Store and Forward"
     ]
 }
