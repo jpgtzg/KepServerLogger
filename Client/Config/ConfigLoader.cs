@@ -1,6 +1,5 @@
 namespace Config
 {
-
     public enum MetricType
     {
         Cpu,

@@ -1,6 +1,5 @@
 using System.Management;
 using System.ServiceProcess;
-using System.Diagnostics;
 using System.Runtime.Versioning;
 
 namespace Services

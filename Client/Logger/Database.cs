@@ -1,4 +1,3 @@
-using System;
 using Microsoft.Data.Sqlite;
 using Events;
 using System.Net.NetworkInformation;

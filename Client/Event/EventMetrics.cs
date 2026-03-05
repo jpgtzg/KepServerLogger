@@ -1,8 +1,5 @@
-using System.Net.Http;
 using System.Text.Json;
-using System.Threading.Tasks;
 using System.Text;
-using System.Threading.Tasks;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 
