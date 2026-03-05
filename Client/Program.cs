@@ -3,62 +3,88 @@ using Metrics;
 using Services;
 using Config;
 using System.Net.NetworkInformation;
-class Program
+using Events;
+using Logger;
+using DotNetEnv;
+
+internal static class Program
 {
     [SupportedOSPlatform("windows")]
 
     static void Main()
     {
         ConfigLoader.LoadConfig();
+        Database.Initialize();
+        Console.WriteLine("Database initialized successfully.");
+        Env.Load();
 
         while (true)
         {
-            Console.Clear();
-
-            // Computer Metrics
-
-            if (ConfigLoader.LoggingMetrics.Contains(MetricType.Cpu))
+            int loggedSystemCount = 0;
+            Database.OpenTransaction();
+            try
             {
-                Console.WriteLine($"CPU Usage: {CpuMetrics.GetTotalCpuUsage():F2}%");
-            }
+                // Computer Metrics
 
-            if (ConfigLoader.LoggingMetrics.Contains(MetricType.Ram))
-            {
-                var (total, free) = RamMetrics.GetMemoryInfo();
-                Console.WriteLine($"RAM: {total - free} / {total} KB used");
-            }
-
-            // Service metrics
-
-            if (ConfigLoader.LoggingMetrics.Contains(MetricType.Services))
-            {
-                foreach (var svcName in ConfigLoader.ServiceNames)
+                if (ConfigLoader.LoggingMetrics.Contains(MetricType.Cpu))
                 {
-                    ServiceInfo serviceInfo = ServiceManager.GetServiceInfo(svcName);
-
-                    Console.WriteLine($"{string.Join(", ", serviceInfo.ProcessIds)} - {serviceInfo.Name} - {serviceInfo.Status} - {serviceInfo.MachineName} - {serviceInfo.ServiceType}");
+                    Database.InsertCPUUsage(CpuMetrics.GetTotalCpuUsage());
+                    loggedSystemCount++;
                 }
-            }
 
-            // Network metrics  
-
-            if (ConfigLoader.LoggingMetrics.Contains(MetricType.Network))
-            {
-                NetworkInterface[] interfaces = NetworkMetrics.GetNetworkInterfaces();
-                foreach (var ni in interfaces)
+                if (ConfigLoader.LoggingMetrics.Contains(MetricType.Ram))
                 {
-                    Console.WriteLine($"Interface: {ni.Name}");
-                    Console.WriteLine($"  Status: {ni.OperationalStatus}");
-                    Console.WriteLine($"  Type: {ni.NetworkInterfaceType}");
-
-                    var stats = ni.GetIPv4Statistics();
-                    Console.WriteLine($"  Bytes Sent: {stats.BytesSent}");
-                    Console.WriteLine($"  Bytes Received: {stats.BytesReceived}");
-                    Console.WriteLine();
+                    var (total, free) = RamMetrics.GetMemoryInfo();
+                    Database.InsertRAMUsage(total, free);
+                    loggedSystemCount++;
                 }
+
+                // Service metrics
+
+                if (ConfigLoader.LoggingMetrics.Contains(MetricType.Services))
+                {
+                    foreach (var svcName in ConfigLoader.ServiceNames)
+                    {
+                        ServiceInfo serviceInfo = ServiceManager.GetServiceInfo(svcName);
+                    }
+                    loggedSystemCount++;
+                }
+
+                // Network metrics  
+
+                if (ConfigLoader.LoggingMetrics.Contains(MetricType.Network))
+                {
+                    NetworkInterface[] interfaces = NetworkMetrics.GetNetworkInterfaces();
+                    foreach (var ni in interfaces)
+                    {
+                        Database.InsertNetworkMetrics(ni);
+                    }
+                    loggedSystemCount++;
+                }
+
+                // KepServer Event Log
+                if (ConfigLoader.LoggingMetrics.Contains(MetricType.KepServerEvents))
+                {
+                    Event[] events = EventMetrics.GetEvents().GetAwaiter().GetResult();
+                    foreach (var ev in events)
+                    {
+                        Database.InsertEvent(ev);
+                    }
+                    loggedSystemCount++;
+                }
+
+                Database.CloseTransaction();
+                Console.WriteLine($"Logged metrics for {loggedSystemCount} categories at {DateTime.Now}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error occurred during metrics collection. Rolling back transaction." + ex.Message);
+                Database.RollbackTransaction();
+                throw;
             }
 
             Thread.Sleep(ConfigLoader.ReadInterval);
+            Database.CleanupOldEvents();
         }
     }
 }
