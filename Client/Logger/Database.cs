@@ -13,10 +13,25 @@ namespace Logger
 
         public static void Initialize()
         {
-            _connection = new SqliteConnection(connectionString);
+
+            var sqliteConnString = new SqliteConnectionStringBuilder
+            {
+                DataSource = connectionString,
+                DefaultTimeout = 30
+            }.ToString();
+
+            _connection = new SqliteConnection(sqliteConnString);
             _connection.Open();
 
             var command = _connection.CreateCommand();
+            command.CommandText = "PRAGMA journal_mode=WAL;";
+            command.ExecuteNonQuery();
+
+            command = _connection.CreateCommand();
+            command.CommandText = "PRAGMA busy_timeout = 30000;";
+            command.ExecuteNonQuery();
+
+            command = _connection.CreateCommand();
             command.CommandText =
             @"
                 CREATE TABLE IF NOT EXISTS Events (
@@ -67,7 +82,7 @@ namespace Logger
             ";
             command.ExecuteNonQuery();
 
-            
+
             command.CommandText =
             @"
                 CREATE TABLE IF NOT EXISTS Services (
