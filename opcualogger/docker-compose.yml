@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  
+  opcualogger:
+    image: opcualogger
+    container_name: opcualogger
+    network_mode: host
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+    env_file:
+      - .env
+    
+    volumes:
+      - opcualogger-certs:/app/certs
+      - ./TagList.csv:/app/TagList.csv:ro,Z
+      - ./logs:/app/logs:Z
+volumes:
+  opcualogger-certs:
+

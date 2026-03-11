@@ -1,0 +1,43 @@
+# Virtual environments
+.venv
+venv/
+.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+wheels/
+
+# Git
+.git/
+.gitignore
+
+# Docker files
+*.tar
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Documentation
+README.md
+*.md
+
+# Scripts (if not needed in container)
+generate_tar.sh
+
+# Tags
+*.csv
