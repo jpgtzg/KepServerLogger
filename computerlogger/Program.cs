@@ -10,7 +10,6 @@ using DotNetEnv;
 internal static class Program
 {
     [SupportedOSPlatform("windows")]
-
     static void Main()
     {
         ConfigLoader.LoadConfig();

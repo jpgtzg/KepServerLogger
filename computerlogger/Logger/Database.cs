@@ -7,12 +7,18 @@ namespace Logger
 {
     public static class Database
     {
-        private static string connectionString = "Data Source=logs.db";
+        private static string connectionString = "logs.db";
         private static SqliteConnection? _connection;
         private static SqliteTransaction? _transaction;
 
         public static void Initialize()
         {
+            string? db_name = Environment.GetEnvironmentVariable("DB_NAME");
+
+            if (string.IsNullOrEmpty(db_name))
+            {
+                throw new InvalidOperationException("Environment variables DB_NAME must be set.");
+            }
 
             var sqliteConnString = new SqliteConnectionStringBuilder
             {
