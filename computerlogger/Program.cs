@@ -12,6 +12,13 @@ internal static class Program
     [SupportedOSPlatform("windows")]
     static void Main()
     {
+        foreach (var line in File.ReadAllLines(".env"))
+        {
+            var parts = line.Split('=', 2);
+            if (parts.Length == 2)
+                Environment.SetEnvironmentVariable(parts[0].Trim(), parts[1].Trim());
+        }
+        
         ConfigLoader.LoadConfig();
         Database.Initialize();
         Console.WriteLine("Database initialized successfully.");
