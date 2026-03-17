@@ -16,12 +16,14 @@ PREFIX = f"ns=2;s={os.getenv("PREFIX")}."
 
 EXCLUDE_TAGS = ['_Write', '_WRITE']
 
+SEPARATOR = os.getenv("SEPARATOR", ";")
+
 def extract_tags(save_to_file : bool = False) -> dict:
     print(f"Reading tags from {FILENAME}...")
 
-    df = pd.read_csv(FILENAME, sep=";")
-    tags = df[TAG_COLUMN].tolist()
-
+    df = pd.read_csv(FILENAME, sep=SEPARATOR)
+    tags = df[TAG_COLUMN].dropna().tolist()
+    
     tags_json = [PREFIX + tag.strip().removesuffix('.BAL') for tag in tags]
 
     tags_json = [tag for tag in tags_json if not any(exclude in tag for exclude in EXCLUDE_TAGS)]
