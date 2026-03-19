@@ -11,6 +11,8 @@ namespace Logger
         private static SqliteConnection? _connection;
         private static SqliteTransaction? _transaction;
 
+        private static int retentionDays = 7;
+
         public static void Initialize()
         {
             string? db_name = Environment.GetEnvironmentVariable("DB_NAME");
@@ -18,6 +20,13 @@ namespace Logger
             if (string.IsNullOrEmpty(db_name))
             {
                 throw new InvalidOperationException("Environment variables DB_NAME must be set.");
+            }
+
+            string _retentionDaysStr = Environment.GetEnvironmentVariable("LOG_RETENTION_DAYS") ?? "7";
+            if (!int.TryParse(_retentionDaysStr, out retentionDays))
+            {
+                Console.WriteLine($"Invalid RETENTION_DAYS value '{_retentionDaysStr}', defaulting to 7 days.");
+                retentionDays = 7;
             }
 
             var sqliteConnString = new SqliteConnectionStringBuilder
@@ -258,19 +267,19 @@ namespace Logger
             verifyConnection();
             var command = _connection!.CreateCommand();
 
-            command.CommandText = "DELETE FROM Events WHERE Timestamp < datetime('now', '-30 days');";
+            command.CommandText = "DELETE FROM Events WHERE Timestamp < datetime('now', '-" + retentionDays + " days');";
             int eventsDeleted = command.ExecuteNonQuery();
 
-            command.CommandText = "DELETE FROM CpuUsage WHERE Timestamp < datetime('now', '-7 days');";
+            command.CommandText = "DELETE FROM CpuUsage WHERE Timestamp < datetime('now', '-" + retentionDays + " days');";
             int cpuDeleted = command.ExecuteNonQuery();
 
-            command.CommandText = "DELETE FROM NetworkUsage WHERE Timestamp < datetime('now', '-7 days');";
+            command.CommandText = "DELETE FROM NetworkUsage WHERE Timestamp < datetime('now', '-" + retentionDays + " days');";
             int networkDeleted = command.ExecuteNonQuery();
 
-            command.CommandText = "DELETE FROM RamUsage WHERE Timestamp < datetime('now', '-7 days');";
+            command.CommandText = "DELETE FROM RamUsage WHERE Timestamp < datetime('now', '-" + retentionDays + " days');";
             int ramDeleted = command.ExecuteNonQuery();
 
-            command.CommandText = "DELETE FROM Services WHERE Timestamp < datetime('now', '-7 days');";
+            command.CommandText = "DELETE FROM Services WHERE Timestamp < datetime('now', '-" + retentionDays + " days');";
             int servicesDeleted = command.ExecuteNonQuery();
 
             Console.WriteLine($"Maintenance: Cleaned up {eventsDeleted} events, {cpuDeleted} CPU, {networkDeleted} network, {ramDeleted} RAM, {servicesDeleted} services records.");
