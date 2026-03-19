@@ -102,6 +102,17 @@ namespace Logger
                 );
             ";
             command.ExecuteNonQuery();
+
+            command.CommandText =
+            @"
+                CREATE INDEX IF NOT EXISTS idx_cpuusage_timestamp ON CpuUsage(Timestamp);
+                CREATE INDEX IF NOT EXISTS idx_networkusage_timestamp ON NetworkUsage(Timestamp);
+                CREATE INDEX IF NOT EXISTS idx_ramusage_timestamp ON RamUsage(Timestamp);
+                CREATE INDEX IF NOT EXISTS idx_services_timestamp ON Services(Timestamp);
+                CREATE INDEX IF NOT EXISTS idx_services_name ON Services(Name);
+                CREATE INDEX IF NOT EXISTS idx_events_timestamp ON Events(Timestamp);
+            ";
+            command.ExecuteNonQuery();
         }
 
         public static void OpenTransaction()
@@ -242,15 +253,27 @@ namespace Logger
             command.ExecuteNonQuery();
         }
 
-        public static void CleanupOldEvents()
+        public static void CleanupOldData()
         {
             verifyConnection();
             var command = _connection!.CreateCommand();
 
-            command.CommandText = "DELETE FROM Events WHERE Timestamp < datetime('now', '-7 days');";
+            command.CommandText = "DELETE FROM Events WHERE Timestamp < datetime('now', '-30 days');";
+            int eventsDeleted = command.ExecuteNonQuery();
 
-            int rowsDeleted = command.ExecuteNonQuery();
-            Console.WriteLine($"Maintenance: Cleaned up {rowsDeleted} old logs.");
+            command.CommandText = "DELETE FROM CpuUsage WHERE Timestamp < datetime('now', '-7 days');";
+            int cpuDeleted = command.ExecuteNonQuery();
+
+            command.CommandText = "DELETE FROM NetworkUsage WHERE Timestamp < datetime('now', '-7 days');";
+            int networkDeleted = command.ExecuteNonQuery();
+
+            command.CommandText = "DELETE FROM RamUsage WHERE Timestamp < datetime('now', '-7 days');";
+            int ramDeleted = command.ExecuteNonQuery();
+
+            command.CommandText = "DELETE FROM Services WHERE Timestamp < datetime('now', '-7 days');";
+            int servicesDeleted = command.ExecuteNonQuery();
+
+            Console.WriteLine($"Maintenance: Cleaned up {eventsDeleted} events, {cpuDeleted} CPU, {networkDeleted} network, {ramDeleted} RAM, {servicesDeleted} services records.");
         }
 
         public static void Close()

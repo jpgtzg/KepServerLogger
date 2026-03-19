@@ -18,11 +18,13 @@ internal static class Program
             if (parts.Length == 2)
                 Environment.SetEnvironmentVariable(parts[0].Trim(), parts[1].Trim());
         }
-        
+
         ConfigLoader.LoadConfig();
         Database.Initialize();
         Console.WriteLine("Database initialized successfully.");
         Env.Load();
+
+        DateTime lastCleanup = DateTime.MinValue;
 
         while (true)
         {
@@ -31,22 +33,18 @@ internal static class Program
             try
             {
                 // Computer Metrics
-
                 if (ConfigLoader.LoggingMetrics.Contains(MetricType.Cpu))
                 {
                     Database.InsertCPUUsage(CpuMetrics.GetTotalCpuUsage());
                     loggedSystemCount++;
                 }
-
                 if (ConfigLoader.LoggingMetrics.Contains(MetricType.Ram))
                 {
                     var (total, free) = RamMetrics.GetMemoryInfo();
                     Database.InsertRAMUsage(total, free);
                     loggedSystemCount++;
                 }
-
                 // Service metrics
-
                 if (ConfigLoader.LoggingMetrics.Contains(MetricType.Services))
                 {
                     foreach (var svcName in ConfigLoader.ServiceNames)
@@ -56,9 +54,7 @@ internal static class Program
                     }
                     loggedSystemCount++;
                 }
-
-                // Network metrics  
-
+                // Network metrics
                 if (ConfigLoader.LoggingMetrics.Contains(MetricType.Network))
                 {
                     NetworkInterface[] interfaces = NetworkMetrics.GetNetworkInterfaces();
@@ -68,7 +64,6 @@ internal static class Program
                     }
                     loggedSystemCount++;
                 }
-
                 // KepServer Event Log
                 if (ConfigLoader.LoggingMetrics.Contains(MetricType.KepServerEvents))
                 {
@@ -90,8 +85,14 @@ internal static class Program
                 throw;
             }
 
+            // Run cleanup once a day
+            if ((DateTime.Now - lastCleanup).TotalHours >= 24)
+            {
+                Database.CleanupOldData();
+                lastCleanup = DateTime.Now;
+            }
+
             Thread.Sleep(ConfigLoader.ReadInterval);
-            Database.CleanupOldEvents();
         }
     }
 }
