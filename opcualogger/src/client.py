@@ -5,7 +5,7 @@ from src.tag_extractor import extract_tags, PREFIX
 from dotenv import load_dotenv
 import os
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 
 load_dotenv()
 
@@ -48,7 +48,7 @@ async def main():
             while True:
                 nodes = [client.get_node(tag) for tag in TAGS]
                 values = await client.read_attributes(nodes, ua.AttributeIds.Value)
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
                 tag_values = [
                     (node.nodeid.to_string().removeprefix(PREFIX), value)
                     for node, value in zip(nodes, values)

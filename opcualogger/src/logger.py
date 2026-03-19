@@ -1,6 +1,6 @@
 from pathlib import Path
 from asyncua import ua
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 import signal
 import sqlite3
@@ -57,6 +57,14 @@ def _init_db():
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_logs_server_timestamp ON Tags(server_timestamp)"
     )
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_tags_tag ON Tags(tag)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_tags_tag_timestamp ON Tags(tag, server_timestamp)"
+    )
+
     conn.commit()
     return conn
 
@@ -116,13 +124,12 @@ def save_many_to_db(tag_values, timestamp: str):
 
 def delete_older_than_retention():
     """Delete log rows older than RETENTION_DAYS (based on server_timestamp)."""
-    cutoff = (datetime.now() - timedelta(days=RETENTION_DAYS)).strftime(TIMESTAMP_FORMAT)
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=RETENTION_DAYS)).strftime(TIMESTAMP_FORMAT)
     with conn:
         cursor = conn.execute(
             "DELETE FROM Tags WHERE server_timestamp < ?", (cutoff,)
         )
         return cursor.rowcount
-
 
 async def periodic_cleanup(interval=CLEANUP_INTERVAL):
     """Periodically delete log entries older than RETENTION_DAYS."""
