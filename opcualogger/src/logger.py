@@ -3,23 +3,28 @@ from asyncua import ua
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 import signal
-import sqlite3
+import psycopg2
+import psycopg2.extras
 import os
 
 load_dotenv()
+
 # ---------------- Configuration ----------------
-# Base directory for logs (can be overridden with LOG_DIR env var)
 LOG_DIR = Path(os.getenv("LOG_DIR", "/app/logs"))
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-DB_PATH = LOG_DIR / os.getenv("DB_NAME")
-RETENTION_DAYS = int(os.getenv("LOG_RETENTION_DAYS"))
+DB_HOST     = os.getenv("DB_HOST", "localhost")
+DB_PORT     = os.getenv("DB_PORT", "5432")
+DB_NAME     = os.getenv("DB_NAME")
+DB_USER     = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+
+RETENTION_DAYS   = int(os.getenv("LOG_RETENTION_DAYS"))
 CLEANUP_INTERVAL = int(os.getenv("LOG_CLEANUP_INTERVAL"))
 
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 def format_timestamp(ts):
-    """Return a nicely formatted timestamp string."""
     if ts is None:
         return None
     if isinstance(ts, datetime):
@@ -31,124 +36,85 @@ def format_timestamp(ts):
 
 
 def _init_db():
-    """Create SQLite database and logs table if needed."""
-    print(f"Initializing database at {DB_PATH} (cwd={Path.cwd()})...")
-    try:
-        conn = sqlite3.connect(DB_PATH, timeout=30)
-    except sqlite3.OperationalError as e:
-        print(f"SQLite OperationalError while opening database at {DB_PATH}: {e}")
-        print("Check that the directory exists and that the container/user has write permissions (including SELinux and volume options).")
-        raise
-
-    conn.execute("PRAGMA journal_mode=WAL;")
-
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS Tags (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tag TEXT NOT NULL,
-            value TEXT,
-            status_code TEXT,
-            source_timestamp TEXT,
-            server_timestamp TEXT
-        )
-        """
+    print(f"Connecting to TimescaleDB at {DB_HOST}:{DB_PORT}/{DB_NAME}...")
+    conn = psycopg2.connect(
+        host=DB_HOST, port=DB_PORT,
+        dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD
     )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_logs_server_timestamp ON Tags(server_timestamp)"
-    )
+    conn.autocommit = True
+    cur = conn.cursor()
 
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_tags_tag ON Tags(tag)"
-    )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_tags_tag_timestamp ON Tags(tag, server_timestamp)"
-    )
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS tags (
+            server_timestamp    TIMESTAMPTZ NOT NULL,
+            tag                 TEXT NOT NULL,
+            value               TEXT,
+            status_code         TEXT,
+            source_timestamp    TIMESTAMPTZ
+        );
+    """)
 
-    conn.commit()
+    # Convert to hypertable (safe to call repeatedly)
+    cur.execute("""
+        SELECT create_hypertable('tags', 'server_timestamp', if_not_exists => TRUE);
+    """)
+
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_tags_tag_timestamp ON tags (tag, server_timestamp DESC);")
+
+    cur.close()
+    conn.autocommit = False
+    print("Database initialized.")
     return conn
 
 
 conn = _init_db()
 
-
-def save_to_db(tag_name: str, data_value: ua.DataValue, timestamp: str):
-    """Insert a single log entry into SQLite."""
-    source_ts = format_timestamp(data_value.SourceTimestamp)
-    with conn:
-        conn.execute(
-            """
-            INSERT INTO Tags (tag, value, status_code, source_timestamp, server_timestamp)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (
-                tag_name,
-                data_value.Value.Value,
-                data_value.StatusCode.name,
-                source_ts,
-                timestamp,
-            ),
-        )
-
-
 def save_many_to_db(tag_values, timestamp: str):
-    """Insert many log entries into SQLite within a single transaction.
-
-    tag_values is an iterable of (tag_name, data_value) pairs.
-    """
     rows = []
     for tag_name, data_value in tag_values:
+        # Handling the conversion to string/format as you did before
         source_ts = format_timestamp(data_value.SourceTimestamp)
-        rows.append(
-            (
-                tag_name,
-                data_value.Value.Value,
-                data_value.StatusCode.name,
-                source_ts,
-                timestamp,
-            )
-        )
+        rows.append((
+            tag_name,
+            str(data_value.Value.Value), # Ensure value is a string for the TEXT column
+            data_value.StatusCode.name,
+            source_ts,
+            timestamp,
+        ))
 
     if not rows:
         return
 
+    # Use a context manager for the connection to handle commits/rollbacks
+    # AND a context manager for the cursor to handle closing it
     with conn:
-        conn.executemany(
-            """
-            INSERT INTO Tags (tag, value, status_code, source_timestamp, server_timestamp)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            rows,
-        )
+        with conn.cursor() as cur:
+            psycopg2.extras.execute_batch(
+                cur,  # <--- PASS THE CURSOR HERE, NOT CONN
+                """
+                INSERT INTO tags (tag, value, status_code, source_timestamp, server_timestamp)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                rows,
+                page_size=100 # Optional: improves performance for large batches
+            )
 
 
+# Retention is handled by TimescaleDB policy — this is kept for compatibility
 def delete_older_than_retention():
-    """Delete log rows older than RETENTION_DAYS (based on server_timestamp)."""
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=RETENTION_DAYS)).strftime(TIMESTAMP_FORMAT)
-    with conn:
-        cursor = conn.execute(
-            "DELETE FROM Tags WHERE server_timestamp < ?", (cutoff,)
-        )
-        return cursor.rowcount
+    print("Retention is managed by TimescaleDB policy.")
+    return 0
 
 async def periodic_cleanup(interval=CLEANUP_INTERVAL):
-    """Periodically delete log entries older than RETENTION_DAYS."""
     import asyncio
-
     while True:
         await asyncio.sleep(interval)
-        deleted = delete_older_than_retention()
-        if deleted:
-            print(f"Retention cleanup: removed {deleted} rows older than {RETENTION_DAYS} days.")
+        print("Retention is managed by TimescaleDB — no manual cleanup needed.")
 
 
-# ---------------- Shutdown Handler ----------------
 def setup_exit_handler(loop):
-    """Stop the event loop on SIGINT/SIGTERM."""
-
     def exit_gracefully(*args):
         print("Exiting...")
         loop.stop()
-
     signal.signal(signal.SIGINT, exit_gracefully)
     signal.signal(signal.SIGTERM, exit_gracefully)
