@@ -24,8 +24,6 @@ internal static class Program
         Console.WriteLine("Database initialized successfully.");
         Env.Load();
 
-        DateTime lastCleanup = DateTime.MinValue;
-
         while (true)
         {
             int loggedSystemCount = 0;
@@ -83,13 +81,6 @@ internal static class Program
                 Console.WriteLine("Error occurred during metrics collection. Rolling back transaction." + ex.Message);
                 Database.RollbackTransaction();
                 throw;
-            }
-
-            // Run cleanup once a day
-            if ((DateTime.Now - lastCleanup).TotalHours >= 24)
-            {
-                Database.CleanupOldData();
-                lastCleanup = DateTime.Now;
             }
 
             Thread.Sleep(ConfigLoader.ReadInterval);

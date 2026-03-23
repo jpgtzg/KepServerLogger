@@ -37,11 +37,12 @@ namespace Logger
             using var cmd = _connection.CreateCommand();
             cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS events (
-                    hash        TEXT PRIMARY KEY NOT NULL,
+                    hash        TEXT NOT NULL,
                     timestamp   TIMESTAMPTZ NOT NULL,
                     event_name  TEXT NOT NULL,
                     source      TEXT NOT NULL,
-                    message     TEXT NOT NULL
+                    message     TEXT NOT NULL,
+                    PRIMARY KEY (hash, timestamp)
                 );
 
                 CREATE TABLE IF NOT EXISTS cpu_usage (
@@ -115,7 +116,7 @@ namespace Logger
 
             Console.WriteLine($"Table {tableName} configured with {retentionDays} days retention.");
         }
-        
+
         public static void OpenTransaction()
         {
             verifyConnection();
@@ -152,15 +153,16 @@ namespace Logger
             using var cmd = _connection!.CreateCommand();
             if (_transaction != null) cmd.Transaction = _transaction;
 
+            DateTime utcNow = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+
             cmd.CommandText = @"
                 INSERT INTO events (hash, timestamp, event_name, source, message)
                 VALUES (@hash, @timestamp, @event_name, @source, @message)
-                ON CONFLICT (hash) DO NOTHING;
+                ON CONFLICT (hash, timestamp) DO NOTHING; -- Updated to match new Primary Key
             ";
 
             cmd.Parameters.AddWithValue("hash", evt.Hash);
-            // Explicitly specify UTC kind to ensure Postgres treats it as TIMESTAMPTZ
-            cmd.Parameters.AddWithValue("timestamp", DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc));
+            cmd.Parameters.AddWithValue("timestamp", utcNow);
             cmd.Parameters.AddWithValue("event_name", evt.Name);
             cmd.Parameters.AddWithValue("source", evt.Source);
             cmd.Parameters.AddWithValue("message", evt.Message);
@@ -225,12 +227,6 @@ namespace Logger
             cmd.Parameters.AddWithValue("machine_name", serviceInfo.MachineName);
             cmd.Parameters.AddWithValue("process_ids", string.Join(",", serviceInfo.ProcessIds));
             cmd.ExecuteNonQuery();
-        }
-
-        // CleanupOldData is now a no-op — handled by TimescaleDB retention policy
-        public static void CleanupOldData()
-        {
-            Console.WriteLine("Maintenance: Data retention is handled automatically by TimescaleDB.");
         }
 
         public static void Close()
