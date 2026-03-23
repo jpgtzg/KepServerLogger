@@ -34,7 +34,6 @@ namespace Logger
             _connection = new NpgsqlConnection(_connectionString);
             _connection.Open();
 
-            // Schema creation
             using var cmd = _connection.CreateCommand();
             cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS events (
@@ -80,22 +79,43 @@ namespace Logger
                 CREATE INDEX IF NOT EXISTS idx_services_timestamp  ON services (timestamp DESC, name);
                 CREATE INDEX IF NOT EXISTS idx_events_timestamp    ON events (timestamp DESC);
             ";
+
             cmd.ExecuteNonQuery();
 
-            // Convert to hypertables (safe to call repeatedly — IF NOT EXISTS)
-            ConvertToHypertable("cpu_usage");
-            ConvertToHypertable("network_usage");
-            ConvertToHypertable("ram_usage");
-            ConvertToHypertable("services");
+            // Convert to hypertables AND add retention policies
+            SetupTable("cpu_usage");
+            SetupTable("network_usage");
+            SetupTable("ram_usage");
+            SetupTable("services");
+            SetupTable("events"); // Added events to retention as well 
         }
 
-        private static void ConvertToHypertable(string table)
+        private static void SetupTable(string tableName)
         {
             using var cmd = _connection!.CreateCommand();
-            cmd.CommandText = $"SELECT create_hypertable('{table}', 'timestamp', if_not_exists => TRUE);";
-            cmd.ExecuteNonQuery();
-        }
 
+            // 1. Convert to hypertable if not already one
+            cmd.CommandText = $"SELECT create_hypertable('{tableName}', 'timestamp', if_not_exists => TRUE);";
+            cmd.ExecuteNonQuery();
+
+            // 2. Add retention policy if it doesn't exist
+            // Uses a DO block to prevent errors if the job already exists
+            cmd.CommandText = $@"
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM timescaledb_information.jobs 
+                    WHERE hypertable_name = '{tableName}' 
+                    AND proc_name = 'policy_retention'
+                ) THEN
+                    PERFORM add_retention_policy('{tableName}', INTERVAL '{retentionDays} days');
+                END IF;
+            END $$;";
+            cmd.ExecuteNonQuery();
+
+            Console.WriteLine($"Table {tableName} configured with {retentionDays} days retention.");
+        }
+        
         public static void OpenTransaction()
         {
             verifyConnection();
