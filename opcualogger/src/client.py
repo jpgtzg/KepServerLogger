@@ -42,13 +42,11 @@ async def main():
         server_time = client.get_node("ns=0;i=2258")
         print(await server_time.read_value())
 
-        asyncio.create_task(periodic_cleanup())
-
         try:
             while True:
                 nodes = [client.get_node(tag) for tag in TAGS]
                 values = await client.read_attributes(nodes, ua.AttributeIds.Value)
-                timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+                timestamp = datetime.now(timezone.utc)
                 tag_values = [
                     (node.nodeid.to_string().removeprefix(PREFIX), value)
                     for node, value in zip(nodes, values)
