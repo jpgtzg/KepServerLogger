@@ -8,14 +8,17 @@ from typing import Iterable, Iterator, Sequence
 
 import psycopg
 
-
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 class ProjectDatabase:
     def __init__(self, *, retention_days: int | None = None) -> None:
         self._conn: psycopg.Connection | None = None
-        self._retention_days = retention_days if retention_days is not None else self._load_retention_days()
+        self._retention_days = (
+            retention_days
+            if retention_days is not None
+            else self._load_retention_days()
+        )
 
     def connect(self) -> None:
         host = os.getenv("DB_HOST", "localhost")
@@ -27,7 +30,9 @@ class ProjectDatabase:
         if not name or not user or not password:
             raise RuntimeError("DB_NAME, DB_USER, and DB_PASSWORD must be set.")
 
-        conn_string = f"host={host} port={port} dbname={name} user={user} password={password}"
+        conn_string = (
+            f"host={host} port={port} dbname={name} user={user} password={password}"
+        )
         self._conn = psycopg.connect(conn_string, autocommit=False)
 
     def close(self) -> None:
@@ -73,7 +78,9 @@ class ProjectDatabase:
         for table_name, timestamp_column in hypertables:
             self.ensure_hypertable_and_retention(table_name, timestamp_column)
 
-    def ensure_hypertable_and_retention(self, table_name: str, timestamp_column: str) -> None:
+    def ensure_hypertable_and_retention(
+        self, table_name: str, timestamp_column: str
+    ) -> None:
         self._validate_identifier(table_name)
         self._validate_identifier(timestamp_column)
         conn = self.connection
