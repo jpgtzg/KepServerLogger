@@ -5,7 +5,7 @@ Generic OPC UA client class, inherits from asyncua.Client and adds security and 
 from asyncua import Client, ua
 from asyncua.crypto.security_policies import SecurityPolicyBasic256Sha256
 from datetime import datetime, timezone
-from lib.constats import PREFIX
+from lib.constants import PREFIX
 from typing import Any
 
 
