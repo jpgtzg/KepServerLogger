@@ -1,13 +1,12 @@
 from datetime import datetime
 
 PREFIX = "ns=2;s="
-TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
-def format_timestamp(ts):
+def format_timestamp(ts, timestamp_format: str):
     if ts is None:
         return None
     if isinstance(ts, datetime):
-        return ts.strftime(TIMESTAMP_FORMAT)
+        return ts.strftime(timestamp_format)
     try:
         return ts.isoformat()
     except AttributeError:
