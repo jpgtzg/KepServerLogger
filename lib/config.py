@@ -20,7 +20,6 @@ class Config:
     kepserver_event_log_url: str
 
     csv_tag_column_name: str
-    csv_tag_prefix: str
     csv_tag_separator: str
 
     log_retention_days: int
@@ -50,7 +49,6 @@ class Config:
             kepserver_password=os.getenv("KEPSERVER_PASSWORD"),
             kepserver_event_log_url=os.getenv("KEPSERVER_EVENT_LOG_URL"),
             csv_tag_column_name=os.getenv("CSV_TAG_COLUMN_NAME"),
-            csv_tag_prefix=os.getenv("CSV_TAG_PREFIX"),
             csv_tag_separator=os.getenv("CSV_TAG_SEPARATOR"),
             log_retention_days=os.getenv("LOG_RETENTION_DAYS"),
             log_cleanup_interval=os.getenv("LOG_CLEANUP_INTERVAL"),

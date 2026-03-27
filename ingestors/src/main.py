@@ -18,11 +18,11 @@ async def main():
     print(f"Connecting to {config.kepserver_server_url}...")
 
     tags = extract_tags(
-        config.csv_tag_prefix,
-        config.csv_tag_separator,
-        config.csv_exclude_tags,
-        config.csv_tag_column_name,
-        config.csv_filename,
+        use_prefix=True,
+        separator=config.csv_tag_separator,
+        exclude_tags=config.csv_exclude_tags,
+        tag_column=config.csv_tag_column_name,
+        filename=config.csv_filename,
     )
 
     client = OPCUAClient(
