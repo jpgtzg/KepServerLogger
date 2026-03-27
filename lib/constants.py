@@ -1,7 +1,5 @@
 from datetime import datetime
 
-PREFIX = "ns=2;s="
-
 def format_timestamp(ts, timestamp_format: str):
     if ts is None:
         return None
