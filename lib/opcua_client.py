@@ -5,7 +5,7 @@ Generic OPC UA client class, inherits from asyncua.Client and adds security and 
 from asyncua import Client, ua
 from asyncua.crypto.security_policies import SecurityPolicyBasic256Sha256
 from datetime import datetime, timezone
-from lib.constants import PREFIX
+from lib.tag_extractor import TAG_PREFIX
 from typing import Any
 
 
@@ -42,7 +42,7 @@ class OPCUAClient(Client):
         timestamp = datetime.now(timezone.utc)
 
         tag_values = [
-            (node.nodeid.to_string().removeprefix(PREFIX), value)
+            (node.nodeid.to_string().removeprefix(TAG_PREFIX), value)
             for node, value in zip(nodes, values)
         ]
 
