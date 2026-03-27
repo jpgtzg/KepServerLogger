@@ -3,12 +3,11 @@ Generates a .json tag list from a .csv file
 """
 
 import pandas as pd
-from typing import Optional
 
-PREFIX = "ns=2;s="
+TAG_PREFIX = "ns=2;s="
 
 def extract_tags(
-    prefix: Optional[str] = None,
+    use_prefix: bool = True,
     separator: str = ";",
     exclude_tags: list[str] = [],
     tag_column: str = "",
@@ -18,7 +17,7 @@ def extract_tags(
     Extracts tags from a .csv file and returns a list of tags.
 
     Args:
-        prefix: The prefix of the tags in the OPC UA namespace, will be prepended to the tags. If not provided, the tags will be returned without the prefix.
+        use_prefix: Whether to use the prefix of the tags in the OPC UA namespace, will be prepended to the tags. If not provided, the tags will be returned without the prefix.
         separator: The separator to use to split the tags in the .csv file.
         exclude_tags: A list of strings to exclude from the tags. The tags will be excluded if they contain any of the strings in the list.
         tag_column: The column name to extract the tags from in the .csv file.
@@ -30,14 +29,11 @@ def extract_tags(
 
     print(f"Reading tags from {filename}...")
 
-    if prefix:
-        prefix = f"ns=2;s={prefix}."
-
     df = pd.read_csv(filename, sep=separator)
     tags = df[tag_column].dropna().tolist()
 
-    if prefix:
-        tags_json = [prefix + tag.strip().removesuffix(".BAL") for tag in tags]
+    if use_prefix:
+        tags_json = [TAG_PREFIX + tag.strip().removesuffix(".BAL") for tag in tags]
     else:
         tags_json = [tag.strip().removesuffix(".BAL") for tag in tags]
 
