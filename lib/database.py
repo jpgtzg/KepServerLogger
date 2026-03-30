@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import re
 from contextlib import contextmanager
-from datetime import datetime, timezone
 from typing import Iterable, Iterator, LiteralString, Sequence
 
 import psycopg
@@ -124,10 +123,6 @@ class ProjectDatabase:
     ) -> None:
         with self.connection.cursor() as cur:
             cur.executemany(query, rows)
-
-    @staticmethod
-    def utcnow() -> datetime:
-        return datetime.now(timezone.utc)
 
     @staticmethod
     def _validate_identifier(identifier: str) -> None:

@@ -2,31 +2,30 @@
 This module contains the models for the data that is ingested into the database.
 """
 
-from __future__ import annotations
 from pydantic import BaseModel
-
+from datetime import datetime
 
 class Tag(BaseModel):
     tag: str
     value: str
     status_code: str
-    source_timestamp: str
-    server_timestamp: str
+    source_timestamp: datetime
+    server_timestamp: datetime
 
 
 class CPUUsage(BaseModel):
-    timestamp: str
+    timestamp: datetime
     usage: float
 
 
 class RAMUsage(BaseModel):
-    timestamp: str
+    timestamp: datetime
     total_kb: int
     free_kb: int
 
 
 class NetworkUsage(BaseModel):
-    timestamp: str
+    timestamp: datetime
     interface: str
     operational_status: str
     network_interface_type: str
@@ -35,7 +34,7 @@ class NetworkUsage(BaseModel):
 
 
 class ServiceInfo(BaseModel):
-    timestamp: str
+    timestamp: datetime
     name: str
     status: str
     service_type: str
@@ -44,7 +43,7 @@ class ServiceInfo(BaseModel):
 
 
 class KepEvent(BaseModel):
-    timestamp: str
+    timestamp: datetime
     name: str
     source: str
     message: str

@@ -18,13 +18,12 @@ import asyncio
 from db import TagsDatabase
 
 from ...lib.config import Config, MetricType
-from ...lib.constants import format_timestamp
 from ...lib.opcua_client import OPCUAClient
 from ...lib.tag_extractor import extract_tags
 
 
 async def main():
-    config = Config.load()
+    config = Config()
 
     print(f"Connecting to {config.kepserver_server_url}...")
 
@@ -56,7 +55,7 @@ async def main():
                     tag_values, timestamp = await client.read_batch(tags_to_log)
 
                     print(
-                        f"Logged {len(tag_values)} values for {len(tags_to_log)} tags at {format_timestamp(timestamp, config.timestamp_format)}"
+                        f"Logged {len(tag_values)} values for {len(tags_to_log)} tags at {timestamp.strftime(config.timestamp_format)}"
                     )
                     rows = db.process_tag_values(tag_values, timestamp)
                     db.save_many(rows)
