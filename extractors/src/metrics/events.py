@@ -1,23 +1,13 @@
 from __future__ import annotations
 
 import hashlib
-import os
 import requests
 
 from lib.models import KepEvent
+from lib.config import config
 
-
-def get_events() -> list[KepEvent]:
-    username = os.getenv("KEPSERVER_USERNAME")
-    password = os.getenv("KEPSERVER_PASSWORD")
-    url = os.getenv("EVENT_LOG_URL")
-
-    if not username or not password or not url:
-        raise RuntimeError(
-            "Environment variables KEPSERVER_USERNAME, KEPSERVER_PASSWORD, and EVENT_LOG_URL must be set."
-        )
-
-    response = requests.get(url, auth=(username, password), timeout=30)
+def get_kepserver_events() -> list[KepEvent]:
+    response = requests.get(config.kepserver_event_log_url, auth=(config.kepserver_username, config.kepserver_password), timeout=30)
     response.raise_for_status()
     payload = response.json()
     if not isinstance(payload, list):

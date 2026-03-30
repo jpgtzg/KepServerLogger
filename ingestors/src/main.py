@@ -17,14 +17,12 @@ import asyncio
 
 from db import TagsDatabase
 
-from lib.config import Config, MetricType
+from lib.config import config, MetricType
 from lib.opcua_client import OPCUAClient
 from lib.tag_extractor import extract_tags
 
 
 async def main():
-    config = Config()
-
     print(f"Connecting to {config.kepserver_server_url}...")
 
     tags_to_log = extract_tags(

@@ -4,12 +4,10 @@ Logger for ingesting data into the database.
 Receives data from the OPC UA server and ingests it into the database.
 """
 
-from lib.config import Config
+from lib.config import config
 from lib.database import ProjectDatabase
 from lib.models import Tag, CPUUsage, NetworkUsage, RAMUsage, ServiceInfo, KepEvent
 from datetime import datetime
-
-config = Config()
 
 
 class TagsDatabase(ProjectDatabase):
@@ -62,7 +60,6 @@ class TagsDatabase(ProjectDatabase):
                 ],
             )
 
-
     def process_tag_values(self, tag_values, timestamp: datetime) -> list[Tag]:
         rows = []
         for tag_name, data_value in tag_values:
@@ -71,7 +68,7 @@ class TagsDatabase(ProjectDatabase):
                     tag=tag_name,
                     value=str(data_value.Value.Value),
                     status_code=data_value.StatusCode.name,
-                    source_timestamp=data_value.SourceTimestamp, 
+                    source_timestamp=data_value.SourceTimestamp,
                     server_timestamp=timestamp,
                 )
             )
