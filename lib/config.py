@@ -1,13 +1,17 @@
-import os
-from dataclasses import dataclass
-
-from dotenv import load_dotenv
-
-load_dotenv()
+from enum import Enum
+from pydantic_settings import BaseSettings
 
 
-@dataclass(frozen=True)
-class Config:
+class MetricType(str, Enum):
+    TAGS = "tags"
+    CPU = "cpu"
+    RAM = "ram"
+    NETWORK = "network"
+    SERVICES = "services"
+    KEPSERVER_EVENTS = "kepserverevents"
+
+
+class Config(BaseSettings):
     client_username: str
     client_password: str
     app_uri: str
@@ -19,6 +23,7 @@ class Config:
     kepserver_password: str
     kepserver_event_log_url: str
 
+    logging_metrics: list[MetricType]
     csv_tag_column_name: str
     csv_tag_separator: str
 
@@ -36,28 +41,7 @@ class Config:
 
     timestamp_format: str
 
-    @classmethod
-    def load(cls) -> "Config":
-        return cls(
-            client_username=os.getenv("CLIENT_USERNAME"),
-            client_password=os.getenv("CLIENT_PASSWORD"),
-            app_uri=os.getenv("APP_URI"),
-            host_name=os.getenv("HOST_NAME"),
-            application_name=os.getenv("APPLICATION_NAME"),
-            kepserver_server_url=os.getenv("KEPSERVER_SERVER_URL"),
-            kepserver_username=os.getenv("KEPSERVER_USERNAME"),
-            kepserver_password=os.getenv("KEPSERVER_PASSWORD"),
-            kepserver_event_log_url=os.getenv("KEPSERVER_EVENT_LOG_URL"),
-            csv_tag_column_name=os.getenv("CSV_TAG_COLUMN_NAME"),
-            csv_tag_separator=os.getenv("CSV_TAG_SEPARATOR"),
-            log_retention_days=os.getenv("LOG_RETENTION_DAYS"),
-            log_cleanup_interval=os.getenv("LOG_CLEANUP_INTERVAL"),
-            db_host=os.getenv("DB_HOST"),
-            db_port=os.getenv("DB_PORT"),
-            db_name=os.getenv("DB_NAME"),
-            db_user=os.getenv("DB_USER"),
-            db_password=os.getenv("DB_PASSWORD"),
-            cert_path=os.getenv("CERT_PATH"),
-            key_path=os.getenv("KEY_PATH"),
-            timestamp_format=os.getenv("TIMESTAMP_FORMAT"),
-        )
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+    }
