@@ -4,17 +4,11 @@ Logger for ingesting data into the database.
 Receives data from the OPC UA server and ingests it into the database.
 """
 
-import os
-import signal
+from ...lib.config import Config
+from ...lib.database import ProjectDatabase
+from ...lib.models import Tag, CPUUsage, NetworkUsage, RAMUsage, ServiceInfo, KepEvent
 
-from dotenv import load_dotenv
-from lib.config import Config
-from lib.constants import format_timestamp
-from lib.database import ProjectDatabase
-
-load_dotenv()
-
-config = Config.load()
+config = Config()
 
 
 class TagsDatabase(ProjectDatabase):
@@ -46,7 +40,7 @@ class TagsDatabase(ProjectDatabase):
             f"Database initialized with {config.log_retention_days} days retention policy."
         )
 
-    def save_many(self, rows: list[tuple[str, str, str, str | None, str]]) -> None:
+    def save_many(self, rows: list[Tag]) -> None:
         if not rows:
             return
         with self.transaction():
@@ -55,40 +49,138 @@ class TagsDatabase(ProjectDatabase):
                 INSERT INTO tags (tag, value, status_code, source_timestamp, server_timestamp)
                 VALUES (%s, %s, %s, %s, %s)
                 """,
-                rows,
+                [
+                    (
+                        r.tag,
+                        r.value,
+                        r.status_code,
+                        r.source_timestamp,
+                        r.server_timestamp,
+                    )
+                    for r in rows
+                ],
             )
 
 
-db = TagsDatabase()
-db.initialize()
+class Database(ProjectDatabase):
+    def initialize(self) -> None:
+        self.connect()
+        self.initialize_schema(
+            create_statements=[
+                """
+                CREATE TABLE IF NOT EXISTS events (
+                    hash        TEXT NOT NULL,
+                    timestamp   TIMESTAMPTZ NOT NULL,
+                    event_name  TEXT NOT NULL,
+                    source      TEXT NOT NULL,
+                    message     TEXT NOT NULL,
+                    PRIMARY KEY (hash, timestamp)
+                );
 
+                CREATE TABLE IF NOT EXISTS cpu_usage (
+                    timestamp   TIMESTAMPTZ NOT NULL,
+                    usage       REAL NOT NULL
+                );
 
-def save_many_to_db(tag_values, timestamp: str):
-    rows = []
-    for tag_name, data_value in tag_values:
-        source_ts = format_timestamp(
-            data_value.SourceTimestamp, config.timestamp_format
+                CREATE TABLE IF NOT EXISTS network_usage (
+                    timestamp               TIMESTAMPTZ NOT NULL,
+                    interface               TEXT NOT NULL,
+                    operational_status      TEXT NOT NULL,
+                    network_interface_type  TEXT NOT NULL,
+                    kb_bytes_sent           REAL NOT NULL,
+                    kb_bytes_received       REAL NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS ram_usage (
+                    timestamp   TIMESTAMPTZ NOT NULL,
+                    total_kb    BIGINT NOT NULL,
+                    free_kb     BIGINT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS services (
+                    timestamp       TIMESTAMPTZ NOT NULL,
+                    name            TEXT NOT NULL,
+                    status          TEXT NOT NULL,
+                    service_type    TEXT NOT NULL,
+                    machine_name    TEXT NOT NULL,
+                    process_ids     TEXT NOT NULL
+                );
+                """,
+            ],
+            indexes=[
+                "CREATE INDEX IF NOT EXISTS idx_cpu_timestamp ON cpu_usage (timestamp DESC);",
+                "CREATE INDEX IF NOT EXISTS idx_network_timestamp ON network_usage (timestamp DESC, interface);",
+                "CREATE INDEX IF NOT EXISTS idx_ram_timestamp ON ram_usage (timestamp DESC);",
+                "CREATE INDEX IF NOT EXISTS idx_services_timestamp ON services (timestamp DESC, name);",
+                "CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events (timestamp DESC);",
+            ],
+            hypertables=[
+                ("cpu_usage", "timestamp"),
+                ("network_usage", "timestamp"),
+                ("ram_usage", "timestamp"),
+                ("services", "timestamp"),
+                ("events", "timestamp"),
+            ],
         )
-        rows.append(
+
+    def insert_event(self, event: KepEvent) -> None:
+        self.execute(
+            """
+            INSERT INTO events (hash, timestamp, event_name, source, message)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (hash, timestamp) DO NOTHING;
+            """,
             (
-                tag_name,
-                str(data_value.Value.Value),
-                data_value.StatusCode.name,
-                source_ts,
-                timestamp,
-            )
+                event.hash,
+                self.utcnow(),
+                event.name,
+                event.source,
+                event.message,
+            ),
         )
 
-    if not rows:
-        return
+    def insert_cpu_usage(self, cpu_usage: CPUUsage) -> None:
+        self.execute(
+            "INSERT INTO cpu_usage (timestamp, usage) VALUES (%s, %s);",
+            (cpu_usage.timestamp, cpu_usage.usage),
+        )
 
-    db.save_many(rows)
+    def insert_ram_usage(self, ram_usage: RAMUsage) -> None:
+        self.execute(
+            "INSERT INTO ram_usage (timestamp, total_kb, free_kb) VALUES (%s, %s, %s);",
+            (ram_usage.timestamp, ram_usage.total_kb, ram_usage.free_kb),
+        )
 
+    def insert_network_metrics(self, network_usage: NetworkUsage) -> None:
+        self.execute(
+            """
+            INSERT INTO network_usage (
+                timestamp, interface, operational_status, network_interface_type, kb_bytes_sent, kb_bytes_received
+            )
+            VALUES (%s, %s, %s, %s, %s, %s);
+            """,
+            (
+                network_usage.timestamp,
+                network_usage.interface,
+                network_usage.operational_status,
+                network_usage.network_interface_type,
+                network_usage.kb_bytes_sent,
+                network_usage.kb_bytes_received,
+            ),
+        )
 
-def setup_exit_handler(loop):
-    def exit_gracefully(*args):
-        print("Exiting...")
-        loop.stop()
-
-    signal.signal(signal.SIGINT, exit_gracefully)
-    signal.signal(signal.SIGTERM, exit_gracefully)
+    def insert_service_info(self, service_info: ServiceInfo) -> None:
+        self.execute(
+            """
+            INSERT INTO services (timestamp, name, status, service_type, machine_name, process_ids)
+            VALUES (%s, %s, %s, %s, %s, %s);
+            """,
+            (
+                service_info.timestamp,
+                service_info.name,
+                service_info.status,
+                service_info.service_type,
+                service_info.machine_name,
+                ",".join(str(pid) for pid in service_info.process_ids),
+            ),
+        )
