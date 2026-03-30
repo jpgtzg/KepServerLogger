@@ -1,10 +1,9 @@
-from __future__ import annotations
-
 import platform
 
-import win32service
+import win32service # Note: this is a Windows-only module
 
-from models import ServiceInfo
+from lib.models import ServiceInfo
+from lib.utils import utcnow
 
 
 SERVICE_STATE_MAP = {
@@ -52,6 +51,7 @@ def get_service_info(service_name: str) -> ServiceInfo:
             process_ids = [process_id] if process_id else []
 
             return ServiceInfo(
+                timestamp=utcnow(),
                 name=service_name,
                 status=SERVICE_STATE_MAP.get(current_state, str(current_state)),
                 service_type=_service_type_to_string(service_type),
