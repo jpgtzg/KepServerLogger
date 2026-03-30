@@ -2,14 +2,25 @@
 Ingestor for retrieving data from the OPC UA server and ingesting it into the database.
 
 Reads the tags from a .csv file and ingests the data into the database.
+
+## This ingestor will log the following metrics:
+- Tags
+
+- CPU Usage
+- RAM Usage
+- Network Usage
+- Services Usage
+- KepServer Events
 """
 
-from lib.constants import format_timestamp
-from lib.tag_extractor import extract_tags
-from lib.opcua_client import OPCUAClient
-from lib.config import Config
-from db import TagsDatabase
 import asyncio
+
+from db import TagsDatabase
+
+from ...lib.config import Config, MetricType
+from ...lib.constants import format_timestamp
+from ...lib.opcua_client import OPCUAClient
+from ...lib.tag_extractor import extract_tags
 
 
 async def main():
@@ -17,7 +28,7 @@ async def main():
 
     print(f"Connecting to {config.kepserver_server_url}...")
 
-    tags = extract_tags(
+    tags_to_log = extract_tags(
         use_prefix=True,
         separator=config.csv_tag_separator,
         exclude_tags=config.csv_exclude_tags,
@@ -41,12 +52,31 @@ async def main():
     async with client:
         try:
             while True:
-                tag_values, timestamp = await client.read_batch(tags)
+                if MetricType.TAGS in config.logging_metrics:
+                    tag_values, timestamp = await client.read_batch(tags_to_log)
 
-                print(
-                    f"Logged {len(tag_values)} values for {len(tags)} tags at {format_timestamp(timestamp, config.timestamp_format)}"
-                )
-                db.save_many(tag_values, timestamp)
+                    print(
+                        f"Logged {len(tag_values)} values for {len(tags_to_log)} tags at {format_timestamp(timestamp, config.timestamp_format)}"
+                    )
+                    rows = db.process_tag_values(tag_values, timestamp)
+                    db.save_many(rows)
+                    print(f"Saved {len(rows)} tags to the database")
+
+                if MetricType.CPU in config.logging_metrics:
+                    # TODO: IMPLEMENT
+                    pass
+                if MetricType.RAM in config.logging_metrics:
+                    # TODO: IMPLEMENT
+                    pass
+                if MetricType.NETWORK in config.logging_metrics:
+                    # TODO: IMPLEMENT
+                    pass
+                if MetricType.SERVICES in config.logging_metrics:
+                    # TODO: IMPLEMENT
+                    pass
+                if MetricType.KEPSERVER_EVENTS in config.logging_metrics:
+                    # TODO: IMPLEMENT
+                    pass
 
                 await asyncio.sleep(1)
 
