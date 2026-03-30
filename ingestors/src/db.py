@@ -4,9 +4,9 @@ Logger for ingesting data into the database.
 Receives data from the OPC UA server and ingests it into the database.
 """
 
-from ...lib.config import Config
-from ...lib.database import ProjectDatabase
-from ...lib.models import Tag, CPUUsage, NetworkUsage, RAMUsage, ServiceInfo, KepEvent
+from lib.config import Config
+from lib.database import ProjectDatabase
+from lib.models import Tag, CPUUsage, NetworkUsage, RAMUsage, ServiceInfo, KepEvent
 from datetime import datetime
 
 config = Config()
