@@ -35,6 +35,7 @@ class NetworkUsage(BaseModel):
 
 
 class ServiceInfo(BaseModel):
+    timestamp: str
     name: str
     status: str
     service_type: str
