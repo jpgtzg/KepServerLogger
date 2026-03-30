@@ -4,9 +4,10 @@ import os
 import re
 from contextlib import contextmanager
 from datetime import datetime, timezone
-from typing import Iterable, Iterator, Sequence
+from typing import Iterable, Iterator, LiteralString, Sequence
 
 import psycopg
+from psycopg.sql import SQL, Identifier, Literal
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
@@ -63,8 +64,8 @@ class ProjectDatabase:
     def initialize_schema(
         self,
         *,
-        create_statements: Sequence[str],
-        indexes: Sequence[str] = (),
+        create_statements: Sequence[LiteralString],
+        indexes: Sequence[LiteralString] = (),
         hypertables: Sequence[tuple[str, str]] = (),
     ) -> None:
         conn = self.connection
@@ -87,29 +88,40 @@ class ProjectDatabase:
 
         with conn.cursor() as cur:
             cur.execute(
-                f"SELECT create_hypertable('{table_name}', '{timestamp_column}', if_not_exists => TRUE);"
+                SQL("SELECT create_hypertable({}, {}, if_not_exists => TRUE);").format(
+                    Identifier(table_name),
+                    Identifier(timestamp_column),
+                )
             )
             cur.execute(
-                f"""
-                DO $$
-                BEGIN
-                    IF NOT EXISTS (
-                        SELECT 1 FROM timescaledb_information.jobs
-                        WHERE hypertable_name = '{table_name}'
-                          AND proc_name = 'policy_retention'
-                    ) THEN
-                        PERFORM add_retention_policy('{table_name}', INTERVAL '{self._retention_days} days');
-                    END IF;
-                END $$;
-                """
+                SQL("""
+                    DO $$
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1 FROM timescaledb_information.jobs
+                            WHERE hypertable_name = {}
+                              AND proc_name = 'policy_retention'
+                        ) THEN
+                            PERFORM add_retention_policy({}, INTERVAL '{} days');
+                        END IF;
+                    END $$;
+                """).format(
+                    Literal(table_name),
+                    Literal(table_name),
+                    Literal(self._retention_days),
+                )
             )
         conn.commit()
 
-    def execute(self, query: str, params: Sequence[object] | None = None) -> None:
+    def execute(
+        self, query: LiteralString, params: Sequence[object] | None = None
+    ) -> None:
         with self.connection.cursor() as cur:
             cur.execute(query, params)
 
-    def execute_many(self, query: str, rows: Iterable[Sequence[object]]) -> None:
+    def execute_many(
+        self, query: LiteralString, rows: Iterable[Sequence[object]]
+    ) -> None:
         with self.connection.cursor() as cur:
             cur.executemany(query, rows)
 
