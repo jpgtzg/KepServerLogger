@@ -5,7 +5,8 @@ This module contains the models for the data that is ingested into the database.
 from pydantic import BaseModel
 from datetime import datetime
 
-class Tag(BaseModel):
+
+class PLCData(BaseModel):
     tag: str
     value: str
     status_code: str
