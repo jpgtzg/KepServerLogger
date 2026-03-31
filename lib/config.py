@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings
 
 
 class MetricType(str, Enum):
-    TAGS = "tags"
+    PLC_TAGS = "plc_tags"
     CPU = "cpu"
     RAM = "ram"
     NETWORK = "network"
@@ -14,6 +14,7 @@ class MetricType(str, Enum):
 class Config(BaseSettings):
     client_username: str
     client_password: str
+
     app_uri: str
     host_name: str
     application_name: str
@@ -23,12 +24,9 @@ class Config(BaseSettings):
     kepserver_password: str
     kepserver_event_log_url: str
 
-    logging_metrics: list[MetricType]
     csv_tag_column_name: str
+    csv_tag_opcua_path: str
     csv_tag_separator: str
-
-    log_retention_days: int
-    log_cleanup_interval: int
 
     db_host: str
     db_port: int
@@ -38,8 +36,6 @@ class Config(BaseSettings):
 
     cert_path: str
     key_path: str
-
-    timestamp_format: str
 
     model_config = {
         "env_file": ".env",
