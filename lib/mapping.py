@@ -1,5 +1,7 @@
 """
-Maps the fields of the models to the OPC UA nodeids/tag names
+Maps the fields of the models to the OPC UA tag names.
+
+Note: Prefixes are not included in the mapping, they are defined in the settings.json file
 """
 
 from typing import Literal
