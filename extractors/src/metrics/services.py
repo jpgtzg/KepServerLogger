@@ -1,6 +1,6 @@
 import platform
 
-import win32service # Note: this is a Windows-only module
+import win32service  # Note: this is a Windows-only module
 
 from lib.models import ServiceInfo
 from lib.utils import utcnow
