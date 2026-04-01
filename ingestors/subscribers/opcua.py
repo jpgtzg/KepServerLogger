@@ -7,7 +7,7 @@ import json
 from lib.config import settings
 from lib.opcua_client import OPCUAClient
 from lib.models import CPUUsage, RAMUsage, NetworkUsage, ServiceInfo, KepEvent
-from lib.mapping import CPU_FIELDS, RAM_FIELDS, NETWORK_FIELDS, SERVICE_FIELDS, EVENT_FIELDS
+from lib.mapping import CPU_FIELDS, RAM_FIELDS, NETWORK_FIELDS, SERVICE_FIELDS
 
 
 async def subscribe_cpu_usage(client: OPCUAClient) -> CPUUsage:
