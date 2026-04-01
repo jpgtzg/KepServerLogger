@@ -6,27 +6,25 @@ from pydantic import BaseModel
 from datetime import datetime
 
 
-class PLCData(BaseModel):
-    tag: str
-    value: str
-    status_code: str
-    source_timestamp: datetime
-    server_timestamp: datetime
-
-
-class CPUUsage(BaseModel):
+class OPCUAModel(BaseModel):
     timestamp: datetime
+
+    def to_opcua(self, timestamp_format: str) -> dict:
+        data = self.model_dump()
+        data["timestamp"] = self.timestamp.strftime(timestamp_format)
+        return data
+
+
+class CPUUsage(OPCUAModel):
     usage: float
 
 
-class RAMUsage(BaseModel):
-    timestamp: datetime
+class RAMUsage(OPCUAModel):
     total_kb: int
     free_kb: int
 
 
-class NetworkUsage(BaseModel):
-    timestamp: datetime
+class NetworkUsage(OPCUAModel):
     interface: str
     operational_status: str
     network_interface_type: str
@@ -34,17 +32,20 @@ class NetworkUsage(BaseModel):
     kb_bytes_received: float
 
 
-class ServiceInfo(BaseModel):
-    timestamp: datetime
+class ServiceInfo(OPCUAModel):
     name: str
     status: str
     service_type: str
     machine_name: str
     process_ids: list[int]
 
+    def to_opcua(self, timestamp_format: str) -> dict:
+        data = super().to_opcua(timestamp_format)
+        data["process_ids"] = ",".join(str(pid) for pid in self.process_ids)
+        return data
 
-class KepEvent(BaseModel):
-    timestamp: datetime
+
+class KepEvent(OPCUAModel):
     name: str
     source: str
     message: str
