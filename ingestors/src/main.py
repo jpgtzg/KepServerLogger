@@ -20,7 +20,7 @@ from db import TagsDatabase
 from db import MetricsDatabase
 from lib.config import config, settings, MetricType
 from lib.opcua_client import OPCUAClient
-from lib.tag_extractor import extract_tags
+from lib.tag_extractor import extract_tags_from_csv
 from lib.verify import print_required_nodes
 from subscribers.opcua import (
     subscribe_cpu_usage,
@@ -34,10 +34,10 @@ from subscribers.opcua import (
 async def main():
     print(f"Connecting to {config.kepserver_server_url}...")
 
-    tags_to_log = extract_tags(
-        use_prefix=True,
+    tags_to_log = extract_tags_from_csv(
+        prefix=settings.metrics_config.plc_tags.prefix,
         separator=config.csv_tag_separator,
-        exclude_tags=config.csv_exclude_tags,
+        exclude_tags=["_Write", "_WRITE"],
         tag_column=config.csv_tag_column_name,
         filename=config.csv_filename,
     )

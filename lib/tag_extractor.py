@@ -5,7 +5,7 @@ Generates a .json tag list from a .csv file
 import pandas as pd
 
 
-def extract_tags(
+def extract_tags_from_csv(
     prefix: str = None,
     separator: str = ";",
     exclude_tags: list[str] = [],
