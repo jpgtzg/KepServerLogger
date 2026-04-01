@@ -43,6 +43,8 @@ async def main():
         password=config.kepserver_password,
     )
 
+    await client.setup()
+
     db = TagsDatabase(retention_days=config.log_retention_days)
     db.initialize()
 
