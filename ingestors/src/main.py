@@ -17,11 +17,18 @@ import asyncio
 import time
 
 from db import TagsDatabase
-
-from lib.config import config, MetricType
+from db import MetricsDatabase
+from lib.config import config, settings, MetricType
 from lib.opcua_client import OPCUAClient
 from lib.tag_extractor import extract_tags
 from lib.verify import print_required_nodes
+from subscribers.opcua import (
+    subscribe_cpu_usage,
+    subscribe_ram_usage,
+    subscribe_network_usage,
+    subscribe_service_info,
+    subscribe_kep_events,
+)
 
 
 async def main():
@@ -47,8 +54,11 @@ async def main():
 
     await client.setup()
 
-    db = TagsDatabase(retention_days=config.log_retention_days)
-    db.initialize()
+    tags_db = TagsDatabase(retention_days=settings.log_retention_days)
+    tags_db.initialize()
+
+    metrics_db = MetricsDatabase(retention_days=settings.log_retention_days)
+    metrics_db.initialize()
 
     print_required_nodes()
     time.sleep(5)
@@ -56,31 +66,43 @@ async def main():
     async with client:
         try:
             while True:
-                if MetricType.TAGS in config.logging_metrics:
+                if MetricType.PLC_TAGS in settings.metrics_to_log:
                     tag_values, timestamp = await client.read_batch(tags_to_log)
 
                     print(
-                        f"Logged {len(tag_values)} values for {len(tags_to_log)} tags at {timestamp.strftime(config.timestamp_format)}"
+                        f"Logged {len(tag_values)} values for {len(tags_to_log)} tags at {timestamp.strftime(settings.timestamp_format)}"
                     )
-                    rows = db.process_tag_values(tag_values, timestamp)
-                    db.save_many(rows)
+                    rows = tags_db.process_tag_values(tag_values, timestamp)
+                    tags_db.save_many(rows)
                     print(f"Saved {len(rows)} tags to the database")
 
-                if MetricType.CPU in config.logging_metrics:
-                    # TODO: IMPLEMENT
-                    pass
-                if MetricType.RAM in config.logging_metrics:
-                    # TODO: IMPLEMENT
-                    pass
-                if MetricType.NETWORK in config.logging_metrics:
-                    # TODO: IMPLEMENT
-                    pass
-                if MetricType.SERVICES in config.logging_metrics:
-                    # TODO: IMPLEMENT
-                    pass
-                if MetricType.KEPSERVER_EVENTS in config.logging_metrics:
-                    # TODO: IMPLEMENT
-                    pass
+                if MetricType.CPU in settings.metrics_to_log:
+                    cpu_usage = await subscribe_cpu_usage(client)
+                    metrics_db.insert_cpu_usage(cpu_usage)
+                if MetricType.RAM in settings.metrics_to_log:
+                    ram_usage = await subscribe_ram_usage(client)
+                    metrics_db.insert_ram_usage(ram_usage)
+                if MetricType.NETWORK in settings.metrics_to_log:
+                    """
+                    TODO: 
+                    NetworkConfig only has prefix — there's no interfaces list. 
+                    You mentioned earlier you log all interfaces dynamically, 
+                    so subscribe_network_usage needs to either get interfaces 
+                    from the live system or you need to add interfaces to 
+                    NetworkConfig in settings.json. Worth deciding which approach 
+                    you want.
+                    """
+                    network_usage = await subscribe_network_usage(client)
+                    for network in network_usage:
+                        metrics_db.insert_network_usage(network)
+                if MetricType.SERVICES in settings.metrics_to_log:
+                    service_info = await subscribe_service_info(client)
+                    for service in service_info:
+                        metrics_db.insert_service_info(service)
+                if MetricType.KEPSERVER_EVENTS in settings.metrics_to_log:
+                    kep_events = await subscribe_kep_events(client)
+                    for event in kep_events:
+                        metrics_db.insert_event(event)
 
                 await asyncio.sleep(1)
 

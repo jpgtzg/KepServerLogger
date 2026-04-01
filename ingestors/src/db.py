@@ -75,7 +75,7 @@ class TagsDatabase(ProjectDatabase):
         return rows
 
 
-class Database(ProjectDatabase):
+class MetricsDatabase(ProjectDatabase):
     def initialize(self) -> None:
         self.connect()
         self.initialize_schema(
