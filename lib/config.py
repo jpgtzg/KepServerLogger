@@ -82,6 +82,7 @@ class Config(BaseSettings):
     csv_tag_column_name: str
     csv_tag_opcua_path: str
     csv_tag_separator: str
+    csv_filename: str
 
     db_host: str
     db_port: int
