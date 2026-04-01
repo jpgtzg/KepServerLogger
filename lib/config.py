@@ -22,11 +22,11 @@ class MetricType(str, Enum):
     KEPSERVER_EVENTS = "kepserverevents"
 
 
-class ServiceConfig(BaseModel):
-    """
-    Configuration for services
-    """
+class PrefixConfig(BaseModel):
+    prefix: str
 
+
+class ServiceConfig(BaseModel):
     prefix: str
     names: list[str]
 
@@ -36,12 +36,12 @@ class MetricsConfig(BaseModel):
     Configuration for all metrics
     """
 
-    cpu: str
-    ram: str
-    network: str
+    cpu: PrefixConfig
+    ram: PrefixConfig
+    network: PrefixConfig
     services: ServiceConfig
-    kepserverevents: str
-    plc_tags: str
+    kepserverevents: PrefixConfig
+    plc_tags: PrefixConfig
 
 
 class Settings(BaseModel):
@@ -98,4 +98,7 @@ class Config(BaseSettings):
     }
 
 
+## --------- Singleton Instances --------- ##
+
 config = Config()
+settings = Settings.load()
