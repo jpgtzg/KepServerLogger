@@ -6,7 +6,7 @@ Receives data from the OPC UA server and ingests it into the database.
 
 from lib.config import config
 from lib.database import ProjectDatabase
-from lib.models import Tag, CPUUsage, NetworkUsage, RAMUsage, ServiceInfo, KepEvent
+from lib.models import PLCData, CPUUsage, NetworkUsage, RAMUsage, ServiceInfo, KepEvent
 from datetime import datetime
 
 
@@ -39,7 +39,7 @@ class TagsDatabase(ProjectDatabase):
             f"Database initialized with {config.log_retention_days} days retention policy."
         )
 
-    def save_many(self, rows: list[Tag]) -> None:
+    def save_many(self, rows: list[PLCData]) -> None:
         if not rows:
             return
         with self.transaction():
@@ -60,11 +60,11 @@ class TagsDatabase(ProjectDatabase):
                 ],
             )
 
-    def process_tag_values(self, tag_values, timestamp: datetime) -> list[Tag]:
+    def process_tag_values(self, tag_values, timestamp: datetime) -> list[PLCData]:
         rows = []
         for tag_name, data_value in tag_values:
             rows.append(
-                Tag(
+                PLCData(
                     tag=tag_name,
                     value=str(data_value.Value.Value),
                     status_code=data_value.StatusCode.name,
