@@ -21,3 +21,9 @@ ServiceField = Literal[
     "timestamp", "name", "status", "service_type", "machine_name", "process_ids"
 ]
 EventField = Literal["timestamp", "name", "source", "message", "hash"]
+
+CPU_FIELDS = [CPUField.timestamp, CPUField.usage]
+RAM_FIELDS = [RAMField.timestamp, RAMField.total_kb, RAMField.free_kb]
+NETWORK_FIELDS = [NetworkField.timestamp, NetworkField.operational_status, NetworkField.network_interface_type, NetworkField.kb_bytes_sent, NetworkField.kb_bytes_received]
+SERVICE_FIELDS = [ServiceField.timestamp, ServiceField.name, ServiceField.status, ServiceField.service_type, ServiceField.machine_name, ServiceField.process_ids]
+EVENT_FIELDS = [EventField.timestamp, EventField.name, EventField.source, EventField.message, EventField.hash]
