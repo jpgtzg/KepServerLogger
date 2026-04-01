@@ -2,6 +2,8 @@
 Maps the fields of the models to the OPC UA tag names.
 
 Note: Prefixes are not included in the mapping, they are defined in the settings.json file
+
+TODO : CHECK IF THIS IS NEEDED
 """
 
 from typing import Literal
@@ -19,9 +21,3 @@ ServiceField = Literal[
     "timestamp", "name", "status", "service_type", "machine_name", "process_ids"
 ]
 EventField = Literal["timestamp", "name", "source", "message", "hash"]
-
-CPU_FIELDS = list(CPUField.__args__)
-RAM_FIELDS = list(RAMField.__args__)
-NETWORK_FIELDS = list(NetworkField.__args__)
-SERVICE_FIELDS = list(ServiceField.__args__)
-EVENT_FIELDS = list(EventField.__args__)
