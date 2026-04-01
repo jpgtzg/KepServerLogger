@@ -1,19 +1,41 @@
 {
-    "read_interval": 10000,
-    "logging": [
+    "timestamp_format": "%Y-%m-%dT%H:%M:%SZ",
+    "log_retention_days": 7,
+    "metrics_to_log": [
         "cpu",
         "ram",
         "network",
         "services",
-        "kepserverevents"
+        "kepserverevents",
+        "plc_tags"
     ],
-    "services": [
-        "KEPServerEX 6.18 Config API Service",
-        "KEPServerEX 6.18 Event Logger",
-        "KEPServerEX 6.18 Historian",
-        "KEPServerEX 6.18 IoT Gateway",
-        "KEPServerEX 6.18 Key Service",
-        "KEPServerEX 6.18 Runtime",
-        "KEPServerEX 6.18 Store and Forward"
-    ]
+    "metrics_config": {
+        "cpu": {
+            "prefix": "ns=2;s=Channel1.Device1.CPU"
+        },
+        "ram": {
+            "prefix": "ns=2;s=Channel1.Device1.RAM"
+        },
+        "network": {
+            "prefix": "ns=2;s=Channel1.Device1.Network"
+        },
+        "services": {
+            "prefix": "ns=2;s=Channel1.Device1.Services",
+            "names": [
+                "KEPServerEX 6.18 Config API Service",
+                "KEPServerEX 6.18 Event Logger",
+                "KEPServerEX 6.18 Historian",
+                "KEPServerEX 6.18 IoT Gateway",
+                "KEPServerEX 6.18 Key Service",
+                "KEPServerEX 6.18 Runtime",
+                "KEPServerEX 6.18 Store and Forward"
+            ]
+        },
+        "events": {
+            "prefix": "ns=2;s=Channel1.Device1.Events.Latest"
+        },
+        "plc_tags": {
+            "prefix": "ns=2;s=Kepserver_OPC_DA.FLS.Tags"
+        }
+    }
 }
