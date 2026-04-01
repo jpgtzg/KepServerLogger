@@ -2,12 +2,24 @@
 This module contains the models for the data that is ingested into the database.
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from datetime import datetime
+
+from lib.config import settings
 
 
 class OPCUAModel(BaseModel):
     timestamp: datetime
+
+    @field_validator("timestamp", mode="before")
+    @classmethod
+    def parse_timestamp(cls, v: str | datetime) -> datetime:
+        if isinstance(v, datetime):
+            return v
+        try:
+            return datetime.strptime(v, settings.timestamp_format)
+        except ValueError as e:
+            raise ValueError(f"Could not parse timestamp '{v}': {e}")
 
     def to_opcua(self, timestamp_format: str) -> dict:
         data = self.model_dump()
