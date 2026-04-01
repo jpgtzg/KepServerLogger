@@ -1,81 +1,64 @@
-import argparse
 import asyncio
 import os
-
-import time
-from pathlib import Path
 from metrics.events import get_kepserver_events
 from metrics import (
     get_memory_info,
     get_network_interfaces,
     get_total_cpu_usage,
+    get_service_info,
 )
-from lib.config import config, MetricType
 
-def run_cycle(config) -> int:
-    logged_system_count = 0
+from lib.config import config, settings, MetricType
+from lib.opcua_client import OPCUAClient
+from publishers.opcua import publish_cpu_usage
+from publishers.opcua import publish_ram_usage
+from publishers.opcua import publish_service_info
+from publishers.opcua import publish_network_usage
+from publishers.opcua import publish_kep_event
 
-    if MetricType.CPU in config.logging_metrics:
-        get_total_cpu_usage()
-        logged_system_count += 1
 
-    if MetricType.RAM in config.logging_metrics:
-        total_kb, free_kb = get_memory_info()
-        logged_system_count += 1
+async def run_cycle(client: OPCUAClient) -> None:
+    if MetricType.CPU in settings.metrics_to_log:
+        cpu_usage = get_total_cpu_usage()
+        await publish_cpu_usage(client, cpu_usage)
 
-    if MetricType.SERVICES in config.logging_metrics:
-        from metrics.services import get_service_info
+    if MetricType.RAM in settings.metrics_to_log:
+        ram_usage = get_memory_info()
+        await publish_ram_usage(client, ram_usage)
 
-        for service_name in config.service_names:
-            get_service_info(service_name)
-        logged_system_count += 1
+    if MetricType.SERVICES in settings.metrics_to_log:
+        service_info = [
+            get_service_info(service_name) for service_name in settings.service_names
+        ]
+        await publish_service_info(client, service_info)
 
-    if MetricType.NETWORK in config.logging_metrics:
-        for net in get_network_interfaces():
-            pass
-        logged_system_count += 1
+    if MetricType.NETWORK in settings.metrics_to_log:
+        network_interfaces = get_network_interfaces()
+        await publish_network_usage(client, network_interfaces)
 
-    if MetricType.KEPSERVER_EVENTS in config.logging_metrics:
-        for event in get_kepserver_events():
-            pass
-        logged_system_count += 1
-
-    return logged_system_count
+    if MetricType.KEPSERVER_EVENTS in settings.metrics_to_log:
+        kep_events = get_kepserver_events()
+        await publish_kep_event(client, kep_events)
 
 
 async def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Collects computer and KepServer metrics."
-    )
-    parser.add_argument(
-        "--once",
-        action="store_true",
-        help="Run exactly one collection cycle and exit.",
-    )
-    parser.add_argument(
-        "--settings",
-        default=str(Path(__file__).resolve().parents[2] / "settings.json"),
-        help="Path to settings.json",
-    )
-    args = parser.parse_args()
-    config_path = Path(args.settings)
 
-    try:
+    client = OPCUAClient(
+        url=config.kepserver_server_url,
+        app_uri=config.app_uri,
+        name=config.application_name,
+        cert_path=config.cert_path,
+        key_path=config.key_path,
+        username=config.kepserver_username,
+        password=config.kepserver_password,
+    )
+
+    await client.setup()
+
+    async with client:
         while True:
-            try:
-                logged_count = run_cycle()
-                print(f"Logged metrics for {logged_count} categories.")
-            except Exception as exc:
-                print(
-                    f"Error occurred during metrics collection. Rolling back transaction. {exc}"
-                )
-                raise
-
-            if args.once:
-                break
-            time.sleep(config.read_interval_ms / 1000.0)
-    finally:
-        database.close()
+            await run_cycle(client)
+            await asyncio.sleep(1)
 
 
 if __name__ == "__main__":
