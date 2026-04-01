@@ -4,10 +4,10 @@ import hashlib
 import requests
 
 from lib.models import KepEvent
-from lib.config import config
+from lib.config import settings
 
 def get_kepserver_events() -> list[KepEvent]:
-    response = requests.get(config.kepserver_event_log_url, auth=(config.kepserver_username, config.kepserver_password), timeout=30)
+    response = requests.get(settings.kepserver_event_log_url, auth=(settings.kepserver_username, settings.kepserver_password), timeout=30)
     response.raise_for_status()
     payload = response.json()
     if not isinstance(payload, list):
