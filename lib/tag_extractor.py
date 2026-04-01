@@ -4,10 +4,9 @@ Generates a .json tag list from a .csv file
 
 import pandas as pd
 
-TAG_PREFIX = "ns=2;s="
 
 def extract_tags(
-    use_prefix: bool = True,
+    prefix: str = None,
     separator: str = ";",
     exclude_tags: list[str] = [],
     tag_column: str = "",
@@ -32,8 +31,8 @@ def extract_tags(
     df = pd.read_csv(filename, sep=separator)
     tags = df[tag_column].dropna().tolist()
 
-    if use_prefix:
-        tags_json = [TAG_PREFIX + tag.strip().removesuffix(".BAL") for tag in tags]
+    if prefix:
+        tags_json = [prefix + tag.strip().removesuffix(".BAL") for tag in tags]
     else:
         tags_json = [tag.strip().removesuffix(".BAL") for tag in tags]
 
