@@ -1,5 +1,6 @@
 import asyncio
 import os
+import time
 from metrics.events import get_kepserver_events
 from metrics import (
     get_memory_info,
@@ -10,35 +11,50 @@ from metrics import (
 
 from lib.config import config, settings, MetricType
 from lib.opcua_client import OPCUAClient
-from publishers.opcua import publish_cpu_usage
-from publishers.opcua import publish_ram_usage
-from publishers.opcua import publish_service_info
-from publishers.opcua import publish_network_usage
-from publishers.opcua import publish_kep_event
+from publishers.opcua import (
+    publish_cpu_usage,
+    publish_ram_usage,
+    publish_service_info,
+    publish_network_usage,
+    publish_kep_event,
+)
+from lib.verify import print_required_nodes
 
 
 async def run_cycle(client: OPCUAClient) -> None:
     if MetricType.CPU in settings.metrics_to_log:
-        cpu_usage = get_total_cpu_usage()
-        await publish_cpu_usage(client, cpu_usage)
+        try:
+            await publish_cpu_usage(client, get_total_cpu_usage())
+        except Exception as e:
+            print(f"[CPU] publish failed: {e}")
 
     if MetricType.RAM in settings.metrics_to_log:
-        ram_usage = get_memory_info()
-        await publish_ram_usage(client, ram_usage)
+        try:
+            await publish_ram_usage(client, get_memory_info())
+        except Exception as e:
+            print(f"[RAM] publish failed: {e}")
 
     if MetricType.SERVICES in settings.metrics_to_log:
-        service_info = [
-            get_service_info(service_name) for service_name in settings.service_names
-        ]
-        await publish_service_info(client, service_info)
+        try:
+            service_info = [
+                get_service_info(service_name)
+                for service_name in settings.metrics_config.services.names
+            ]
+            await publish_service_info(client, service_info)
+        except Exception as e:
+            print(f"[SERVICES] publish failed: {e}")
 
     if MetricType.NETWORK in settings.metrics_to_log:
-        network_interfaces = get_network_interfaces()
-        await publish_network_usage(client, network_interfaces)
+        try:
+            await publish_network_usage(client, get_network_interfaces())
+        except Exception as e:
+            print(f"[NETWORK] publish failed: {e}")
 
     if MetricType.KEPSERVER_EVENTS in settings.metrics_to_log:
-        kep_events = get_kepserver_events()
-        await publish_kep_event(client, kep_events)
+        try:
+            await publish_kep_event(client, get_kepserver_events())
+        except Exception as e:
+            print(f"[EVENTS] publish failed: {e}")
 
 
 async def main() -> None:
@@ -55,9 +71,15 @@ async def main() -> None:
 
     await client.setup()
 
+    print_required_nodes()
+    time.sleep(5)
+
     async with client:
         while True:
-            await run_cycle(client)
+            try:
+                await run_cycle(client)
+            except Exception as e:
+                print(f"[MAIN] cycle failed: {e}")
             await asyncio.sleep(1)
 
 

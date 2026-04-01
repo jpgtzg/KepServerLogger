@@ -14,12 +14,14 @@ Reads the tags from a .csv file and ingests the data into the database.
 """
 
 import asyncio
+import time
 
 from db import TagsDatabase
 
 from lib.config import config, MetricType
 from lib.opcua_client import OPCUAClient
 from lib.tag_extractor import extract_tags
+from lib.verify import print_required_nodes
 
 
 async def main():
@@ -47,6 +49,9 @@ async def main():
 
     db = TagsDatabase(retention_days=config.log_retention_days)
     db.initialize()
+
+    print_required_nodes()
+    time.sleep(5)
 
     async with client:
         try:
