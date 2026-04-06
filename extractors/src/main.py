@@ -18,7 +18,9 @@ from publishers.opcua import (
     publish_network_usage,
     publish_kep_event,
 )
-from lib.verify import print_required_nodes
+from logging import getLogger
+
+logger = getLogger(__name__)
 
 
 async def run_cycle(client: OPCUAClient) -> None:
@@ -26,13 +28,13 @@ async def run_cycle(client: OPCUAClient) -> None:
         try:
             await publish_cpu_usage(client, get_total_cpu_usage())
         except Exception as e:
-            print(f"[CPU] publish failed: {e}")
+            logger.error(f"[CPU] publish failed: {e}")
 
     if MetricType.RAM in settings.metrics_to_log:
         try:
             await publish_ram_usage(client, get_memory_info())
         except Exception as e:
-            print(f"[RAM] publish failed: {e}")
+            logger.error(f"[RAM] publish failed: {e}")
 
     if MetricType.SERVICES in settings.metrics_to_log:
         try:
@@ -42,19 +44,19 @@ async def run_cycle(client: OPCUAClient) -> None:
             ]
             await publish_service_info(client, service_info)
         except Exception as e:
-            print(f"[SERVICES] publish failed: {e}")
+            logger.error(f"[SERVICES] publish failed: {e}")
 
     if MetricType.NETWORK in settings.metrics_to_log:
         try:
             await publish_network_usage(client, get_network_interfaces())
         except Exception as e:
-            print(f"[NETWORK] publish failed: {e}")
+            logger.error(f"[NETWORK] publish failed: {e}")
 
     if MetricType.KEPSERVER_EVENTS in settings.metrics_to_log:
         try:
             await publish_kep_event(client, get_kepserver_events())
         except Exception as e:
-            print(f"[EVENTS] publish failed: {e}")
+            logger.error(f"[EVENTS] publish failed: {e}")
 
 
 async def main() -> None:
@@ -71,7 +73,7 @@ async def main() -> None:
 
     await client.setup()
 
-    print_required_nodes()
+    logger.info("Extractor initialized")
     time.sleep(5)
 
     async with client:
@@ -79,7 +81,7 @@ async def main() -> None:
             try:
                 await run_cycle(client)
             except Exception as e:
-                print(f"[MAIN] cycle failed: {e}")
+                logger.error(f"[MAIN] cycle failed: {e}")
             await asyncio.sleep(1)
 
 

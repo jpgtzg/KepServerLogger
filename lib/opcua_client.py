@@ -9,7 +9,9 @@ from lib.tag_extractor import TAG_PREFIX
 from datetime import datetime
 from lib.utils import utcnow
 from typing import Any
+from logging import getLogger
 
+logger = getLogger(__name__)
 
 class OPCUAClient(Client):
     def __init__(
@@ -34,6 +36,7 @@ class OPCUAClient(Client):
 
     async def setup(self) -> None:
         """Call this after __init__ before connecting."""
+        logger.info("Setting up OPC UA client...")
         await self.set_security(
             SecurityPolicyBasic256Sha256,
             self._cert_path,
@@ -44,6 +47,7 @@ class OPCUAClient(Client):
         self.set_password(self._password)
 
         self._ready = True
+        logger.info("OPC UA client setup complete")
 
     async def read_batch(
         self, tags: list[str]
