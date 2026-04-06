@@ -93,7 +93,8 @@ class ProjectDatabase:
                 )
             )
             cur.execute(
-                SQL("""
+                SQL(
+                    """
                     DO $$
                     BEGIN
                         IF NOT EXISTS (
@@ -104,7 +105,8 @@ class ProjectDatabase:
                             PERFORM add_retention_policy({}, INTERVAL '{} days');
                         END IF;
                     END $$;
-                """).format(
+                """
+                ).format(
                     Literal(table_name),
                     Literal(table_name),
                     Literal(self._retention_days),

@@ -2,16 +2,19 @@
 Generic OPC UA client class, inherits from asyncua.Client and adds security and authentication.
 """
 
+from datetime import datetime
+from logging import getLogger
+from typing import Any
+
 from asyncua import Client, ua
 from asyncua.common.node import Node
 from asyncua.crypto.security_policies import SecurityPolicyBasic256Sha256
-from lib.src.tag_extractor import TAG_PREFIX
-from datetime import datetime
-from lib.src.utils import utcnow
-from typing import Any
-from logging import getLogger
+
+from lib.tag_extractor import TAG_PREFIX
+from lib.utils import utcnow
 
 logger = getLogger(__name__)
+
 
 class OPCUAClient(Client):
     def __init__(

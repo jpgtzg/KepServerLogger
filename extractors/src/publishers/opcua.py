@@ -72,5 +72,5 @@ async def publish_kep_event(client: OPCUAClient, kep_events: list[KepEvent]) -> 
     if not kep_events:
         return
     data = [kep_event.to_opcua(settings.timestamp_format) for kep_event in kep_events]
-    node = client.get_node(f"{settings.metrics_config.events.prefix}.batch")
+    node = client.get_node(f"{settings.metrics_config.kepserverevents.prefix}.batch")
     await client.write_value(node, json.dumps(data), ua.VariantType.String)

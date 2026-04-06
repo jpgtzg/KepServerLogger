@@ -1,8 +1,8 @@
 import asyncio
 import os
 import time
-from metrics.events import get_kepserver_events
-from metrics import (
+from src.metrics.events import get_kepserver_events
+from src.metrics import (
     get_memory_info,
     get_network_interfaces,
     get_total_cpu_usage,
@@ -11,7 +11,7 @@ from metrics import (
 
 from lib.config import config, settings, MetricType
 from lib.opcua_client import OPCUAClient
-from publishers.opcua import (
+from src.publishers.opcua import (
     publish_cpu_usage,
     publish_ram_usage,
     publish_service_info,

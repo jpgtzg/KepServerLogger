@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from enum import Enum
-from pydantic_settings import BaseSettings
-from pydantic import BaseModel
-from pathlib import Path
 import json
+from pathlib import Path
+
+from pydantic import BaseModel
+from pydantic_settings import BaseSettings
 
 ## --------- Settings Model --------- ##
 

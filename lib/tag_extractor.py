@@ -4,6 +4,8 @@ Generates a .json tag list from a .csv file
 
 import pandas as pd
 
+# Common OPC UA node id prefix to strip when mapping reads to tag names (set if needed).
+TAG_PREFIX = ""
 
 def extract_tags_from_csv(
     prefix: str = None,
