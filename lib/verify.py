@@ -2,9 +2,9 @@
 Run this once to get a list of all nodes that need to be created in KepServer.
 """
 
-from lib.src.config import config, settings, MetricType
-from lib.src.models import CPUUsage, RAMUsage, NetworkUsage, ServiceInfo, KepEvent
-from lib.src.tag_extractor import extract_tags_from_csv
+from lib.config import config, settings, MetricType
+from lib.models import CPUUsage, RAMUsage, NetworkUsage, ServiceInfo, KepEvent
+from lib.tag_extractor import extract_tags_from_csv
 
 
 def get_cpu_node_names() -> list[str]:

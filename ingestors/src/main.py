@@ -16,17 +16,17 @@ Reads the tags from a .csv file and ingests the data into the database.
 import asyncio
 import time
 
-from db import TagsDatabase
-from db import MetricsDatabase
-from lib.config import config, settings, MetricType
+from lib.config import MetricType, config, settings
 from lib.opcua_client import OPCUAClient
 from lib.verify import get_plc_tags
+
+from db import MetricsDatabase, TagsDatabase
 from subscribers.opcua import (
     subscribe_cpu_usage,
-    subscribe_ram_usage,
-    subscribe_network_usage,
-    subscribe_service_info,
     subscribe_kep_events,
+    subscribe_network_usage,
+    subscribe_ram_usage,
+    subscribe_service_info,
 )
 
 
@@ -78,12 +78,12 @@ async def main():
                     metrics_db.insert_ram_usage(ram_usage)
                 if MetricType.NETWORK in settings.metrics_to_log:
                     """
-                    TODO: 
-                    NetworkConfig only has prefix — there's no interfaces list. 
-                    You mentioned earlier you log all interfaces dynamically, 
-                    so subscribe_network_usage needs to either get interfaces 
-                    from the live system or you need to add interfaces to 
-                    NetworkConfig in settings.json. Worth deciding which approach 
+                    TODO:
+                    NetworkConfig only has prefix — there's no interfaces list.
+                    You mentioned earlier you log all interfaces dynamically,
+                    so subscribe_network_usage needs to either get interfaces
+                    from the live system or you need to add interfaces to
+                    NetworkConfig in settings.json. Worth deciding which approach
                     you want.
                     """
                     network_usage = await subscribe_network_usage(client)
