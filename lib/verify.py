@@ -52,6 +52,9 @@ def get_plc_tags() -> list[str]:
 
 
 def print_required_nodes() -> None:
+    """
+    Debug function to print the required nodes to create in KepServer.
+    """
     nodes = []
 
     if MetricType.CPU in settings.metrics_to_log:
