@@ -20,8 +20,7 @@ from db import TagsDatabase
 from db import MetricsDatabase
 from lib.config import config, settings, MetricType
 from lib.opcua_client import OPCUAClient
-from lib.tag_extractor import extract_tags_from_csv
-from lib.verify import print_required_nodes
+from lib.verify import get_plc_tags
 from subscribers.opcua import (
     subscribe_cpu_usage,
     subscribe_ram_usage,
@@ -34,13 +33,7 @@ from subscribers.opcua import (
 async def main():
     print(f"Connecting to {config.kepserver_server_url}...")
 
-    tags_to_log = extract_tags_from_csv(
-        prefix=settings.metrics_config.plc_tags.prefix,
-        separator=config.csv_tag_separator,
-        exclude_tags=["_Write", "_WRITE"],
-        tag_column=config.csv_tag_column_name,
-        filename=config.csv_filename,
-    )
+    tags_to_log = get_plc_tags()
 
     client = OPCUAClient(
         url=config.kepserver_server_url,
@@ -60,7 +53,8 @@ async def main():
     metrics_db = MetricsDatabase(retention_days=settings.log_retention_days)
     metrics_db.initialize()
 
-    print_required_nodes()
+    print("Initiating KepServerLogger Central Collector...")
+
     time.sleep(5)
 
     async with client:
