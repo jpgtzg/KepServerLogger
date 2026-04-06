@@ -31,7 +31,7 @@
                 "KEPServerEX 6.18 Store and Forward"
             ]
         },
-        "events": {
+        "kepserverevents": {
             "prefix": "ns=2;s=KepServerLogger.Metrics.Events"
         },
         "plc_tags": {
