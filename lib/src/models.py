@@ -5,7 +5,7 @@ This module contains the models for the data that is ingested into the database.
 from pydantic import BaseModel, field_validator
 from datetime import datetime
 
-from lib.config import settings
+from lib.src.config import settings
 
 
 class OPCUAModel(BaseModel):
