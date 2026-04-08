@@ -2,7 +2,7 @@
 This module contains the models for the data that is ingested into the database.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from pydantic import BaseModel, field_validator
 
@@ -16,15 +16,28 @@ class OPCUAModel(BaseModel):
     @classmethod
     def parse_timestamp(cls, v: str | datetime) -> datetime:
         if isinstance(v, datetime):
-            return v
+            return v.astimezone(timezone.utc) if v.tzinfo else v.replace(tzinfo=timezone.utc)
         try:
-            return datetime.strptime(v, settings.timestamp_format)
-        except ValueError as e:
-            raise ValueError(f"Could not parse timestamp '{v}': {e}")
+            # Primary format configured for OPC UA payloads (default ends with 'Z').
+            dt = datetime.strptime(v, settings.timestamp_format)
+            return dt.replace(tzinfo=timezone.utc)
+        except ValueError:
+            # Accept ISO-8601 with optional milliseconds and optional Z/offset.
+            # Examples observed from KepServer event log:
+            # - 2026-04-08T16:03:49.541
+            # - 2026-04-08T16:03:49.541Z
+            # - 2026-04-08T16:03:49+00:00
+            try:
+                iso = v.replace("Z", "+00:00")
+                dt = datetime.fromisoformat(iso)
+                return dt.astimezone(timezone.utc) if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+            except Exception as e:
+                raise ValueError(f"Could not parse timestamp '{v}': {e}")
 
     def to_opcua(self, timestamp_format: str) -> dict:
         data = self.model_dump()
-        data["timestamp"] = self.timestamp.strftime(timestamp_format)
+        ts = self.timestamp.astimezone(timezone.utc) if self.timestamp.tzinfo else self.timestamp.replace(tzinfo=timezone.utc)
+        data["timestamp"] = ts.strftime(timestamp_format)
         return data
 
 

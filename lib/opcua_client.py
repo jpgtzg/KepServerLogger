@@ -75,6 +75,29 @@ class OPCUAClient(Client):
         if not self._ready:
             raise RuntimeError("Client not ready, call setup() first")
 
+        # KepServer nodes are often configured as Strings, even for numeric values.
+        # If we try to send a float/int to a String-typed node, asyncua will attempt
+        # to encode it as bytes and fail (e.g. "'float' object has no attribute 'encode'").
+        coerced_value: float | int | str | bool = value
+        if data_type == ua.VariantType.String and not isinstance(value, str):
+            coerced_value = str(value)
+        elif data_type in (ua.VariantType.Float, ua.VariantType.Double) and isinstance(
+            value, str
+        ):
+            coerced_value = float(value)
+        elif data_type in (
+            ua.VariantType.Int16,
+            ua.VariantType.Int32,
+            ua.VariantType.Int64,
+            ua.VariantType.UInt16,
+            ua.VariantType.UInt32,
+            ua.VariantType.UInt64,
+        ) and isinstance(value, str):
+            coerced_value = int(value)
+        elif data_type == ua.VariantType.Boolean and isinstance(value, str):
+            coerced_value = value.strip().lower() in ("1", "true", "yes", "y", "on")
+
         await node.write_attribute(
-            ua.AttributeIds.Value, ua.DataValue(ua.Variant(value, data_type))
+            ua.AttributeIds.Value,
+            ua.DataValue(ua.Variant(coerced_value, data_type)),
         )

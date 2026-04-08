@@ -2,6 +2,7 @@ import asyncio
 import os
 import time
 from src.metrics.events import get_kepserver_events
+import logging
 from logging import getLogger
 
 from lib.config import MetricType, config, settings
@@ -29,14 +30,14 @@ async def run_cycle(client: OPCUAClient) -> None:
     if MetricType.CPU in settings.metrics_to_log:
         try:
             await publish_cpu_usage(client, get_total_cpu_usage())
-        except Exception as e:
-            logger.error(f"[CPU] publish failed: {e}")
+        except Exception:
+            logger.exception("[CPU] publish failed")
 
     if MetricType.RAM in settings.metrics_to_log:
         try:
             await publish_ram_usage(client, get_memory_info())
-        except Exception as e:
-            logger.error(f"[RAM] publish failed: {e}")
+        except Exception:
+            logger.exception("[RAM] publish failed")
 
     if MetricType.SERVICES in settings.metrics_to_log:
         try:
@@ -45,23 +46,30 @@ async def run_cycle(client: OPCUAClient) -> None:
                 for service_name in settings.metrics_config.services.names
             ]
             await publish_service_info(client, service_info)
-        except Exception as e:
-            logger.error(f"[SERVICES] publish failed: {e}")
+        except Exception:
+            logger.exception("[SERVICES] publish failed")
 
     if MetricType.NETWORK in settings.metrics_to_log:
         try:
             await publish_network_usage(client, get_network_interfaces())
-        except Exception as e:
-            logger.error(f"[NETWORK] publish failed: {e}")
+        except Exception:
+            logger.exception("[NETWORK] publish failed")
 
     if MetricType.KEPSERVER_EVENTS in settings.metrics_to_log:
         try:
             await publish_kep_event(client, get_kepserver_events())
-        except Exception as e:
-            logger.error(f"[EVENTS] publish failed: {e}")
+        except Exception:
+            logger.exception("[EVENTS] publish failed")
 
 
 async def main() -> None:
+    logging.basicConfig(
+        level=logging.WARNING,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+    # Keep our own code verbose; silence noisy third-party packages.
+    for name in ("src", "lib", "__main__"):
+        logging.getLogger(name).setLevel(logging.INFO)
 
     client = OPCUAClient(
         url=config.kepserver_server_url,
@@ -82,6 +90,11 @@ async def main() -> None:
         while True:
             try:
                 await run_cycle(client)
+            except asyncio.CancelledError as e:
+                # In Python 3.11+, CancelledError inherits from BaseException and bypasses `except Exception`.
+                # asyncua can raise it when requests time out / transport is torn down. Treat it as a recoverable
+                # publish failure so the extractor keeps running.
+                logger.error(f"[MAIN] OPC UA request cancelled: {e}")
             except Exception as e:
                 logger.error(f"[MAIN] cycle failed: {e}")
             await asyncio.sleep(1)
