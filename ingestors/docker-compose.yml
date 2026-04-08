@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+
+  timescaledb:
+    image: timescale/timescaledb-ha:pg16
+    container_name: timescaledb
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - timescaledb-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  ingestors:
+    build:
+      context: ..
+      dockerfile: ingestors/Dockerfile
+    image: ingestors
+    container_name: ingestors
+    network_mode: host
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    depends_on:
+      - timescaledb
+    env_file:
+      - .env
+    volumes:
+      - ingestors-certs:/app/certs
+      - ./TagList.csv:/app/ingestors/TagList.csv:ro,Z
+      - ./settings.json:/app/settings.json:ro,Z
+
+volumes:
+  timescaledb-data:
+  ingestors-certs:

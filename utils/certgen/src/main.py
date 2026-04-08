@@ -40,8 +40,8 @@ async def main() -> int:
     base_dir = _base_dir()
     _load_env(base_dir)
 
-    cert_path = base_dir / "certs" / "client_cert.pem"
-    key_path = base_dir / "certs" / "client_key.pem"
+    cert_path = Path(os.getenv("CERT_PATH") or base_dir / "certs" / "client_cert.pem")
+    key_path = Path(os.getenv("KEY_PATH") or base_dir / "certs" / "client_key.pem")
 
     host_name = os.getenv("HOST_NAME") or socket.gethostname()
     app_uri = os.getenv("APP_URI") or f"urn:{host_name}:KepServerBridge"
