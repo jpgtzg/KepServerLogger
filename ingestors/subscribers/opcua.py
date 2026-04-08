@@ -25,25 +25,21 @@ async def subscribe_ram_usage(client: OPCUAClient) -> RAMUsage:
 
 
 async def subscribe_network_usage(client: OPCUAClient) -> list[NetworkUsage]:
-    results = []
-    for interface in settings.metrics_config.network.interfaces:
-        data = {"interface": interface}
-        for field in NetworkUsage.model_fields.keys():
-            node = client.get_node(
-                f"{settings.metrics_config.network.prefix}.{interface}.{field}"
-            )
-            data[field] = await node.read_value()
-        results.append(NetworkUsage(**data))
-    return results
+    node = client.get_node(f"{settings.metrics_config.network.prefix}.batch")
+    raw: str = await node.read_value()
+    if not raw:
+        return []
+    return [NetworkUsage(**iface) for iface in json.loads(raw)]
 
 
 async def subscribe_service_info(client: OPCUAClient) -> list[ServiceInfo]:
     results = []
     for name in settings.metrics_config.services.names:
         data = {}
-        for field in ServiceInfo.model_fields.keys():
+        service_key = name.replace('.', '_')
+        for index, field in enumerate(ServiceInfo.model_fields.keys()):
             node = client.get_node(
-                f"{settings.metrics_config.services.prefix}.{name}.{field}"
+                f"{settings.metrics_config.services.prefix}.{service_key}_{index}"
             )
             data[field] = await node.read_value()
         # process_ids was serialized as "1,2,3" — deserialize back to list[int]

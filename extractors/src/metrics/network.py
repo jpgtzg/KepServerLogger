@@ -4,28 +4,20 @@ from lib.utils import utcnow
 
 
 def get_network_interfaces() -> list[NetworkUsage]:
-    counters = psutil.net_io_counters(pernic=True)
     stats = psutil.net_if_stats()
+    counters = psutil.net_io_counters(pernic=True)
     interfaces: list[NetworkUsage] = []
 
-    for name, io in counters.items():
-        interface_stat = stats.get(name)
-        is_up = bool(interface_stat.isup) if interface_stat else False
-        speed = (
-            int(interface_stat.speed)
-            if interface_stat and interface_stat.speed is not None
-            else 0
-        )
-        ni_type = "Ethernet" if speed > 0 else "Unknown"
-
+    for name, stat in stats.items():
+        io = counters.get(name)
         interfaces.append(
             NetworkUsage(
                 timestamp=utcnow(),
                 interface=name,
-                operational_status="Up" if is_up else "Down",
-                network_interface_type=ni_type,
-                kb_bytes_sent=float(io.bytes_sent / 1024.0),
-                kb_bytes_received=float(io.bytes_recv / 1024.0),
+                operational_status="Up" if stat.isup else "Down",
+                network_interface_type="Ethernet" if stat.speed > 0 else "Unknown",
+                kb_bytes_sent=float(io.bytes_sent / 1024.0) if io else 0.0,
+                kb_bytes_received=float(io.bytes_recv / 1024.0) if io else 0.0,
             )
         )
 

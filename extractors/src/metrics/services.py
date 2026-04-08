@@ -31,14 +31,41 @@ def _service_type_to_string(service_type: int) -> str:
     return "|".join(parts) if parts else str(service_type)
 
 
+def _resolve_service_name(name_or_display_name: str) -> str:
+    """
+    win32service.OpenService expects the *service name* (key name), not display name.
+    Uses GetServiceKeyName to directly map a display name to its service key name.
+    """
+    scm = win32service.OpenSCManager(None, None, win32service.SC_MANAGER_CONNECT)
+    try:
+        return win32service.GetServiceKeyName(scm, name_or_display_name)
+    except win32service.error:
+        return name_or_display_name
+    finally:
+        win32service.CloseServiceHandle(scm)
+
+
 def get_service_info(service_name: str) -> ServiceInfo:
     scm = win32service.OpenSCManager(None, None, win32service.SC_MANAGER_CONNECT)
     try:
-        service_handle = win32service.OpenService(
-            scm,
-            service_name,
-            win32service.SERVICE_QUERY_STATUS,
-        )
+        open_name = service_name
+        try:
+            service_handle = win32service.OpenService(
+                scm,
+                open_name,
+                win32service.SERVICE_QUERY_STATUS,
+            )
+        except win32service.error as exc:
+            # WinError 1060: service does not exist as an installed service.
+            if getattr(exc, "winerror", None) == 1060:
+                open_name = _resolve_service_name(service_name)
+                service_handle = win32service.OpenService(
+                    scm,
+                    open_name,
+                    win32service.SERVICE_QUERY_STATUS,
+                )
+            else:
+                raise
         try:
             status = win32service.QueryServiceStatus(service_handle)
             process_info = win32service.QueryServiceStatusEx(service_handle)

@@ -22,11 +22,7 @@ def get_ram_node_names() -> list[str]:
 
 
 def get_network_node_names() -> list[str]:
-    return [
-        f"{settings.metrics_config.network.prefix}.{interface}.{field}"
-        for interface in settings.metrics_config.network.interfaces
-        for field in NetworkUsage.model_fields.keys()
-    ]
+    return [f"{settings.metrics_config.network.prefix}.batch"]
 
 
 def get_services_node_names() -> list[str]:

@@ -39,12 +39,13 @@ async def publish_ram_usage(client: OPCUAClient, ram_usage: RAMUsage) -> None:
 async def publish_service_info(
     client: OPCUAClient, service_info: list[ServiceInfo]
 ) -> None:
-    logger.info(f"[SERVICES] Publishing service info: {service_info}")
+    logger.info(f"[SERVICES] Publishing {len(service_info)} service(s): {[s.name for s in service_info[:3]]}...")
     for service in service_info:
         data = service.to_opcua(settings.timestamp_format)
-        for field, value in data.items():
+        service_key = service.name.replace('.', '_')
+        for index, (field, value) in enumerate(data.items()):
             node = client.get_node(
-                f"{settings.metrics_config.services.prefix}.{service.name}.{field}"
+                f"{settings.metrics_config.services.prefix}.{service_key}_{index}"
             )
             variant_type = await node.read_data_type_as_variant_type()
             await client.write_value(node, value, variant_type)
@@ -53,22 +54,14 @@ async def publish_service_info(
 async def publish_network_usage(
     client: OPCUAClient, network_usage: list[NetworkUsage]
 ) -> None:
-    logger.info(f"[NETWORK] Publishing network usage: {network_usage}")
-    for network_interface in network_usage:
-        data = network_interface.to_opcua(settings.timestamp_format)
-        for field, value in data.items():
-            if field == "interface":
-                continue
-
-            node = client.get_node(
-                f"{settings.metrics_config.network.prefix}.{network_interface.interface}.{field}"
-            )
-            variant_type = await node.read_data_type_as_variant_type()
-            await client.write_value(node, value, variant_type)
+    logger.info(f"[NETWORK] Publishing {len(network_usage)} interface(s)")
+    data = [iface.to_opcua(settings.timestamp_format) for iface in network_usage]
+    node = client.get_node(f"{settings.metrics_config.network.prefix}.batch")
+    await client.write_value(node, json.dumps(data), ua.VariantType.String)
 
 
 async def publish_kep_event(client: OPCUAClient, kep_events: list[KepEvent]) -> None:
-    logger.info(f"[EVENTS] Publishing KepServer events: {kep_events}")
+    logger.info(f"[EVENTS] Publishing {len(kep_events)} event(s): {[e.name for e in kep_events[:3]]}...")
     if not kep_events:
         return
     data = [kep_event.to_opcua(settings.timestamp_format) for kep_event in kep_events]
