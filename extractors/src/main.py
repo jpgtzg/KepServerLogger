@@ -91,9 +91,6 @@ async def main() -> None:
             try:
                 await run_cycle(client)
             except asyncio.CancelledError as e:
-                # In Python 3.11+, CancelledError inherits from BaseException and bypasses `except Exception`.
-                # asyncua can raise it when requests time out / transport is torn down. Treat it as a recoverable
-                # publish failure so the extractor keeps running.
                 logger.error(f"[MAIN] OPC UA request cancelled: {e}")
             except Exception as e:
                 logger.error(f"[MAIN] cycle failed: {e}")
