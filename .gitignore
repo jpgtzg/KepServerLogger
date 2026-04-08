@@ -109,3 +109,9 @@ wheels/
 *.tar
 *.csv
 logs/
+
+# Python venvs anywhere (avoid committing local tool envs)
+**/.venv/
+
+# Generated OPC UA cert/key (keep local)
+**/certs/*.pem
