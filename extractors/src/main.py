@@ -107,6 +107,8 @@ async def main() -> None:
                         await run_cycle(client)
                     except asyncio.CancelledError as e:
                         logger.error(f"[MAIN] OPC UA request cancelled: {e}")
+                    except ConnectionError:
+                        raise
                     except Exception as e:
                         logger.error(f"[MAIN] cycle failed: {e}")
                     await asyncio.sleep(1)

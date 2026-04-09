@@ -44,8 +44,7 @@ async def subscribe_service_info(client: OPCUAClient) -> list[ServiceInfo]:
                 f"{settings.metrics_config.services.prefix}.{service_key}_{index}"
             )
             data[field] = await node.read_value()
-        # process_ids was serialized as "1,2,3" — deserialize back to list[int]
-        raw_pids = data.get("process_ids", "")
+        raw_pids = data.get("process_ids") or ""
         data["process_ids"] = [int(pid) for pid in raw_pids.split(",") if pid]
         results.append(ServiceInfo(**data))
     return results

@@ -74,12 +74,14 @@ async def main():
                     try:
                         cpu_usage = await subscribe_cpu_usage(client)
                         metrics_db.insert_cpu_usage(cpu_usage)
+                        print("Logged CPU usage")
                     except Exception as e:
                         print(f"[CPU] Skipping: {e}")
                 if MetricType.RAM in settings.metrics_to_log:
                     try:
                         ram_usage = await subscribe_ram_usage(client)
                         metrics_db.insert_ram_usage(ram_usage)
+                        print("Logged RAM usage")
                     except Exception as e:
                         print(f"[RAM] Skipping: {e}")
                 if MetricType.NETWORK in settings.metrics_to_log:
@@ -87,6 +89,9 @@ async def main():
                         network_usage = await subscribe_network_usage(client)
                         for network in network_usage:
                             metrics_db.insert_network_metrics(network)
+                        print(
+                            f"Logged network usage for {len(network_usage)} interfaces"
+                        )
                     except Exception as e:
                         print(f"[NETWORK] Skipping: {e}")
                 if MetricType.SERVICES in settings.metrics_to_log:
@@ -94,6 +99,7 @@ async def main():
                         service_info = await subscribe_service_info(client)
                         for service in service_info:
                             metrics_db.insert_service_info(service)
+                        print(f"Logged info for {len(service_info)} services")
                     except Exception as e:
                         print(f"[SERVICES] Skipping: {e}")
                 if MetricType.KEPSERVER_EVENTS in settings.metrics_to_log:
@@ -101,6 +107,7 @@ async def main():
                         kep_events = await subscribe_kep_events(client)
                         for event in kep_events:
                             metrics_db.insert_event(event)
+                        print(f"Logged {len(kep_events)} KepServer events")
                     except Exception as e:
                         print(f"[EVENTS] Skipping: {e}")
 
