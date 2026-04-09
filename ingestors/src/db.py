@@ -4,16 +4,16 @@ Logger for ingesting data into the database.
 Receives data from the OPC UA server and ingests it into the database.
 """
 
-from lib.config import config
-from lib.database import ProjectDatabase
-from lib.models import PLCData, CPUUsage, NetworkUsage, RAMUsage, ServiceInfo, KepEvent
 from datetime import datetime
+
+from asyncua import ua  # pyright: ignore[reportMissingTypeStubs]
+from lib.config import config, settings
+from lib.database import ProjectDatabase
+from lib.models import CPUUsage, KepEvent, NetworkUsage, PLCData, RAMUsage, ServiceInfo
 
 
 class TagsDatabase(ProjectDatabase):
     def initialize(self) -> None:
-        self.retention_days = config.log_retention_days
-
         print(
             f"Connecting to TimescaleDB at {config.db_host}:{config.db_port}/{config.db_name}..."
         )
@@ -36,7 +36,7 @@ class TagsDatabase(ProjectDatabase):
             hypertables=[("tags", "server_timestamp")],
         )
         print(
-            f"Database initialized with {config.log_retention_days} days retention policy."
+            f"Database initialized with {settings.log_retention_days} days retention policy."
         )
 
     def save_many(self, rows: list[PLCData]) -> None:
@@ -60,14 +60,22 @@ class TagsDatabase(ProjectDatabase):
                 ],
             )
 
-    def process_tag_values(self, tag_values, timestamp: datetime) -> list[PLCData]:
-        rows = []
+    def process_tag_values(
+        self, tag_values: list[tuple[str, ua.DataValue]], timestamp: datetime
+    ) -> list[PLCData]:
+        rows: list[PLCData] = []
         for tag_name, data_value in tag_values:
+            if data_value.Value is None:
+                raise ValueError(f"Received None for tag '{tag_name}' at {timestamp}")
+            status_code = data_value.StatusCode
+            raw_value: object = data_value.Value.Value  # pyright: ignore[reportAny]
             rows.append(
                 PLCData(
                     tag=tag_name,
-                    value=str(data_value.Value.Value),
-                    status_code=data_value.StatusCode.name,
+                    value=str(raw_value),
+                    status_code=status_code.name
+                    if status_code is not None
+                    else "Unknown",
                     source_timestamp=data_value.SourceTimestamp,
                     server_timestamp=timestamp,
                 )

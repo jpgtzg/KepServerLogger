@@ -41,6 +41,14 @@ class OPCUAModel(BaseModel):
         return data
 
 
+class PLCData(BaseModel):
+    tag: str
+    value: str
+    status_code: str
+    source_timestamp: datetime | None
+    server_timestamp: datetime
+
+
 class CPUUsage(OPCUAModel):
     usage: float
 
