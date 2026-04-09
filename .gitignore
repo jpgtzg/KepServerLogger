@@ -115,3 +115,5 @@ logs/
 
 # Generated OPC UA cert/key (keep local)
 **/certs/*.pem
+
+**.tar.gz
