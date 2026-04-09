@@ -4,7 +4,6 @@ Generic OPC UA client class, inherits from asyncua.Client and adds security and 
 
 from datetime import datetime
 from logging import getLogger
-from typing import Any
 
 from asyncua import Client, ua
 from asyncua.common.node import Node
@@ -28,14 +27,14 @@ class OPCUAClient(Client):
         password: str,
     ):
         super().__init__(url)
-        self.application_uri = app_uri
-        self.name = name
-        self._cert_path = cert_path
-        self._key_path = key_path
-        self._username = username
-        self._password = password
+        self.application_uri: str = app_uri
+        self.name: str = name
+        self._cert_path: str = cert_path
+        self._key_path: str = key_path
+        self._username: str | None = username
+        self._password: str | None = password
 
-        self._ready = False
+        self._ready: bool = False
 
     async def setup(self) -> None:
         """Call this after __init__ before connecting."""
@@ -46,15 +45,20 @@ class OPCUAClient(Client):
             self._key_path,
             mode=ua.MessageSecurityMode.SignAndEncrypt,
         )
-        self.set_user(self._username)
-        self.set_password(self._password)
+        if self._username and self._password:
+            self.set_user(self._username)
+            self.set_password(self._password)
+        else:
+            raise ValueError(
+                "Username and password are required for OPC UA client authentication"
+            )
 
         self._ready = True
         logger.info("OPC UA client setup complete")
 
     async def read_batch(
         self, tags: list[str]
-    ) -> tuple[list[tuple[str, Any]], datetime]:
+    ) -> tuple[list[tuple[str, ua.DataValue]], datetime]:
         if not self._ready:
             raise RuntimeError("Client not ready, call setup() first")
 
