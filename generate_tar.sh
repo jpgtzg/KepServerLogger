@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-DOCKERFILE_PATH ="$1"
+DOCKERFILE_PATH="$1"
 IMAGE_NAME="$2"
 
 if [ -z "$DOCKERFILE_PATH" ] || [ -z "$IMAGE_NAME" ]; then
