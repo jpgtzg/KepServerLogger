@@ -20,7 +20,7 @@ from lib.config import MetricType, config, settings
 from lib.opcua_client import OPCUAClient
 from lib.verify import get_plc_tags
 
-from db import MetricsDatabase, TagsDatabase
+from src.db import MetricsDatabase, TagsDatabase
 from subscribers.opcua import (
     subscribe_cpu_usage,
     subscribe_kep_events,
@@ -71,32 +71,38 @@ async def main():
                     print(f"Saved {len(rows)} tags to the database")
 
                 if MetricType.CPU in settings.metrics_to_log:
-                    cpu_usage = await subscribe_cpu_usage(client)
-                    metrics_db.insert_cpu_usage(cpu_usage)
+                    try:
+                        cpu_usage = await subscribe_cpu_usage(client)
+                        metrics_db.insert_cpu_usage(cpu_usage)
+                    except Exception as e:
+                        print(f"[CPU] Skipping: {e}")
                 if MetricType.RAM in settings.metrics_to_log:
-                    ram_usage = await subscribe_ram_usage(client)
-                    metrics_db.insert_ram_usage(ram_usage)
+                    try:
+                        ram_usage = await subscribe_ram_usage(client)
+                        metrics_db.insert_ram_usage(ram_usage)
+                    except Exception as e:
+                        print(f"[RAM] Skipping: {e}")
                 if MetricType.NETWORK in settings.metrics_to_log:
-                    """
-                    TODO:
-                    NetworkConfig only has prefix — there's no interfaces list.
-                    You mentioned earlier you log all interfaces dynamically,
-                    so subscribe_network_usage needs to either get interfaces
-                    from the live system or you need to add interfaces to
-                    NetworkConfig in settings.json. Worth deciding which approach
-                    you want.
-                    """
-                    network_usage = await subscribe_network_usage(client)
-                    for network in network_usage:
-                        metrics_db.insert_network_usage(network)
+                    try:
+                        network_usage = await subscribe_network_usage(client)
+                        for network in network_usage:
+                            metrics_db.insert_network_metrics(network)
+                    except Exception as e:
+                        print(f"[NETWORK] Skipping: {e}")
                 if MetricType.SERVICES in settings.metrics_to_log:
-                    service_info = await subscribe_service_info(client)
-                    for service in service_info:
-                        metrics_db.insert_service_info(service)
+                    try:
+                        service_info = await subscribe_service_info(client)
+                        for service in service_info:
+                            metrics_db.insert_service_info(service)
+                    except Exception as e:
+                        print(f"[SERVICES] Skipping: {e}")
                 if MetricType.KEPSERVER_EVENTS in settings.metrics_to_log:
-                    kep_events = await subscribe_kep_events(client)
-                    for event in kep_events:
-                        metrics_db.insert_event(event)
+                    try:
+                        kep_events = await subscribe_kep_events(client)
+                        for event in kep_events:
+                            metrics_db.insert_event(event)
+                    except Exception as e:
+                        print(f"[EVENTS] Skipping: {e}")
 
                 await asyncio.sleep(1)
 
