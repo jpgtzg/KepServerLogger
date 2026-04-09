@@ -29,10 +29,13 @@ services:
       - timescaledb
     env_file:
       - .env
+    environment:
+      CERT_PATH: /app/certs/client_cert.pem
+      KEY_PATH: /app/certs/client_key.pem
     volumes:
       - ingestors-certs:/app/certs
       - ./TagList.csv:/app/ingestors/TagList.csv:ro,Z
-      - ./settings.json:/app/settings.json:ro,Z
+      - ./settings.json:/app/ingestors/settings.json:ro,Z
 
 volumes:
   timescaledb-data:
