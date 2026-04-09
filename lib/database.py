@@ -88,8 +88,8 @@ class ProjectDatabase:
         with conn.cursor() as cur:
             cur.execute(
                 SQL("SELECT create_hypertable({}, {}, if_not_exists => TRUE);").format(
-                    Identifier(table_name),
-                    Identifier(timestamp_column),
+                    Literal(table_name),
+                    Literal(timestamp_column),
                 )
             )
             cur.execute(
