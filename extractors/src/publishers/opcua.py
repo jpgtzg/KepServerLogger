@@ -5,11 +5,12 @@ The publishers are responsible for writing the data to the OPC UA server.
 """
 
 import json
+from logging import getLogger
+
 from asyncua import ua
 from lib.config import settings
+from lib.models import CPUUsage, KepEvent, NetworkUsage, RAMUsage, ServiceInfo
 from lib.opcua_client import OPCUAClient
-from lib.models import CPUUsage, RAMUsage, NetworkUsage, ServiceInfo, KepEvent
-from logging import getLogger
 
 logger = getLogger(__name__)
 
@@ -39,11 +40,18 @@ async def publish_ram_usage(client: OPCUAClient, ram_usage: RAMUsage) -> None:
 async def publish_service_info(
     client: OPCUAClient, service_info: list[ServiceInfo]
 ) -> None:
-    logger.info(f"[SERVICES] Publishing {len(service_info)} service(s): {[s.name for s in service_info[:3]]}...")
+    logger.info(
+        f"[SERVICES] Publishing {len(service_info)} service(s): {[s.name for s in service_info[:3]]}..."
+    )
     for service in service_info:
         data = service.to_opcua(settings.timestamp_format)
-        service_key = service.name.replace('.', '_')
-        for index, (field, value) in enumerate(data.items()):
+        service_key = service.name.replace(".", "_")
+        for index, field in enumerate(ServiceInfo.model_fields.keys()):
+            value = data.get(field)
+            if value is None:
+                raise ValueError(
+                    f"Missing value for field '{field}' in service '{service.name}'"
+                )
             node = client.get_node(
                 f"{settings.metrics_config.services.prefix}.{service_key}_{index}"
             )
@@ -61,7 +69,9 @@ async def publish_network_usage(
 
 
 async def publish_kep_event(client: OPCUAClient, kep_events: list[KepEvent]) -> None:
-    logger.info(f"[EVENTS] Publishing {len(kep_events)} event(s): {[e.name for e in kep_events[:3]]}...")
+    logger.info(
+        f"[EVENTS] Publishing {len(kep_events)} event(s): {[e.name for e in kep_events[:3]]}..."
+    )
     if not kep_events:
         return
     data = [kep_event.to_opcua(settings.timestamp_format) for kep_event in kep_events]

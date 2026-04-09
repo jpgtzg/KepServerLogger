@@ -4,9 +4,11 @@ The subscribers are responsible for reading the data from the OPC UA server.
 """
 
 import json
+
 from lib.config import settings
+from lib.models import CPUUsage, KepEvent, NetworkUsage, RAMUsage, ServiceInfo
 from lib.opcua_client import OPCUAClient
-from lib.models import CPUUsage, RAMUsage, NetworkUsage, ServiceInfo, KepEvent
+
 
 async def subscribe_cpu_usage(client: OPCUAClient) -> CPUUsage:
     data = {}
@@ -36,7 +38,7 @@ async def subscribe_service_info(client: OPCUAClient) -> list[ServiceInfo]:
     results = []
     for name in settings.metrics_config.services.names:
         data = {}
-        service_key = name.replace('.', '_')
+        service_key = name.replace(".", "_")
         for index, field in enumerate(ServiceInfo.model_fields.keys()):
             node = client.get_node(
                 f"{settings.metrics_config.services.prefix}.{service_key}_{index}"
@@ -54,7 +56,7 @@ async def subscribe_kep_events(client: OPCUAClient) -> list[KepEvent]:
     "batch" is a special node that contains all the events in a single message.
     """
 
-    node = client.get_node(f"{settings.metrics_config.events.prefix}.batch")
+    node = client.get_node(f"{settings.metrics_config.kepserverevents.prefix}.batch")
     raw: str = await node.read_value()
     if not raw:
         return []
