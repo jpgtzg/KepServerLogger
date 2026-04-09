@@ -30,12 +30,16 @@ async def run_cycle(client: OPCUAClient) -> None:
     if MetricType.CPU in settings.metrics_to_log:
         try:
             await publish_cpu_usage(client, get_total_cpu_usage())
+        except ConnectionError:
+            raise
         except Exception:
             logger.exception("[CPU] publish failed")
 
     if MetricType.RAM in settings.metrics_to_log:
         try:
             await publish_ram_usage(client, get_memory_info())
+        except ConnectionError:
+            raise
         except Exception:
             logger.exception("[RAM] publish failed")
 
@@ -46,18 +50,24 @@ async def run_cycle(client: OPCUAClient) -> None:
                 for service_name in settings.metrics_config.services.names
             ]
             await publish_service_info(client, service_info)
+        except ConnectionError:
+            raise
         except Exception:
             logger.exception("[SERVICES] publish failed")
 
     if MetricType.NETWORK in settings.metrics_to_log:
         try:
             await publish_network_usage(client, get_network_interfaces())
+        except ConnectionError:
+            raise
         except Exception:
             logger.exception("[NETWORK] publish failed")
 
     if MetricType.KEPSERVER_EVENTS in settings.metrics_to_log:
         try:
             await publish_kep_event(client, get_kepserver_events())
+        except ConnectionError:
+            raise
         except Exception:
             logger.exception("[EVENTS] publish failed")
 
@@ -86,15 +96,25 @@ async def main() -> None:
     logger.info("Extractor initialized")
     time.sleep(5)
 
-    async with client:
-        while True:
-            try:
-                await run_cycle(client)
-            except asyncio.CancelledError as e:
-                logger.error(f"[MAIN] OPC UA request cancelled: {e}")
-            except Exception as e:
-                logger.error(f"[MAIN] cycle failed: {e}")
-            await asyncio.sleep(1)
+    reconnect_delay = 10
+
+    while True:
+        try:
+            async with client:
+                logger.info("OPC UA connection established")
+                while True:
+                    try:
+                        await run_cycle(client)
+                    except asyncio.CancelledError as e:
+                        logger.error(f"[MAIN] OPC UA request cancelled: {e}")
+                    except Exception as e:
+                        logger.error(f"[MAIN] cycle failed: {e}")
+                    await asyncio.sleep(1)
+        except ConnectionError as e:
+            logger.warning(f"[MAIN] Connection lost: {e}. Reconnecting in {reconnect_delay}s...")
+        except Exception as e:
+            logger.error(f"[MAIN] Unexpected error: {e}. Reconnecting in {reconnect_delay}s...")
+        await asyncio.sleep(reconnect_delay)
 
 
 if __name__ == "__main__":
