@@ -148,63 +148,68 @@ class MetricsDatabase(ProjectDatabase):
         )
 
     def insert_event(self, event: KepEvent) -> None:
-        self.execute(
-            """
-            INSERT INTO events (hash, timestamp, event_name, source, message)
-            VALUES (%s, %s, %s, %s, %s)
-            ON CONFLICT (hash, timestamp) DO NOTHING;
-            """,
-            (
-                event.hash,
-                event.timestamp,
-                event.name,
-                event.source,
-                event.message,
-            ),
-        )
+        with self.transaction():
+            self.execute(
+                """
+                INSERT INTO events (hash, timestamp, event_name, source, message)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (hash, timestamp) DO NOTHING;
+                """,
+                (
+                    event.hash,
+                    event.timestamp,
+                    event.name,
+                    event.source,
+                    event.message,
+                ),
+            )
 
     def insert_cpu_usage(self, cpu_usage: CPUUsage) -> None:
-        self.execute(
-            "INSERT INTO cpu_usage (timestamp, usage) VALUES (%s, %s);",
-            (cpu_usage.timestamp, cpu_usage.usage),
-        )
+        with self.transaction():
+            self.execute(
+                "INSERT INTO cpu_usage (timestamp, usage) VALUES (%s, %s);",
+                (cpu_usage.timestamp, cpu_usage.usage),
+            )
 
     def insert_ram_usage(self, ram_usage: RAMUsage) -> None:
-        self.execute(
-            "INSERT INTO ram_usage (timestamp, total_kb, free_kb) VALUES (%s, %s, %s);",
-            (ram_usage.timestamp, ram_usage.total_kb, ram_usage.free_kb),
-        )
+        with self.transaction():
+            self.execute(
+                "INSERT INTO ram_usage (timestamp, total_kb, free_kb) VALUES (%s, %s, %s);",
+                (ram_usage.timestamp, ram_usage.total_kb, ram_usage.free_kb),
+            )
 
     def insert_network_metrics(self, network_usage: NetworkUsage) -> None:
-        self.execute(
-            """
-            INSERT INTO network_usage (
-                timestamp, interface, operational_status, network_interface_type, kb_bytes_sent, kb_bytes_received
+        with self.transaction():
+            self.execute(
+                """
+                INSERT INTO network_usage (
+                    timestamp, interface, operational_status, network_interface_type, kb_bytes_sent, kb_bytes_received
+                )
+                VALUES (%s, %s, %s, %s, %s, %s);
+                """,
+                (
+                    network_usage.timestamp,
+                    network_usage.interface,
+                    network_usage.operational_status,
+                    network_usage.network_interface_type,
+                    network_usage.kb_bytes_sent,
+                    network_usage.kb_bytes_received,
+                ),
             )
-            VALUES (%s, %s, %s, %s, %s, %s);
-            """,
-            (
-                network_usage.timestamp,
-                network_usage.interface,
-                network_usage.operational_status,
-                network_usage.network_interface_type,
-                network_usage.kb_bytes_sent,
-                network_usage.kb_bytes_received,
-            ),
-        )
 
     def insert_service_info(self, service_info: ServiceInfo) -> None:
-        self.execute(
-            """
-            INSERT INTO services (timestamp, name, status, service_type, machine_name, process_ids)
-            VALUES (%s, %s, %s, %s, %s, %s);
-            """,
-            (
-                service_info.timestamp,
-                service_info.name,
-                service_info.status,
-                service_info.service_type,
-                service_info.machine_name,
-                ",".join(str(pid) for pid in service_info.process_ids),
-            ),
-        )
+        with self.transaction():
+            self.execute(
+                """
+                INSERT INTO services (timestamp, name, status, service_type, machine_name, process_ids)
+                VALUES (%s, %s, %s, %s, %s, %s);
+                """,
+                (
+                    service_info.timestamp,
+                    service_info.name,
+                    service_info.status,
+                    service_info.service_type,
+                    service_info.machine_name,
+                    ",".join(str(pid) for pid in service_info.process_ids),
+                ),
+            )
