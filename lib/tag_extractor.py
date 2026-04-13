@@ -39,7 +39,7 @@ def extract_tags_from_csv(
     tags = df[tag_column].dropna().tolist()
 
     if prefix:
-        tags_json = [prefix + tag.strip().removesuffix(".BAL") for tag in tags]
+        tags_json = [prefix + "." + tag.strip().removesuffix(".BAL") for tag in tags]
     else:
         tags_json = [tag.strip().removesuffix(".BAL") for tag in tags]
 
