@@ -2,18 +2,23 @@
 Generates a .json tag list from a .csv file
 """
 
+from logging import getLogger
+
 import pandas as pd
 
 # Common OPC UA node id prefix to strip when mapping reads to tag names (set if needed).
 TAG_PREFIX = ""
 
+logger = getLogger(__name__)
+
+
 def extract_tags_from_csv(
-    prefix: str = None,
+    prefix: str = "",
     separator: str = ";",
     exclude_tags: list[str] = [],
     tag_column: str = "",
     filename: str = "",
-) -> dict:
+) -> list[str]:
     """
     Extracts tags from a .csv file and returns a list of tags.
 
@@ -28,7 +33,7 @@ def extract_tags_from_csv(
         A list of tags in the OPC UA namespace.
     """
 
-    print(f"Reading tags from {filename}...")
+    logger.info(f"Reading tags from {filename}...")
 
     df = pd.read_csv(filename, sep=separator)
     tags = df[tag_column].dropna().tolist()
@@ -38,9 +43,9 @@ def extract_tags_from_csv(
     else:
         tags_json = [tag.strip().removesuffix(".BAL") for tag in tags]
 
-    tags_json = [
+    tags_json: list[str] = [
         tag for tag in tags_json if not any(exclude in tag for exclude in exclude_tags)
     ]
 
-    print(f"Tags extracted successfully! {len(tags_json)} tags found")
+    logger.info(f"Tags extracted successfully! {len(tags_json)} tags found")
     return tags_json

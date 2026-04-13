@@ -1,7 +1,9 @@
 import asyncio
+import logging
 import os
 import socket
 import sys
+from logging import getLogger
 from pathlib import Path
 
 from cryptography import x509
@@ -36,7 +38,15 @@ def _load_env(base_dir: Path) -> None:
     load_dotenv(override=False)
 
 
+logger = getLogger(__name__)
+
+
 async def main() -> int:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+
     base_dir = _base_dir()
     _load_env(base_dir)
 
@@ -60,9 +70,9 @@ async def main() -> int:
         generate_cert = True
 
     if not generate_cert:
-        print("Certificate already exists and is valid.")
-        print(f"Key:  {key_path}")
-        print(f"Cert: {cert_path}")
+        logger.info("Certificate already exists and is valid.")
+        logger.info(f"Key:  {key_path}")
+        logger.info(f"Cert: {cert_path}")
         return 0
 
     subject_alt_names = [
@@ -80,9 +90,9 @@ async def main() -> int:
     )
 
     cert_path.write_bytes(cert.public_bytes(encoding=Encoding.PEM))
-    print("Certificate generated successfully!")
-    print(f"Key:  {key_path}")
-    print(f"Cert: {cert_path}")
+    logger.info("Certificate generated successfully!")
+    logger.info(f"Key:  {key_path}")
+    logger.info(f"Cert: {cert_path}")
     return 0
 
 

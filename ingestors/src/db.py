@@ -5,16 +5,19 @@ Receives data from the OPC UA server and ingests it into the database.
 """
 
 from datetime import datetime
+from logging import getLogger
 
 from asyncua import ua  # pyright: ignore[reportMissingTypeStubs]
 from lib.config import config, settings
 from lib.database import ProjectDatabase
 from lib.models import CPUUsage, KepEvent, NetworkUsage, PLCData, RAMUsage, ServiceInfo
 
+logger = getLogger(__name__)
+
 
 class TagsDatabase(ProjectDatabase):
     def initialize(self) -> None:
-        print(
+        logger.info(
             f"Connecting to TimescaleDB at {config.db_host}:{config.db_port}/{config.db_name}..."
         )
         self.connect()
@@ -35,7 +38,7 @@ class TagsDatabase(ProjectDatabase):
             ],
             hypertables=[("tags", "server_timestamp")],
         )
-        print(
+        logger.info(
             f"Database initialized with {settings.log_retention_days} days retention policy."
         )
 

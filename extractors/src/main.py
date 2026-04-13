@@ -1,13 +1,11 @@
 import asyncio
+import logging
 import os
 import time
-from src.metrics.events import get_kepserver_events
-import logging
 from logging import getLogger
 
 from lib.config import MetricType, config, settings
 from lib.opcua_client import OPCUAClient
-
 
 from src.metrics import (
     get_memory_info,
@@ -15,6 +13,7 @@ from src.metrics import (
     get_service_info,
     get_total_cpu_usage,
 )
+from src.metrics.events import get_kepserver_events
 from src.publishers.opcua import (
     publish_cpu_usage,
     publish_kep_event,
@@ -98,25 +97,25 @@ async def main() -> None:
 
     reconnect_delay = 10
 
-    while True:
+    async with client:
+        logger.info("OPC UA client connected, starting main loop")
+        start_time = time.time()
         try:
-            async with client:
-                logger.info("OPC UA connection established")
-                while True:
-                    try:
-                        await run_cycle(client)
-                    except asyncio.CancelledError as e:
-                        logger.error(f"[MAIN] OPC UA request cancelled: {e}")
-                    except ConnectionError:
-                        raise
-                    except Exception as e:
-                        logger.error(f"[MAIN] cycle failed: {e}")
-                    await asyncio.sleep(1)
+            while True:
+                await run_cycle(client)
+                await asyncio.sleep(1)
         except ConnectionError as e:
-            logger.warning(f"[MAIN] Connection lost: {e}. Reconnecting in {reconnect_delay}s...")
+            logger.warning(
+                f"[MAIN] Connection lost: {e}. Reconnecting in {reconnect_delay}s..."
+            )
         except Exception as e:
-            logger.error(f"[MAIN] Unexpected error: {e}. Reconnecting in {reconnect_delay}s...")
-        await asyncio.sleep(reconnect_delay)
+            logger.error(
+                f"[MAIN] Unexpected error: {e}. Reconnecting in {reconnect_delay}s..."
+            )
+        finally:
+            await client.disconnect()
+            logger.info("OPC UA client disconnected, exiting main loop")
+            logger.info(f"Total uptime: {time.time() - start_time:.2f} seconds")
 
 
 if __name__ == "__main__":

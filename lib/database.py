@@ -3,12 +3,14 @@ from __future__ import annotations
 import os
 import re
 from contextlib import contextmanager
+from logging import getLogger
 from typing import Iterable, Iterator, LiteralString, Sequence
 
 import psycopg
 from psycopg.sql import SQL, Identifier, Literal
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_logger = getLogger(__name__)
 
 
 class ProjectDatabase:
@@ -137,5 +139,5 @@ class ProjectDatabase:
         try:
             return int(raw)
         except ValueError:
-            print(f"Invalid LOG_RETENTION_DAYS value '{raw}', defaulting to 7.")
+            _logger.warning(f"Invalid LOG_RETENTION_DAYS value '{raw}', defaulting to 7.")
             return 7

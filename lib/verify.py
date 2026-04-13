@@ -2,9 +2,13 @@
 Run this once to get a list of all nodes that need to be created in KepServer.
 """
 
+from logging import getLogger
+
 from lib.config import config, settings, MetricType
 from lib.models import CPUUsage, RAMUsage, NetworkUsage, ServiceInfo, KepEvent
 from lib.tag_extractor import extract_tags_from_csv
+
+logger = getLogger(__name__)
 
 
 def get_cpu_node_names() -> list[str]:
@@ -72,9 +76,9 @@ def print_required_nodes() -> None:
     if MetricType.KEPSERVER_EVENTS in settings.metrics_to_log:
         nodes.extend(get_kepserver_events_node_names())
 
-    print(f"\n{len(nodes)} nodes need to be created in KepServer:\n")
+    logger.info(f"{len(nodes)} nodes need to be created in KepServer")
     for node in nodes:
-        print(f"  {node}")
+        logger.info(f"  {node}")
 
 
 if __name__ == "__main__":
