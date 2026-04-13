@@ -23,7 +23,7 @@ from lib.opcua_client import OPCUAClient
 from lib.verify import get_plc_tags
 
 from src.db import MetricsDatabase, TagsDatabase
-from subscribers.opcua import (
+from src.subscribers.opcua import (
     subscribe_cpu_usage,
     subscribe_kep_events,
     subscribe_network_usage,
