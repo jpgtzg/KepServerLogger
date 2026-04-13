@@ -77,28 +77,21 @@ async def main():
             while True:
                 if MetricType.PLC_TAGS in settings.metrics_to_log:
                     tag_values, timestamp = await client.read_batch(tags_to_log)
-
-                    logger.info(
-                        f"Logged {len(tag_values)} values for {len(tags_to_log)} tags at {timestamp.strftime(settings.timestamp_format)}"
-                    )
                     rows = tags_db.process_tag_values(tag_values, timestamp)
                     tags_db.save_many(rows)
-                    logger.info(f"Saved {len(rows)} tags to the database")
-
+                    logger.info(f"[TAGS] Saved {len(rows)} tags to the database")
                 if MetricType.CPU in settings.metrics_to_log:
                     try:
                         cpu_usage = await subscribe_cpu_usage(client)
-                        logger.info(f"Retrieved CPU usage: {cpu_usage}")
                         metrics_db.insert_cpu_usage(cpu_usage)
-                        logger.info("Logged CPU usage")
+                        logger.info("[CPU] Logged CPU usage")
                     except Exception as e:
                         logger.warning(f"[CPU] Skipping: {e}")
                 if MetricType.RAM in settings.metrics_to_log:
                     try:
                         ram_usage = await subscribe_ram_usage(client)
-                        logger.info(f"Retrieved RAM usage: {ram_usage}")
                         metrics_db.insert_ram_usage(ram_usage)
-                        logger.info("Logged RAM usage")
+                        logger.info("[RAM] Logged RAM usage")
                     except Exception as e:
                         logger.warning(f"[RAM] Skipping: {e}")
                 if MetricType.NETWORK in settings.metrics_to_log:
@@ -107,7 +100,7 @@ async def main():
                         for network in network_usage:
                             metrics_db.insert_network_metrics(network)
                         logger.info(
-                            f"Logged network usage for {len(network_usage)} interfaces"
+                            f"[NETWORK] Logged network usage for {len(network_usage)} interfaces"
                         )
                     except Exception as e:
                         logger.warning(f"[NETWORK] Skipping: {e}")
@@ -116,7 +109,9 @@ async def main():
                         service_info = await subscribe_service_info(client)
                         for service in service_info:
                             metrics_db.insert_service_info(service)
-                        logger.info(f"Logged info for {len(service_info)} services")
+                        logger.info(
+                            f"[SERVICES] Logged info for {len(service_info)} services"
+                        )
                     except Exception as e:
                         logger.warning(f"[SERVICES] Skipping: {e}")
                 if MetricType.KEPSERVER_EVENTS in settings.metrics_to_log:
@@ -124,7 +119,9 @@ async def main():
                         kep_events = await subscribe_kep_events(client)
                         for event in kep_events:
                             metrics_db.insert_event(event)
-                        logger.info(f"Logged {len(kep_events)} KepServer events")
+                        logger.info(
+                            f"[EVENTS] Logged {len(kep_events)} KepServer events"
+                        )
                     except Exception as e:
                         logger.warning(f"[EVENTS] Skipping: {e}")
 

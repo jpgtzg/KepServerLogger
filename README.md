@@ -24,18 +24,18 @@ Note: Currently, the architecture only supports a single extractor, but it is de
     ```
 
 - Build the ingestor image for Linux
-    - From the root of the project, run the ./generate_tar.sh script, which will build a .tar image of the ingestor and place it in the root of the project.
+    - From the root of the project, run the ./build_ingestor.sh script, which will build a .tar image of the ingestor and place it in the root of the project.
     - The script accepts an optional `--timescale` flag to also pull and save the `timescale/timescaledb-ha:pg16` image as `timescaledb.tar.gz`, which is required by the docker-compose.
 
     ```sh
     # Save only the timescaledb image
-    ./generate_tar.sh --timescale
+    ./build_ingestor.sh --timescale
 
     # Build and save only the ingestor image
-    ./generate_tar.sh ingestors/Dockerfile ingestors
+    ./build_ingestor.sh ingestors/Dockerfile ingestors
 
     # Both at once
-    ./generate_tar.sh --timescale ingestors/Dockerfile ingestors
+    ./build_ingestor.sh --timescale ingestors/Dockerfile ingestors
     ```
 
 Once everything is built, the deployment can be done as follows:
@@ -50,29 +50,45 @@ The .env file should contain the following variables:
 
 ```
 
+Given that the communication is done via OPC UA, the extractor and ingestor machines must agree on the same nodes to read/write from the KepServer. This is assure by having the same settings.json file in both machines. Additionally, these nodes have to be manually added to the KepServer configuration before starting the applications, otherwise, they won't find the nodes and won't be able to read/write data. Note: KepServer has an import csv setting which can speed up the process of adding nodes, so it is recommended to use it instead of adding the nodes manually one by one.
+
 ### Windows machine (Extractors)
 
 Upload:
 
-- extractor.exe
-- kepserver-certgen.exe
-- .env
-- settings.json
+- `extractor.exe`
+- `kepserver-certgen.exe`
+- `.env`
+- `settings.json`
 
 ### Linux machine (Ingestor)
 
 Upload:
 
-- ingestor.tar.gz
-- .env
-- settings.json
-- docker-compose.yml
-- TagList.csv
-- timescaledb.tar.gz (if the timescale image is not pulled from the registry in the target machine, and instead is built and saved locally using the `--timescale` flag in the `generate_tar.sh` script; this is useful for when the target machine doesn't have access to the registry, or to save time in the deployment by avoiding pulling the image from the registry)
+- `.env`
+- `docker-compose.yml`
+- `ingestor.tar.gz`
+- `settings.json`
+- `TagList.csv`
+- `timescaledb.tar.gz` (if the timescale image is not pulled from the registry in the target machine, and instead is built and saved locally using the `--timescale` flag in the `build_ingestor.sh` script; this is useful for when the target machine doesn't have access to the registry, or to save time in the deployment by avoiding pulling the image from the registry)
+
+Load the ingestor image into the target machine using `docker load -i ingestor.tar.gz`
 
 ## Running
 
 Once the files are uploaded to the respective machines, the extractor can be run by executing the .exe file in the Windows machine, and the ingestor can be run by executing the docker-compose.yml file in the Linux machine.
+
+```sh
+docker compose up
+```
+
+or
+
+```sh
+docker compose up -d
+```
+
+For when you want to run it in detached mode (production).
 
 It is recommended to convert the extractor into a Windows service, so that it can be run in the background and automatically start when the machine is turned on. This can be done using a tool like NSSM (Non-Sucking Service Manager), which allows to create a Windows service from any executable file.
 
