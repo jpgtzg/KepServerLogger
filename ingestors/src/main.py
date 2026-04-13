@@ -35,6 +35,9 @@ logger = getLogger(__name__)
 
 
 async def main():
+
+    logger.info("Initiating KepServerLogger Central Collector...")
+
     logging.basicConfig(
         level=logging.WARNING,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -64,8 +67,7 @@ async def main():
     metrics_db = MetricsDatabase(retention_days=settings.log_retention_days)
     metrics_db.initialize()
 
-    logger.info("Initiating KepServerLogger Central Collector...")
-
+    logger.info("Initialization complete, starting main loop...")
     time.sleep(5)
 
     async with client:
@@ -86,6 +88,7 @@ async def main():
                 if MetricType.CPU in settings.metrics_to_log:
                     try:
                         cpu_usage = await subscribe_cpu_usage(client)
+                        logger.info(f"Retrieved CPU usage: {cpu_usage}")
                         metrics_db.insert_cpu_usage(cpu_usage)
                         logger.info("Logged CPU usage")
                     except Exception as e:
@@ -93,6 +96,7 @@ async def main():
                 if MetricType.RAM in settings.metrics_to_log:
                     try:
                         ram_usage = await subscribe_ram_usage(client)
+                        logger.info(f"Retrieved RAM usage: {ram_usage}")
                         metrics_db.insert_ram_usage(ram_usage)
                         logger.info("Logged RAM usage")
                     except Exception as e:
