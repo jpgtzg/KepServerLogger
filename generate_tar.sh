@@ -10,4 +10,4 @@ if [ -z "$DOCKERFILE_PATH" ] || [ -z "$IMAGE_NAME" ]; then
 fi
 
 docker build -f $DOCKERFILE_PATH -t $IMAGE_NAME . 2>&1 | tail -5
-docker save $IMAGE_NAME | gzip > $IMAGE_NAME.tar.gz && echo "done"
+docker save $IMAGE_NAME | gzip > $IMAGE_NAME.tar.gz && echo "done at "$(date +"%H:%M:%S")
