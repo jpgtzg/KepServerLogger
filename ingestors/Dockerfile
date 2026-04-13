@@ -18,7 +18,6 @@ RUN cd /app/ingestors && uv sync --frozen
 # Copy source
 COPY lib/ /app/lib/
 COPY ingestors/src/ /app/ingestors/src/
-COPY ingestors/subscribers/ /app/ingestors/subscribers/
 COPY utils/certgen/ /app/utils/certgen/
 COPY ingestors/entrypoint.sh /app/entrypoint.sh
 
