@@ -25,60 +25,17 @@ from src.publishers.opcua import (
 logger = getLogger(__name__)
 
 
-async def run_cycle(client: OPCUAClient) -> None:
-    if MetricType.CPU in settings.metrics_to_log:
-        try:
-            await publish_cpu_usage(client, get_total_cpu_usage())
-        except ConnectionError:
-            raise
-        except Exception:
-            logger.exception("[CPU] publish failed")
-
-    if MetricType.RAM in settings.metrics_to_log:
-        try:
-            await publish_ram_usage(client, get_memory_info())
-        except ConnectionError:
-            raise
-        except Exception:
-            logger.exception("[RAM] publish failed")
-
-    if MetricType.SERVICES in settings.metrics_to_log:
-        try:
-            service_info = [
-                get_service_info(service_name)
-                for service_name in settings.metrics_config.services.names
-            ]
-            await publish_service_info(client, service_info)
-        except ConnectionError:
-            raise
-        except Exception:
-            logger.exception("[SERVICES] publish failed")
-
-    if MetricType.NETWORK in settings.metrics_to_log:
-        try:
-            await publish_network_usage(client, get_network_interfaces())
-        except ConnectionError:
-            raise
-        except Exception:
-            logger.exception("[NETWORK] publish failed")
-
-    if MetricType.KEPSERVER_EVENTS in settings.metrics_to_log:
-        try:
-            await publish_kep_event(client, get_kepserver_events())
-        except ConnectionError:
-            raise
-        except Exception:
-            logger.exception("[EVENTS] publish failed")
-
-
 async def main() -> None:
+    logger.info("Starting metrics extractor...")
+
     logging.basicConfig(
         level=logging.WARNING,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
-    # Keep our own code verbose; silence noisy third-party packages.
-    for name in ("src", "lib", "__main__"):
+    for name in ("src", "lib", "`__main__"):
         logging.getLogger(name).setLevel(logging.INFO)
+
+    logging.info(f"Connecting to {config.kepserver_server_url}...")
 
     client = OPCUAClient(
         url=config.kepserver_server_url,
@@ -92,26 +49,60 @@ async def main() -> None:
 
     await client.setup()
 
-    logger.info("Extractor initialized")
+    logger.info("Initialization complete, starting main loop...")
     time.sleep(5)
-
-    reconnect_delay = 10
 
     async with client:
         logger.info("OPC UA client connected, starting main loop")
         start_time = time.time()
         try:
             while True:
-                await run_cycle(client)
+                if MetricType.CPU in settings.metrics_to_log:
+                    try:
+                        await publish_cpu_usage(client, get_total_cpu_usage())
+                    except ConnectionError:
+                        raise
+                    except Exception:
+                        logger.exception("[CPU] publish failed")
+
+                if MetricType.RAM in settings.metrics_to_log:
+                    try:
+                        await publish_ram_usage(client, get_memory_info())
+                    except ConnectionError:
+                        raise
+                    except Exception:
+                        logger.exception("[RAM] publish failed")
+
+                if MetricType.SERVICES in settings.metrics_to_log:
+                    try:
+                        service_info = [
+                            get_service_info(service_name)
+                            for service_name in settings.metrics_config.services.names
+                        ]
+                        await publish_service_info(client, service_info)
+                    except ConnectionError:
+                        raise
+                    except Exception:
+                        logger.exception("[SERVICES] publish failed")
+
+                if MetricType.NETWORK in settings.metrics_to_log:
+                    try:
+                        await publish_network_usage(client, get_network_interfaces())
+                    except ConnectionError:
+                        raise
+                    except Exception:
+                        logger.exception("[NETWORK] publish failed")
+
+                if MetricType.KEPSERVER_EVENTS in settings.metrics_to_log:
+                    try:
+                        await publish_kep_event(client, get_kepserver_events())
+                    except ConnectionError:
+                        raise
+                    except Exception:
+                        logger.exception("[EVENTS] publish failed")
                 await asyncio.sleep(1)
-        except ConnectionError as e:
-            logger.warning(
-                f"[MAIN] Connection lost: {e}. Reconnecting in {reconnect_delay}s..."
-            )
-        except Exception as e:
-            logger.error(
-                f"[MAIN] Unexpected error: {e}. Reconnecting in {reconnect_delay}s..."
-            )
+        except KeyboardInterrupt:
+            logger.info("Stopping logger...")
         finally:
             await client.disconnect()
             logger.info("OPC UA client disconnected, exiting main loop")
