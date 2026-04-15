@@ -2,10 +2,10 @@ import asyncio
 import logging
 import os
 import time
-from logging import getLogger
 
 from lib.config import MetricType, config, settings
 from lib.opcua_client import OPCUAClient
+from lib.logging import config_logging
 
 from src.metrics import (
     get_memory_info,
@@ -22,20 +22,13 @@ from src.publishers.opcua import (
     publish_service_info,
 )
 
-logger = getLogger(__name__)
+config_logging()
+logger = logging.getLogger(__name__)
 
 
 async def main() -> None:
     logger.info("Starting metrics extractor...")
-
-    logging.basicConfig(
-        level=logging.WARNING,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    )
-    for name in ("src", "lib", "`__main__"):
-        logging.getLogger(name).setLevel(logging.INFO)
-
-    logging.info(f"Connecting to {config.kepserver_server_url}...")
+    logger.info(f"Connecting to {config.kepserver_server_url}...")
 
     client = OPCUAClient(
         url=config.kepserver_server_url,

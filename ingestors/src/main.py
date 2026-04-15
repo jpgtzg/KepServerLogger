@@ -21,6 +21,7 @@ from logging import getLogger
 from lib.config import MetricType, config, settings
 from lib.opcua_client import OPCUAClient
 from lib.verify import get_plc_tags
+from lib.logging import config_logging
 
 from src.db import MetricsDatabase, TagsDatabase
 from src.subscribers.opcua import (
@@ -31,20 +32,12 @@ from src.subscribers.opcua import (
     subscribe_service_info,
 )
 
-logger = getLogger(__name__)
+config_logging()
+logger = logging.getLogger(__name__)
 
 
 async def main():
-
     logger.info("Initiating KepServerLogger Central Collector...")
-
-    logging.basicConfig(
-        level=logging.WARNING,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    )
-    for name in ("src", "lib", "__main__"):
-        logging.getLogger(name).setLevel(logging.INFO)
-
     logger.info(f"Connecting to {config.kepserver_server_url}...")
 
     tags_to_log = get_plc_tags()
