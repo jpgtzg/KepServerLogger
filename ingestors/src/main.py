@@ -18,9 +18,9 @@ import logging
 import time
 
 from lib.config import MetricType, config, settings
+from lib.logging import config_logging
 from lib.opcua_client import OPCUAClient
 from lib.verify import get_plc_tags
-from lib.logging import config_logging
 
 from src.db import MetricsDatabase, TagsDatabase
 from src.subscribers.opcua import (

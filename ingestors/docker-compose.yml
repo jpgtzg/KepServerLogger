@@ -13,6 +13,11 @@ services:
             - timescaledb-data:/var/lib/postgresql/data
         ports:
             - "5432:5432"
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
 
     ingestors:
         build:
@@ -25,7 +30,8 @@ services:
         stdin_open: true
         tty: true
         depends_on:
-            - timescaledb
+            timescaledb:
+                condition: service_healthy
         env_file:
             - .env
         environment:
@@ -35,6 +41,7 @@ services:
             - ingestors-certs:/app/certs
             - ./TagList.csv:/app/ingestors/TagList.csv:ro,Z
             - ./settings.json:/app/ingestors/settings.json:ro,Z
+            - ./logs:/app/ingestors/logs
 
 volumes:
     timescaledb-data:

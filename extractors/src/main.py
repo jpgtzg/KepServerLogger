@@ -4,8 +4,8 @@ import os
 import time
 
 from lib.config import MetricType, config, settings
-from lib.opcua_client import OPCUAClient
 from lib.logging import config_logging
+from lib.opcua_client import OPCUAClient
 
 from src.metrics import (
     get_memory_info,
