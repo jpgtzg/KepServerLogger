@@ -9,8 +9,8 @@ from asyncua import Client, ua
 from asyncua.common.node import Node
 from asyncua.crypto.security_policies import SecurityPolicyBasic256Sha256
 
-from lib.tag_extractor import TAG_PREFIX
 from lib.utils import utcnow
+from lib.config import settings
 
 logger = getLogger(__name__)
 
@@ -67,7 +67,7 @@ class OPCUAClient(Client):
         timestamp = utcnow()
 
         tag_values = [
-            (node.nodeid.to_string().removeprefix(TAG_PREFIX), value)
+            (node.nodeid.to_string().removeprefix(settings.metrics_config.plc_tags.prefix), value)
             for node, value in zip(nodes, values)
         ]
 

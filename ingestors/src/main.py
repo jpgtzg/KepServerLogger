@@ -16,7 +16,6 @@ Reads the tags from a .csv file and ingests the data into the database.
 import asyncio
 import logging
 import time
-from logging import getLogger
 
 from lib.config import MetricType, config, settings
 from lib.opcua_client import OPCUAClient
