@@ -9,7 +9,7 @@ from logging import getLogger
 
 from asyncua import ua
 from lib.config import settings
-from lib.models import CPUUsage, KepEvent, NetworkUsage, RAMUsage, ServiceInfo
+from lib.models import CPUUsage, KepEvent, NetworkUsage, OpcConnectionEvent, RAMUsage, ServiceInfo
 from lib.opcua_client import OPCUAClient
 
 logger = getLogger(__name__)
@@ -76,4 +76,15 @@ async def publish_kep_event(client: OPCUAClient, kep_events: list[KepEvent]) -> 
         return
     data = [kep_event.to_opcua(settings.timestamp_format) for kep_event in kep_events]
     node = client.get_node(f"{settings.metrics_config.kepserverevents.prefix}.batch")
+    await client.write_value(node, json.dumps(data), ua.VariantType.String)
+
+
+async def publish_opc_connection_events(
+    client: OPCUAClient, events: list[OpcConnectionEvent]
+) -> None:
+    logger.info(f"[OPC_DIAGS] Publishing {len(events)} connection event(s)")
+    if not events:
+        return
+    data = [e.to_opcua(settings.timestamp_format) for e in events]
+    node = client.get_node(f"{settings.metrics_config.opcdiagnostics.prefix}.batch")
     await client.write_value(node, json.dumps(data), ua.VariantType.String)

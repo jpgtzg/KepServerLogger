@@ -84,3 +84,10 @@ class KepEvent(OPCUAModel):
     source: str
     message: str
     hash: str
+
+
+class OpcConnectionEvent(OPCUAModel):
+    client_name: str
+    kind: str
+    reason: str
+    hash: str

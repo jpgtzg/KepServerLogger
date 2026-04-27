@@ -6,7 +6,7 @@ The subscribers are responsible for reading the data from the OPC UA server.
 import json
 
 from lib.config import settings
-from lib.models import CPUUsage, KepEvent, NetworkUsage, RAMUsage, ServiceInfo
+from lib.models import CPUUsage, KepEvent, NetworkUsage, OpcConnectionEvent, RAMUsage, ServiceInfo
 from lib.opcua_client import OPCUAClient
 
 
@@ -60,3 +60,11 @@ async def subscribe_kep_events(client: OPCUAClient) -> list[KepEvent]:
     if not raw:
         return []
     return [KepEvent(**e) for e in json.loads(raw)]
+
+
+async def subscribe_opc_connection_events(client: OPCUAClient) -> list[OpcConnectionEvent]:
+    node = client.get_node(f"{settings.metrics_config.opcdiagnostics.prefix}.batch")
+    raw: str = await node.read_value()
+    if not raw:
+        return []
+    return [OpcConnectionEvent(**e) for e in json.loads(raw)]

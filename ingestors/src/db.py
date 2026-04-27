@@ -10,7 +10,7 @@ from logging import getLogger
 from asyncua import ua  # pyright: ignore[reportMissingTypeStubs]
 from lib.config import config, settings
 from lib.database import ProjectDatabase
-from lib.models import CPUUsage, KepEvent, NetworkUsage, PLCData, RAMUsage, ServiceInfo
+from lib.models import CPUUsage, KepEvent, NetworkUsage, OpcConnectionEvent, PLCData, RAMUsage, ServiceInfo
 
 logger = getLogger(__name__)
 
@@ -129,6 +129,15 @@ class MetricsDatabase(ProjectDatabase):
                     machine_name    TEXT NOT NULL,
                     process_ids     TEXT NOT NULL
                 );
+
+                CREATE TABLE IF NOT EXISTS opc_connection_events (
+                    hash        TEXT NOT NULL,
+                    timestamp   TIMESTAMPTZ NOT NULL,
+                    client_name TEXT NOT NULL,
+                    kind        TEXT NOT NULL,
+                    reason      TEXT NOT NULL DEFAULT '',
+                    PRIMARY KEY (hash, timestamp)
+                );
                 """,
             ],
             indexes=[
@@ -137,6 +146,7 @@ class MetricsDatabase(ProjectDatabase):
                 "CREATE INDEX IF NOT EXISTS idx_ram_timestamp ON ram_usage (timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_services_timestamp ON services (timestamp DESC, name);",
                 "CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events (timestamp DESC);",
+                "CREATE INDEX IF NOT EXISTS idx_opc_conn_events_timestamp ON opc_connection_events (timestamp DESC);",
             ],
             hypertables=[
                 ("cpu_usage", "timestamp"),
@@ -144,6 +154,7 @@ class MetricsDatabase(ProjectDatabase):
                 ("ram_usage", "timestamp"),
                 ("services", "timestamp"),
                 ("events", "timestamp"),
+                ("opc_connection_events", "timestamp"),
             ],
         )
 
@@ -195,6 +206,17 @@ class MetricsDatabase(ProjectDatabase):
                     network_usage.kb_bytes_sent,
                     network_usage.kb_bytes_received,
                 ),
+            )
+
+    def insert_opc_connection_event(self, event: OpcConnectionEvent) -> None:
+        with self.transaction():
+            self.execute(
+                """
+                INSERT INTO opc_connection_events (hash, timestamp, client_name, kind, reason)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (hash, timestamp) DO NOTHING;
+                """,
+                (event.hash, event.timestamp, event.client_name, event.kind, event.reason),
             )
 
     def insert_service_info(self, service_info: ServiceInfo) -> None:

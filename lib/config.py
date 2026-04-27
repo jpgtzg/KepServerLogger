@@ -25,10 +25,15 @@ class MetricType(str, Enum):
     NETWORK = "network"
     SERVICES = "services"
     KEPSERVER_EVENTS = "kepserverevents"
+    OPC_DIAGNOSTICS = "opcdiagnostics"
 
 
 class PrefixConfig(BaseModel):
     prefix: str
+
+
+class OpcDiagnosticsConfig(PrefixConfig):
+    log_path: str
 
 
 class ServiceConfig(BaseModel):
@@ -47,6 +52,7 @@ class MetricsConfig(BaseModel):
     services: ServiceConfig
     kepserverevents: PrefixConfig
     plc_tags: PrefixConfig
+    opcdiagnostics: OpcDiagnosticsConfig
 
 
 class Settings(BaseModel):
