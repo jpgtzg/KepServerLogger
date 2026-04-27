@@ -27,6 +27,7 @@ from src.subscribers.opcua import (
     subscribe_cpu_usage,
     subscribe_kep_events,
     subscribe_network_usage,
+    subscribe_opc_connection_events,
     subscribe_ram_usage,
     subscribe_service_info,
 )
@@ -116,6 +117,16 @@ async def main():
                         )
                     except Exception as e:
                         logger.warning(f"[EVENTS] Skipping: {e}")
+                if MetricType.OPC_DIAGNOSTICS in settings.metrics_to_log:
+                    try:
+                        opc_events = await subscribe_opc_connection_events(client)
+                        for event in opc_events:
+                            metrics_db.insert_opc_connection_event(event)
+                        logger.info(
+                            f"[OPC_DIAGS] Logged {len(opc_events)} OPC connection events"
+                        )
+                    except Exception as e:
+                        logger.warning(f"[OPC_DIAGS] Skipping: {e}")
 
                 await asyncio.sleep(1)
 

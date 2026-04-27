@@ -14,10 +14,12 @@ from src.metrics import (
     get_total_cpu_usage,
 )
 from src.metrics.events import get_kepserver_events
+from src.metrics.opc_diagnostics import get_opc_connection_events
 from src.publishers.opcua import (
     publish_cpu_usage,
     publish_kep_event,
     publish_network_usage,
+    publish_opc_connection_events,
     publish_ram_usage,
     publish_service_info,
 )
@@ -93,6 +95,18 @@ async def main() -> None:
                         raise
                     except Exception:
                         logger.exception("[EVENTS] publish failed")
+
+                if MetricType.OPC_DIAGNOSTICS in settings.metrics_to_log:
+                    try:
+                        events = get_opc_connection_events(
+                            settings.metrics_config.opcdiagnostics.log_path
+                        )
+                        await publish_opc_connection_events(client, events)
+                    except ConnectionError:
+                        raise
+                    except Exception:
+                        logger.exception("[OPC_DIAGS] publish failed")
+
                 await asyncio.sleep(1)
         except KeyboardInterrupt:
             logger.info("Stopping logger...")

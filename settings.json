@@ -7,7 +7,8 @@
         "network",
         "services",
         "kepserverevents",
-        "plc_tags"
+        "plc_tags",
+        "opcdiagnostics"
     ],
     "metrics_config": {
         "cpu": {
@@ -36,6 +37,10 @@
         },
         "plc_tags": {
             "prefix": "ns=2;s=Kepserver_OPC_DA.FLS.Tags"
+        },
+        "opcdiagnostics": {
+            "prefix": "ns=2;s=KepServerLogger.Metrics.OpcConnections",
+            "log_path": "C:\\ProgramData\\Kepware\\V6\\opcdiags.log"
         }
     }
 }
