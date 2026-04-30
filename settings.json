@@ -40,7 +40,7 @@
         },
         "opcdiagnostics": {
             "prefix": "ns=2;s=KepServerLogger.Metrics.OpcConnections",
-            "log_path": "C:\\ProgramData\\Kepware\\V6\\opcdiags.log"
+            "log_path": "C:\\ProgramData\\Kepware\\KEPServerEX\\V6\\opcdiags.log"
         }
     }
 }

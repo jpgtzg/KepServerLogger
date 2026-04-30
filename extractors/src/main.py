@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import time
+from typing import Optional
 
 from lib.config import MetricType, config, settings
 from lib.logging import config_logging
@@ -14,7 +15,7 @@ from src.metrics import (
     get_total_cpu_usage,
 )
 from src.metrics.events import get_kepserver_events
-from src.metrics.opc_diagnostics import get_opc_connection_events
+from src.metrics.opc_diagnostics import OpcDiagnosticsReader
 from src.publishers.opcua import (
     publish_cpu_usage,
     publish_kep_event,
@@ -46,6 +47,12 @@ async def main() -> None:
 
     logger.info("Initialization complete, starting main loop...")
     time.sleep(5)
+
+    opc_reader: Optional[OpcDiagnosticsReader] = (
+        OpcDiagnosticsReader(settings.metrics_config.opcdiagnostics.log_path)
+        if MetricType.OPC_DIAGNOSTICS in settings.metrics_to_log
+        else None
+    )
 
     async with client:
         logger.info("OPC UA client connected, starting main loop")
@@ -96,11 +103,9 @@ async def main() -> None:
                     except Exception:
                         logger.exception("[EVENTS] publish failed")
 
-                if MetricType.OPC_DIAGNOSTICS in settings.metrics_to_log:
+                if MetricType.OPC_DIAGNOSTICS in settings.metrics_to_log and opc_reader:
                     try:
-                        events = get_opc_connection_events(
-                            settings.metrics_config.opcdiagnostics.log_path
-                        )
+                        events = opc_reader.read_new_events()
                         await publish_opc_connection_events(client, events)
                     except ConnectionError:
                         raise
@@ -111,6 +116,8 @@ async def main() -> None:
         except KeyboardInterrupt:
             logger.info("Stopping logger...")
         finally:
+            if opc_reader:
+                opc_reader.close()
             await client.disconnect()
             logger.info("OPC UA client disconnected, exiting main loop")
             logger.info(f"Total uptime: {time.time() - start_time:.2f} seconds")
