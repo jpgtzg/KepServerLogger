@@ -2,22 +2,12 @@ import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 
-# ── .txt format (manually exported, one event per group of lines) ──────────
-TIMESTAMP_RE = re.compile(
-    r"^(\d{1,2}/\d{1,2}/\d{4}\s+\d{1,2}:\d{2}:\d{2}\.\d+\s+(?:AM|PM))\s+\[([^\]]+)\]\s+(\S+)"
-)
-FIELD_RE = re.compile(r"^[\t ]*[0-9a-fA-F]+:\s{1,3}(.+)$")
-
 # ── .log format (binary UTF-16-LE, events delimited by null bytes) ─────────
 LOG_EVENT_RE = re.compile(
     r"\[([^\]\n]+)\]\s+(\w+)\s*\n\s*0+:\s+Event started(.*?)0+:\s+Event complete",
     re.DOTALL,
 )
 LOG_FIELD_SPLIT_RE = re.compile(r"0{10}:")
-
-
-def parse_timestamp_txt(ts: str) -> datetime:
-    return datetime.strptime(ts, "%m/%d/%Y %I:%M:%S.%f %p")
 
 
 def parse_timestamp_utc(ts: str) -> datetime | None:
@@ -39,19 +29,6 @@ def _delta_seconds(t0: str, t1: str) -> float | None:
         return (b - a).total_seconds()
     except ValueError:
         return None
-
-
-def extract_field_txt(line: str) -> tuple[str, str] | None:
-    m = FIELD_RE.match(line)
-    if not m:
-        return None
-    content = m.group(1).rstrip()
-    if content in ("Event started", "Event complete"):
-        return None
-    if ":" not in content:
-        return None
-    key, _, value = content.partition(":")
-    return key.strip(), value.strip()
 
 
 def extract_field_binary(chunk: str) -> tuple[str, str] | None:
@@ -174,37 +151,7 @@ def _find_session(sessions: dict, tag: str) -> "ClientSession | None":
     return sessions.get(f"i={tag}") or sessions.get(tag)
 
 
-# ── Parsers ────────────────────────────────────────────────────────────────
-
-
-def parse_log_txt(filepath: str) -> list[OpcEvent]:
-    with open(filepath, encoding="utf-8", errors="replace") as f:
-        lines = f.readlines()
-
-    events: list[OpcEvent] = []
-    current: OpcEvent | None = None
-
-    for line in lines:
-        m = TIMESTAMP_RE.match(line)
-        if m:
-            current = OpcEvent(
-                timestamp=m.group(1).strip(),
-                session_tag=m.group(2).strip(),
-                event_type=m.group(3).strip(),
-            )
-            events.append(current)
-            continue
-
-        if current is None:
-            continue
-
-        pair = extract_field_txt(line)
-        if pair:
-            key, value = pair
-            if value:
-                current.fields[key] = value
-
-    return events
+# ── Parser ─────────────────────────────────────────────────────────────────
 
 
 def parse_log_binary(filepath: str) -> list[OpcEvent]:
@@ -239,22 +186,6 @@ def parse_log_binary(filepath: str) -> list[OpcEvent]:
         )
 
     return events
-
-
-def detect_format(filepath: str) -> str:
-    with open(filepath, "rb") as f:
-        sample = f.read(8192)
-    if not sample:
-        return "txt"
-    null_ratio = sample.count(0) / len(sample)
-    return "binary" if null_ratio > 0.3 else "txt"
-
-
-def parse_log(filepath: str) -> list[OpcEvent]:
-    fmt = detect_format(filepath)
-    if fmt == "binary":
-        return parse_log_binary(filepath)
-    return parse_log_txt(filepath)
 
 
 # ── Session map builders ───────────────────────────────────────────────────
