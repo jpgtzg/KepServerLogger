@@ -11,14 +11,15 @@ Usage:
 """
 
 from dataclasses import dataclass
-from lib.opc_parser import parse_log, OpcEvent
+
+from lib.opc_parser import OpcEvent, parse_log
 
 
 @dataclass
 class ConnectionEvent:
     timestamp: str
     client_name: str
-    kind: str        # "connected" or "disconnected"
+    kind: str  # "connected" or "disconnected"
     reason: str = ""
 
     def __str__(self) -> str:
@@ -52,42 +53,55 @@ def _extract(events: list[OpcEvent]) -> list[ConnectionEvent]:
         etype = ev.event_type
 
         # Mid-session heuristic: first activity from an unknown tag → connected
-        if etype in _ACTIVITY_TYPES and tag not in tag_to_name and tag not in _SKIP_TAGS and not tag.startswith("opc.tcp://"):
+        if (
+            etype in _ACTIVITY_TYPES
+            and tag not in tag_to_name
+            and tag not in _SKIP_TAGS
+            and not tag.startswith("opc.tcp://")
+        ):
             tag_to_name[tag] = tag
-            result.append(ConnectionEvent(
-                timestamp=ev.timestamp,
-                client_name=tag,
-                kind="connected",
-            ))
+            result.append(
+                ConnectionEvent(
+                    timestamp=ev.timestamp,
+                    client_name=tag,
+                    kind="connected",
+                )
+            )
 
         if etype == "CreateSessionRequest":
             raw = ev.get("applicationName", default="")
             name = raw.split("|", 1)[-1] if "|" in raw else raw
             name = name or tag
             tag_to_name[tag] = name
-            result.append(ConnectionEvent(
-                timestamp=ev.timestamp,
-                client_name=name,
-                kind="connected",
-            ))
+            result.append(
+                ConnectionEvent(
+                    timestamp=ev.timestamp,
+                    client_name=name,
+                    kind="connected",
+                )
+            )
 
         elif etype == "CloseSessionRequest":
             name = tag_to_name.get(tag, tag)
-            result.append(ConnectionEvent(
-                timestamp=ev.timestamp,
-                client_name=name,
-                kind="disconnected",
-                reason="CloseSession",
-            ))
+            result.append(
+                ConnectionEvent(
+                    timestamp=ev.timestamp,
+                    client_name=name,
+                    kind="disconnected",
+                    reason="CloseSession",
+                )
+            )
 
         elif etype == "ServiceFaultResponse":
             name = tag_to_name.get(tag, tag)
             fault = ev.get("serviceResult", default="Fault")
-            result.append(ConnectionEvent(
-                timestamp=ev.timestamp,
-                client_name=name,
-                kind="disconnected",
-                reason=fault,
-            ))
+            result.append(
+                ConnectionEvent(
+                    timestamp=ev.timestamp,
+                    client_name=name,
+                    kind="disconnected",
+                    reason=fault,
+                )
+            )
 
     return result

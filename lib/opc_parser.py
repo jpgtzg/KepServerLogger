@@ -1,7 +1,6 @@
 import re
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
-from dataclasses import dataclass, field, asdict
-
 
 # ── .txt format (manually exported, one event per group of lines) ──────────
 TIMESTAMP_RE = re.compile(
@@ -88,6 +87,7 @@ class OpcEvent:
 @dataclass
 class ConnectionSpan:
     """One connect→disconnect episode for a client."""
+
     connected_at: str
     auth_token: str
     disconnected_at: str = ""
@@ -119,11 +119,13 @@ class ClientSession:
         """Sum of gap durations between consecutive connection spans."""
         spans = list(self.past_connections)
         # Append current span so we can look at transitions
-        spans.append(ConnectionSpan(
-            connected_at=self.connected_at,
-            auth_token=self.auth_token,
-            disconnected_at=self.disconnected_at,
-        ))
+        spans.append(
+            ConnectionSpan(
+                connected_at=self.connected_at,
+                auth_token=self.auth_token,
+                disconnected_at=self.disconnected_at,
+            )
+        )
         total = 0.0
         for i in range(len(spans) - 1):
             gap = _delta_seconds(spans[i].disconnected_at, spans[i + 1].connected_at)
@@ -133,12 +135,14 @@ class ClientSession:
 
     def _push_reconnect(self, new_connected_at: str, new_auth_token: str = "") -> None:
         """Archive the current span and start a fresh one."""
-        self.past_connections.append(ConnectionSpan(
-            connected_at=self.connected_at,
-            auth_token=self.auth_token,
-            disconnected_at=self.disconnected_at,
-            disconnect_reason=self.disconnect_reason,
-        ))
+        self.past_connections.append(
+            ConnectionSpan(
+                connected_at=self.connected_at,
+                auth_token=self.auth_token,
+                disconnected_at=self.disconnected_at,
+                disconnect_reason=self.disconnect_reason,
+            )
+        )
         self.connected_at = new_connected_at
         self.auth_token = new_auth_token
         self.disconnected_at = ""
@@ -171,6 +175,7 @@ def _find_session(sessions: dict, tag: str) -> "ClientSession | None":
 
 
 # ── Parsers ────────────────────────────────────────────────────────────────
+
 
 def parse_log_txt(filepath: str) -> list[OpcEvent]:
     with open(filepath, encoding="utf-8", errors="replace") as f:
@@ -224,12 +229,14 @@ def parse_log_binary(filepath: str) -> list[OpcEvent]:
 
         timestamp = fields.get("timestamp (UTC)", "")
 
-        events.append(OpcEvent(
-            timestamp=timestamp,
-            session_tag=tag,
-            event_type=etype,
-            fields=fields,
-        ))
+        events.append(
+            OpcEvent(
+                timestamp=timestamp,
+                session_tag=tag,
+                event_type=etype,
+                fields=fields,
+            )
+        )
 
     return events
 
@@ -251,6 +258,7 @@ def parse_log(filepath: str) -> list[OpcEvent]:
 
 
 # ── Session map builders ───────────────────────────────────────────────────
+
 
 def build_client_map(events: list[OpcEvent]) -> dict[str, ClientSession]:
     sessions: dict[str, ClientSession] = {}
@@ -338,8 +346,13 @@ def build_active_map(events: list[OpcEvent]) -> dict[str, ClientSession]:
     sessions: dict[str, ClientSession] = {}
 
     SKIP_TAGS = {"NoSession", "AnonymousClient"}
-    REQUEST_TYPES = {"ReadRequest", "WriteRequest", "ActivateSessionRequest",
-                     "CreateSessionRequest", "CloseSessionRequest"}
+    REQUEST_TYPES = {
+        "ReadRequest",
+        "WriteRequest",
+        "ActivateSessionRequest",
+        "CreateSessionRequest",
+        "CloseSessionRequest",
+    }
 
     for ev in events:
         tag = ev.session_tag
