@@ -1,6 +1,7 @@
 import hashlib
 import os
 from datetime import datetime, timezone
+from typing import IO
 
 from lib.models import OpcConnectionEvent
 from lib.opc_parser import LOG_EVENT_RE, LOG_FIELD_SPLIT_RE, OpcEvent, extract_field_binary
@@ -43,7 +44,7 @@ class OpcDiagnosticsReader:
 
     def __init__(self, log_path: str):
         self._log_path = log_path
-        self._file = None
+        self._file: IO[bytes] | None = None
         self._byte_offset: int = 0      # committed position (end of last complete event)
         self._raw_buffer: bytes = b""   # bytes after _byte_offset (may hold a partial event)
         self._tag_to_name: dict[str, str] = {}
@@ -75,6 +76,7 @@ class OpcDiagnosticsReader:
         try:
             self._handle_rotation()
             self._ensure_open()
+            assert self._file is not None
 
             self._file.seek(self._byte_offset + len(self._raw_buffer))
             new_data = self._file.read()
@@ -132,7 +134,7 @@ class OpcDiagnosticsReader:
                     result.append(_make_model(ev.timestamp, tag, "connected"))
 
             elif etype == "CreateSessionRequest":
-                raw = ev.get("applicationName", default="")
+                raw = ev.get("applicationName", default="") or ""
                 name = raw.split("|", 1)[-1] if "|" in raw else raw
                 name = name or tag
                 self._tag_to_name[tag] = name
@@ -146,7 +148,7 @@ class OpcDiagnosticsReader:
 
             elif etype == "ServiceFaultResponse":
                 name = self._tag_to_name.get(tag, tag)
-                fault = ev.get("serviceResult", default="Fault")
+                fault = ev.get("serviceResult", default="Fault") or "Fault"
                 if ev.timestamp:
                     result.append(_make_model(ev.timestamp, name, "disconnected", fault))
 

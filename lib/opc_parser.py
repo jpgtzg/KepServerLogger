@@ -54,7 +54,7 @@ class OpcEvent:
     event_type: str
     fields: dict = field(default_factory=dict)
 
-    def get(self, *keys: str, default=None):
+    def get(self, *keys: str, default: str | None = None) -> str | None:
         for k in keys:
             if k in self.fields:
                 return self.fields[k]
