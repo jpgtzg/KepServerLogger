@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-TIMESCALE_IMAGE="timescale/timescaledb-ha:pg16"
+TIMESCALE_IMAGE="timescale/timescaledb:latest-pg16"
 BUILD_TIMESCALE=0
 
 # Parse optional --timescale flag
