@@ -9,7 +9,6 @@ from asyncua import Client, ua
 from asyncua.common.node import Node
 from asyncua.crypto.security_policies import SecurityPolicyBasic256Sha256
 
-from lib.config import settings
 from lib.utils import utcnow
 
 logger = getLogger(__name__)
@@ -57,7 +56,9 @@ class OPCUAClient(Client):
         logger.info("OPC UA client setup complete")
 
     async def read_batch(
-        self, tags: list[str]
+        self,
+        tags: list[str],
+        prefix: str,
     ) -> tuple[list[tuple[str, ua.DataValue]], datetime]:
         if not self._ready:
             raise RuntimeError("Client not ready, call setup() first")
@@ -68,9 +69,7 @@ class OPCUAClient(Client):
 
         tag_values = [
             (
-                node.nodeid.to_string().removeprefix(
-                    settings.metrics_config.plc_tags.prefix + "."
-                ),
+                node.nodeid.to_string().removeprefix(prefix + "."),
                 value,
             )
             for node, value in zip(nodes, values)

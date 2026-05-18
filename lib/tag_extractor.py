@@ -10,21 +10,25 @@ logger = getLogger(__name__)
 
 
 def extract_tags_from_csv(
-    prefix: str = "",
+    prefix: str,
+    type_filter: str,
     separator: str = ";",
     exclude_tags: list[str] = [],
     tag_column: str = "",
+    type_column: str = "Type",
     filename: str = "",
 ) -> list[str]:
     """
     Extracts tags from a .csv file and returns a list of tags.
 
     Args:
-        use_prefix: Whether to use the prefix of the tags in the OPC UA namespace, will be prepended to the tags. If not provided, the tags will be returned without the prefix.
+        prefix: The OPC UA namespace prefix to prepend to each tag.
+        type_filter: The value to filter on in the type_column. Required — determines which tag group to extract.
         separator: The separator to use to split the tags in the .csv file.
-        exclude_tags: A list of strings to exclude from the tags. The tags will be excluded if they contain any of the strings in the list.
+        exclude_tags: A list of strings to exclude from the tags.
         tag_column: The column name to extract the tags from in the .csv file.
-        filename: The filename to read the tags from in the .csv file.
+        type_column: The column name used to filter by type.
+        filename: The filename to read the tags from.
 
     Returns:
         A list of tags in the OPC UA namespace.
@@ -33,7 +37,7 @@ def extract_tags_from_csv(
     logger.info(f"Reading tags from {filename}...")
 
     df = pd.read_csv(filename, sep=separator)
-    tags = df[tag_column].dropna().tolist()
+    tags = df.loc[df[type_column] == type_filter, tag_column].dropna().tolist()
 
     if prefix:
         tags_json = [prefix + "." + tag.strip().removesuffix(".BAL") for tag in tags]

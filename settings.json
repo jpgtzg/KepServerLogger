@@ -8,7 +8,7 @@
         "services",
         "kepserverevents",
         "plc_tags",
-        "opcdiagnostics"
+        "link_tags"
     ],
     "metrics_config": {
         "cpu": {
@@ -37,6 +37,9 @@
         },
         "plc_tags": {
             "prefix": "ns=2;s=Kepserver_OPC_DA.FLS.Tags"
+        },
+        "link_tags": {
+            "prefix": "ns=2;s=Kepserver_OPC_UA.RX.Tags"
         },
         "opcdiagnostics": {
             "prefix": "ns=2;s=KepServerLogger.Metrics.OpcConnections",

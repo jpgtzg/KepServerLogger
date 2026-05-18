@@ -20,9 +20,9 @@ import time
 from lib.config import MetricType, config, settings
 from lib.logging import config_logging
 from lib.opcua_client import OPCUAClient
-from lib.verify import get_plc_tags
+from lib.verify import get_tags
 
-from src.db import MetricsDatabase, TagsDatabase
+from src.db import IngestorDatabase
 from src.subscribers.opcua import (
     subscribe_cpu_usage,
     subscribe_kep_events,
@@ -40,7 +40,8 @@ async def main():
     logger.info("Initiating KepServerLogger Central Collector...")
     logger.info(f"Connecting to {config.kepserver_server_url}...")
 
-    tags_to_log = get_plc_tags()
+    plc_tags = get_tags(MetricType.PLC_TAGS)
+    link_tags = get_tags(MetricType.LINK_TAGS)
 
     client = OPCUAClient(
         url=config.kepserver_server_url,
@@ -54,11 +55,8 @@ async def main():
 
     await client.setup()
 
-    tags_db = TagsDatabase(retention_days=settings.log_retention_days)
-    tags_db.initialize()
-
-    metrics_db = MetricsDatabase(retention_days=settings.log_retention_days)
-    metrics_db.initialize()
+    db = IngestorDatabase(retention_days=settings.log_retention_days)
+    db.initialize()
 
     logger.info("Initialization complete, starting main loop...")
     time.sleep(5)
@@ -69,21 +67,24 @@ async def main():
         try:
             while True:
                 if MetricType.PLC_TAGS in settings.metrics_to_log:
-                    tag_values, timestamp = await client.read_batch(tags_to_log)
-                    rows = tags_db.process_tag_values(tag_values, timestamp)
-                    tags_db.save_many(rows)
-                    logger.info(f"[TAGS] Saved {len(rows)} tags to the database")
+                    tag_values, timestamp = await client.read_batch(
+                        tags=plc_tags,
+                        prefix=settings.metrics_config.plc_tags.prefix,
+                    )
+                    rows = db.process_tag_values(tag_values, timestamp)
+                    db.save_many(rows)
+                    logger.info(f"[PLC TAGS] Saved {len(rows)} tags to the database")
                 if MetricType.CPU in settings.metrics_to_log:
                     try:
                         cpu_usage = await subscribe_cpu_usage(client)
-                        metrics_db.insert_cpu_usage(cpu_usage)
+                        db.insert_cpu_usage(cpu_usage)
                         logger.info("[CPU] Logged CPU usage")
                     except Exception as e:
                         logger.warning(f"[CPU] Skipping: {e}")
                 if MetricType.RAM in settings.metrics_to_log:
                     try:
                         ram_usage = await subscribe_ram_usage(client)
-                        metrics_db.insert_ram_usage(ram_usage)
+                        db.insert_ram_usage(ram_usage)
                         logger.info("[RAM] Logged RAM usage")
                     except Exception as e:
                         logger.warning(f"[RAM] Skipping: {e}")
@@ -91,7 +92,7 @@ async def main():
                     try:
                         network_usage = await subscribe_network_usage(client)
                         for network in network_usage:
-                            metrics_db.insert_network_metrics(network)
+                            db.insert_network_metrics(network)
                         logger.info(
                             f"[NETWORK] Logged network usage for {len(network_usage)} interfaces"
                         )
@@ -101,7 +102,7 @@ async def main():
                     try:
                         service_info = await subscribe_service_info(client)
                         for service in service_info:
-                            metrics_db.insert_service_info(service)
+                            db.insert_service_info(service)
                         logger.info(
                             f"[SERVICES] Logged info for {len(service_info)} services"
                         )
@@ -111,7 +112,7 @@ async def main():
                     try:
                         kep_events = await subscribe_kep_events(client)
                         for event in kep_events:
-                            metrics_db.insert_event(event)
+                            db.insert_event(event)
                         logger.info(
                             f"[EVENTS] Logged {len(kep_events)} KepServer events"
                         )
@@ -121,13 +122,20 @@ async def main():
                     try:
                         opc_events = await subscribe_opc_connection_events(client)
                         for event in opc_events:
-                            metrics_db.insert_opc_connection_event(event)
+                            db.insert_opc_connection_event(event)
                         logger.info(
                             f"[OPC_DIAGS] Logged {len(opc_events)} OPC connection events"
                         )
                     except Exception as e:
                         logger.warning(f"[OPC_DIAGS] Skipping: {e}")
-
+                if MetricType.LINK_TAGS in settings.metrics_to_log:
+                    tag_values, timestamp = await client.read_batch(
+                        tags=link_tags,
+                        prefix=settings.metrics_config.link_tags.prefix,
+                    )
+                    rows = db.process_tag_values(tag_values, timestamp)
+                    db.save_many(rows)
+                    logger.info(f"[LINK TAGS] Saved {len(rows)} tags to the database")
                 await asyncio.sleep(1)
 
         except KeyboardInterrupt:
