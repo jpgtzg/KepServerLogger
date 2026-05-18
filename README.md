@@ -1,298 +1,328 @@
 # KepServerLogger
 
-## Architecture
+A distributed telemetry system that uses **KepServerEX as the central data hub** to collect, route, and persist industrial and system metrics into a TimescaleDB time-series database.
 
-This project is structured in a modular way, with the following components:
+---
 
-- Extractors, which can be deployed in as many computers as needed, and are responsible for retrieving machine-specific data and sending it via OPCUA to a central KepServer server.
-- Ingestor, which is a single, central node that is deployed inside a single computer, and is responsible for reading the data transmitted from each extractor
+## Overview
 
-Note: Currently, the architecture only supports a single extractor, but it is designed to be easily scalable to support multiple extractors in the future.
+KepServerLogger is split into two independent applications that communicate exclusively through KepServerEX's OPC UA server:
 
-## Deployment steps
+- **Extractor** — runs on the Windows machine hosting KepServerEX. Collects local system metrics (CPU, RAM, network, services, events, OPC diagnostics) and publishes them as OPC UA nodes on KepServer.
+- **Ingestor** — runs on a separate Linux machine. Connects to the same KepServer OPC UA server, reads all published data (system metrics + PLC/Link tags), and persists it into TimescaleDB.
 
-- Build the extractor and optionally the certgen tool for Windows (must be built from a Windows machine)
-    - From the root of the project, run the `build.ps1` script, which will build a `.exe` of the extractor and place it in the `dist` folder.
-    - Pass the `-certgen` flag to also build `kepserver-certgen.exe` from `utils/certgen/`:
+KepServer acts as the single integration point. Neither component talks to the other directly.
 
-    ```powershell
-    # Build extractor only
-    .\build.ps1
+---
 
-    # Build extractor + certgen
-    .\build.ps1 -certgen
-    ```
-
-- Build the ingestor image for Linux
-    - From the root of the project, run the ./build_ingestor.sh script, which will build a .tar image of the ingestor and place it in the root of the project.
-    - The script accepts an optional `--timescale` flag to also pull and save the `timescale/timescaledb-ha:pg16` image as `timescaledb.tar.gz`, which is required by the docker-compose.
-
-    ```sh
-    # Save only the timescaledb image
-    ./build_ingestor.sh --timescale
-
-    # Build and save only the ingestor image
-    ./build_ingestor.sh ingestors/Dockerfile ingestors
-
-    # Both at once
-    ./build_ingestor.sh --timescale ingestors/Dockerfile ingestors
-    ```
-
-Once everything is built, the deployment can be done as follows:
-
-Note: .env and settings.json files have to be created manually, and must be the same in both the extractor and ingestor machines.
-
-Note: the .env file won't change in future deployments, but the settings.json might change when the multi-extractor architecture is implemented, as it contains the list of tags to be extracted, and in a multi-extractor architecture, each extractor might have a different list of tags.
-
-The .env file should contain the following variables:
+## Data Flow
 
 ```
-
+┌────────────────────────────────────────────────────────┐
+│               Windows machine (KepServerEX)            │
+│                                                        │
+│  ┌─────────────┐        ┌──────────────────────────┐  │
+│  │  Extractor  │─write─▶│     KepServer OPC UA     │  │
+│  │  (Python    │        │                          │  │
+│  │   .exe)     │        │  KepServerLogger channel │  │
+│  └─────────────┘        │  ├─ Metrics.CPU          │  │
+│                         │  ├─ Metrics.RAM           │  │
+│  System metrics         │  ├─ Metrics.Network       │  │
+│  collected locally:     │  ├─ Metrics.Services      │  │
+│  ├─ CPU / RAM           │  ├─ Metrics.Events        │  │
+│  ├─ Network I/O         │  └─ Metrics.OpcConnects   │  │
+│  ├─ Windows services    │                          │  │
+│  ├─ KepServer event log │  OPC DA channels         │  │
+│  └─ opcdiags.log        │  ├─ FLS.Tags  (PLC tags) │  │
+│                         │  └─ RX.Tags   (link tags) │  │
+│  PLC / Link tags live   └──────────────────────────┘  │
+│  natively in KepServer                                 │
+└────────────────────────────────────────────────────────┘
+                              │
+                    OPC UA (Basic256Sha256
+                    SignAndEncrypt, TCP)
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────┐
+│                Linux machine (Ingestor)                 │
+│                                                        │
+│  ┌───────────────────────────────────────────────┐    │
+│  │               Ingestor (Docker)               │    │
+│  │                                               │    │
+│  │  Reads from KepServer:                        │    │
+│  │  ├─ PLC tags      ──▶ tags table              │    │
+│  │  ├─ Link tags     ──▶ tags table              │    │
+│  │  ├─ CPU           ──▶ cpu_usage table         │    │
+│  │  ├─ RAM           ──▶ ram_usage table         │    │
+│  │  ├─ Network       ──▶ network_usage table     │    │
+│  │  ├─ Services      ──▶ services table          │    │
+│  │  ├─ Events        ──▶ events table            │    │
+│  │  └─ OPC Diags     ──▶ opc_connection_events  │    │
+│  └───────────────────────────────────────────────┘    │
+│                        │                              │
+│                        ▼                              │
+│              ┌──────────────────┐                     │
+│              │   TimescaleDB    │                     │
+│              └──────────────────┘                     │
+└─────────────────────────────────────────────────────────┘
 ```
 
-Given that the communication is done via OPC UA, the extractor and ingestor machines must agree on the same nodes to read/write from the KepServer. This is assure by having the same settings.json file in both machines. Additionally, these nodes have to be manually added to the KepServer configuration before starting the applications, otherwise, they won't find the nodes and won't be able to read/write data. Note: KepServer has an import csv setting which can speed up the process of adding nodes, so it is recommended to use it instead of adding the nodes manually one by one.
+### Two classes of data
 
-### Windows machine (Extractors)
+**1. System metrics** — produced by the extractor and published to KepServer's `KepServerLogger` channel (a Simulator driver channel). The extractor writes structured data to pre-configured UA nodes each loop iteration. The ingestor reads those same nodes and deserialises them into typed models before writing to dedicated database tables.
 
-Upload:
+**2. Process tags (PLC Tags / Link Tags)** — these live natively in KepServer. The extractor has no involvement. The ingestor reads them directly from KepServer's OPC DA channel nodes and stores them as raw `(tag, value, status_code, timestamp)` rows in the generic `tags` table.
 
-- `extractor.exe`
-- `kepserver-certgen.exe`
-- `.env`
-- `settings.json`
+The key distinction: system metrics pass through the extractor before reaching KepServer; process tags originate in KepServer and are only read by the ingestor.
 
-### Linux machine (Ingestor)
+---
 
-Upload:
+## Components
 
-- `.env`
-- `docker-compose.yml`
-- `ingestor.tar.gz`
-- `settings.json`
-- `TagList.csv`
-- `timescaledb.tar.gz` (if the timescale image is not pulled from the registry in the target machine, and instead is built and saved locally using the `--timescale` flag in the `build_ingestor.sh` script; this is useful for when the target machine doesn't have access to the registry, or to save time in the deployment by avoiding pulling the image from the registry)
+### Extractor (`extractors/`)
 
-Load the ingestor image into the target machine using `docker load -i ingestor.tar.gz`
+A Python application compiled to a Windows `.exe`. On each 1-second loop tick it:
 
-## Running
+1. Reads local system metrics via `psutil` and Windows APIs.
+2. Reads new OPC diagnostic events from `opcdiags.log` (incremental, byte-offset based).
+3. Polls the KepServer REST API for event log entries.
+4. Publishes all data to KepServer's OPC UA server as pre-configured String nodes.
 
-Once the files are uploaded to the respective machines, the extractor can be run by executing the .exe file in the Windows machine, and the ingestor can be run by executing the docker-compose.yml file in the Linux machine.
+Metrics published:
+
+| Metric | UA node pattern | DB table |
+|---|---|---|
+| CPU usage | `KepServerLogger.Metrics.CPU.<field>` | `cpu_usage` |
+| RAM usage | `KepServerLogger.Metrics.RAM.<field>` | `ram_usage` |
+| Network I/O | `KepServerLogger.Metrics.Network.batch` | `network_usage` |
+| Windows services | `KepServerLogger.Metrics.Services.<name>_<idx>` | `services` |
+| KepServer events | `KepServerLogger.Metrics.Events.batch` | `events` |
+| OPC client sessions | `KepServerLogger.Metrics.OpcConnections.batch` | `opc_connection_events` |
+
+Batch nodes (`*.batch`) carry a JSON-encoded array. Per-field nodes carry scalar string values.
+
+The extractor targets Windows only and is intended to run as a Windows service (e.g. via NSSM).
+
+### KepServer (central hub)
+
+KepServerEX serves as the message broker between the extractor and ingestor. It holds three categories of nodes relevant to this system:
+
+- **`KepServerLogger` channel** (Simulator driver) — nodes written by the extractor and read by the ingestor for system metrics. Configured via `Metrics.csv`.
+- **OPC DA channels** (e.g. `Kepserver_OPC_DA.FLS.Tags`) — PLC tags bridged from downstream devices. Read directly by the ingestor. Configured via `TagList.csv` (`Type = plc_tags`).
+- **OPC UA Advanced Tags** (e.g. `Kepserver_OPC_UA.RX.Tags`) — Link tags derived from KepServer's Advanced Tags feature. Read directly by the ingestor. Configured via `TagList.csv` (`Type = link_tags`).
+
+All communication uses OPC UA with `Basic256Sha256 SignAndEncrypt`. Both the extractor and ingestor authenticate with a username/password and present a client certificate that must be trusted in KepServer's certificate store.
+
+### Ingestor (`ingestors/`)
+
+A Python asyncio application running in Docker on Linux. On each 1-second loop tick it:
+
+1. Reads all enabled metric types from KepServer via `OPCUAClient.read_batch()` or individual node reads.
+2. Deserialises each metric into its typed model.
+3. Writes to TimescaleDB.
+
+Which metrics are ingested is controlled by `metrics_to_log` in `settings.json`. The ingestor skips any metric type not listed there.
+
+---
+
+## Tag Configuration
+
+All process tags (PLC and Link) are declared in a single `TagList.csv`. System metrics are configured via `settings.json`.
+
+### TagList.csv
+
+```
+PI Tag name,PI tag description,Instrumenttag (address),Pointsource,PointType,Type
+FM2_BElvT30W.BAL,FM2 OPTIBAT Elevator amps T30, ,OPT,Float32,plc_tags
+MyLinkTag,Some advanced tag description, , ,Float32,link_tags
+```
+
+| Column | Purpose |
+|---|---|
+| `PI Tag name` | Tag name as it appears in the OPC DA node (`.BAL` suffix is stripped automatically) |
+| `PI tag description` | Human-readable label |
+| `Instrumenttag (address)` | Used for write-back tags; ignored by the ingestor |
+| `Pointsource` | Source system identifier |
+| `PointType` | Data type hint |
+| `Type` | **Routes the tag to its OPC UA prefix.** Must match a `MetricType` value: `plc_tags` or `link_tags` |
+
+The `Type` column is the link between a tag row and its OPC UA namespace prefix. The ingestor calls `get_tags(MetricType.PLC_TAGS)` which filters rows where `Type == "plc_tags"` and prepends `settings.metrics_config.plc_tags.prefix`. Adding a new tag source means adding rows with a new `Type` value and a corresponding prefix entry in `settings.json` — no code changes required.
+
+Tags containing `_Write` or `_WRITE` are automatically excluded from PLC tag reads (these are write-back tags used by the extractor, not for logging).
+
+All process tags are stored in the same `tags` table regardless of type:
+
+```sql
+tags (server_timestamp, tag, value, status_code, source_timestamp)
+```
+
+### settings.json
+
+Controls which metrics are active and where their OPC UA nodes live:
+
+```json
+{
+    "timestamp_format": "%Y-%m-%dT%H:%M:%SZ",
+    "log_retention_days": 7,
+    "metrics_to_log": [
+        "cpu", "ram", "network", "services",
+        "kepserverevents", "plc_tags", "link_tags", "opcdiagnostics"
+    ],
+    "metrics_config": {
+        "cpu":            { "prefix": "ns=2;s=KepServerLogger.Metrics.CPU" },
+        "ram":            { "prefix": "ns=2;s=KepServerLogger.Metrics.RAM" },
+        "network":        { "prefix": "ns=2;s=KepServerLogger.Metrics.Network" },
+        "services":       { "prefix": "ns=2;s=KepServerLogger.Metrics.Services", "names": [...] },
+        "kepserverevents":{ "prefix": "ns=2;s=KepServerLogger.Metrics.Events" },
+        "plc_tags":       { "prefix": "ns=2;s=Kepserver_OPC_DA.FLS.Tags" },
+        "link_tags":      { "prefix": "ns=2;s=Kepserver_OPC_UA.RX.Tags" },
+        "opcdiagnostics": { "prefix": "ns=2;s=KepServerLogger.Metrics.OpcConnections",
+                            "log_path": "C:\\ProgramData\\Kepware\\KEPServerEX\\V6\\opcdiags.log" }
+    }
+}
+```
+
+`settings.json` must be identical on both the extractor and ingestor machines — it defines the shared node namespace both sides agree on.
+
+---
+
+## Database Schema
+
+| Table | Hypertable key | Description |
+|---|---|---|
+| `tags` | `server_timestamp` | All PLC and Link tag values (raw passthrough) |
+| `cpu_usage` | `timestamp` | CPU usage percentage |
+| `ram_usage` | `timestamp` | Total and free RAM in KB |
+| `network_usage` | `timestamp` | Per-interface sent/received KB |
+| `services` | `timestamp` | Windows service status snapshots |
+| `events` | `timestamp` | KepServer event log entries |
+| `opc_connection_events` | `timestamp` | OPC UA client connect/disconnect events |
+
+All tables are TimescaleDB hypertables with a retention policy set by `log_retention_days` in `settings.json`.
+
+---
+
+## Deployment
+
+### Build
+
+**Extractor (Windows — must be built from a Windows machine):**
+
+```powershell
+# Build extractor only
+.\build.ps1
+
+# Build extractor + certgen utility
+.\build.ps1 -certgen
+```
+
+**Ingestor (Linux):**
 
 ```sh
-docker compose up
+# Build and save ingestor image only
+./build_ingestor.sh ingestors/Dockerfile ingestors
+
+# Also pull and save the TimescaleDB image (for air-gapped targets)
+./build_ingestor.sh --timescale ingestors/Dockerfile ingestors
 ```
 
-or
+### Files to deploy
+
+**Windows machine (Extractor):**
+
+| File | Notes |
+|---|---|
+| `extractor.exe` | Built by `build.ps1` |
+| `kepserver-certgen.exe` | Optional; generates OPC UA client certificate |
+| `.env` | Credentials and connection settings |
+| `settings.json` | Must match the ingestor's copy |
+
+**Linux machine (Ingestor):**
+
+| File | Notes |
+|---|---|
+| `.env` | Credentials and connection settings |
+| `docker-compose.yml` | Service definitions |
+| `ingestor.tar.gz` | Built by `build_ingestor.sh` |
+| `settings.json` | Must match the extractor's copy |
+| `TagList.csv` | Process tag definitions (bind-mounted, no image rebuild needed to update) |
+| `timescaledb.tar.gz` | Only needed if the target has no registry access |
+
+Load and start on the Linux machine:
 
 ```sh
+docker load -i ingestor.tar.gz
+docker load -i timescaledb.tar.gz   # if applicable
 docker compose up -d
 ```
 
-For when you want to run it in detached mode (production).
+### Updating TagList.csv or settings.json
 
-It is recommended to convert the extractor into a Windows service, so that it can be run in the background and automatically start when the machine is turned on. This can be done using a tool like NSSM (Non-Sucking Service Manager), which allows to create a Windows service from any executable file.
+Both files are bind-mounted into the container. Changes take effect on the next container restart — no image rebuild needed:
 
-Note: each executable (Windows or linux) requires OPC UA certificates, which are either generate by the `kepserver-certgen.exe` tool (for the extractor), or ar automatically generated by the ingestor when it starts for the first time. Each of these applications must be set as 'trusted' from the KepServer, which can be done from the KepServer configuration.
+```sh
+docker compose restart ingestors
+```
+
+### Updating application code
+
+Code changes (`lib/`, `ingestors/src/`) are baked into the image. Rebuild and redeploy:
+
+```sh
+docker compose build ingestors && docker compose up -d ingestors
+```
+
+---
+
+## OPC UA Certificates
+
+Both the extractor and ingestor use `Basic256Sha256 SignAndEncrypt`. Each must present a client certificate that KepServer has marked as **trusted**.
+
+- **Extractor**: generate with `kepserver-certgen.exe`, then trust the resulting certificate in KepServer's OPC UA certificate manager.
+- **Ingestor**: certificates are auto-generated on first startup and stored in the `ingestors-certs` Docker volume. The generated certificate must also be trusted in KepServer.
+
+---
 
 ## OPC Diagnostics and Client Connection Tracking
 
-One of the most important metrics this system collects is the live state of OPC UA client connections to KepServerEX. KepServer records every OPC UA session event (connections, activations, faults, disconnections) into a dedicated diagnostic log file. This project reads that log, parses it, and publishes structured connection events over OPC UA so they can be ingested and stored in the database.
-
-### The opcdiags.log file
-
-KepServerEX writes all OPC UA session activity to a binary log file at:
+KepServerEX writes all OPC UA session activity to a binary log file:
 
 ```
 C:\ProgramData\Kepware\KEPServerEX\V6\opcdiags.log
 ```
 
-This path is configured under `metrics_config.opcdiagnostics.log_path` in `settings.json`.
+The extractor reads this file **incrementally** using a byte-offset cursor — only bytes appended since the last tick are decoded and parsed, keeping each iteration at ~1 ms regardless of total file size. Parsed events are published to the `OpcConnections.batch` UA node; the ingestor reads and stores them in `opc_connection_events`.
 
-The file is encoded in **UTF-16-LE** (little-endian Unicode), which is a 2-bytes-per-character encoding. When opened as raw bytes and decoded with `utf-16-le`, null characters (`\x00`) appear between logical fields; these are replaced with newlines to produce line-oriented text that the parser can process.
+### Event structure
 
-KepServer writes to this file continuously as long as OPC UA clients connect and send requests. The file grows indefinitely and is never truncated during normal operation — it is only reset on server restart or manual deletion.
-
-#### Binary event structure
-
-Each event in the log follows this pattern after decoding:
+The file is UTF-16-LE encoded. Each event follows this pattern:
 
 ```
 [<session-tag>]  <EventType>
 0:  Event started
 0000000000: timestamp (UTC): 2026-04-30T10:23:01.456
 0000000000: applicationName: OPC Foundation|UA .NET Standard
-0000000000: authenticationToken: i=12345
 ...
 0:  Event complete
 ```
 
-- The **session tag** in square brackets is a numeric reference like `i=12345` or `i=0`. It links all events within one OPC UA session.
-- The **event type** identifies the OPC UA service call (e.g. `CreateSessionRequest`, `CloseSessionRequest`).
-- Fields are prefixed with a run of zero digits followed by a colon (`0000000000:`). The parser splits on this delimiter to extract key-value pairs.
-- `Event started` and `Event complete` are structural markers, not data fields.
+Human-readable client names are resolved from `CreateSessionRequest` events. A `tag → name` map persists across loop iterations so that a `CloseSessionRequest` in a later tick can still resolve the name established earlier. Tags `NoSession`, `AnonymousClient`, and `opc.tcp://…` URLs are skipped (internal KepServer actors).
 
-#### Text format (.txt)
+Each stored `OpcConnectionEvent` has a SHA-256 `hash` field used for deduplication on re-publish.
 
-KepServer also supports manually exporting diagnostics as a UTF-8 text file. This format uses a different layout — a timestamp line followed by indented hex-prefixed field lines — and is handled by `parse_log_txt()` in `lib/opc_parser.py`. The format is auto-detected by sampling the first 8 KB of the file: if more than 30% of bytes are null, the file is treated as binary; otherwise as text.
+### Performance
 
----
-
-### How the log is parsed — `lib/opc_parser.py`
-
-The parser (`lib/opc_parser.py`) contains everything needed to turn raw log bytes into structured Python objects.
-
-#### `OpcEvent`
-
-The central data structure produced by the parser:
-
-```python
-@dataclass
-class OpcEvent:
-    timestamp: str       # ISO-8601 UTC string from the "timestamp (UTC)" field
-    session_tag: str     # The [tag] value that groups events by session
-    event_type: str      # The OPC UA service name (CreateSessionRequest, etc.)
-    fields: dict         # All key-value pairs extracted from the event body
-```
-
-#### Binary parsing (`parse_log_binary`)
-
-1. Reads the entire file as raw bytes.
-2. Decodes with `utf-16-le`, replaces `\x00` with `\n` to produce line-oriented text.
-3. Applies `LOG_EVENT_RE` — a `re.DOTALL` regex that matches the `[tag] EventType … Event started … Event complete` block — to find all complete events.
-4. For each match, splits the body on `LOG_FIELD_SPLIT_RE` (ten zeros followed by a colon) to get individual field chunks, then extracts `key: value` pairs via `extract_field_binary()`.
-5. Structural keys (`Request Header`, `Response Header`, `Parameters`) and numeric-only keys are discarded.
-
-#### Session map builders
-
-`lib/opc_parser.py` also contains higher-level builders (`build_client_map`, `build_active_map`, `build_sessions`) that walk the full event stream and reconstruct rich `ClientSession` objects tracking the complete lifecycle of each client including reconnect history and total downtime. These are not used in the live extractor loop but are available for offline analysis.
+| Scenario | Old behaviour | New behaviour |
+|---|---|---|
+| Startup | Read entire file once | Read entire file once |
+| Each subsequent tick | Re-read entire file | Read only new bytes |
+| File size 200 MB | ~15 s per tick | ~1 ms per tick |
 
 ---
 
-### How connection events are extracted — `lib/connection_log.py`
+## Dev Notes
 
-`get_connection_events(filepath)` (in `lib/connection_log.py`) takes the list of `OpcEvent` objects and reduces it to a flat, chronological list of `ConnectionEvent` records — one per connect or disconnect transition.
-
-```python
-@dataclass
-class ConnectionEvent:
-    timestamp: str
-    client_name: str
-    kind: str    # "connected" or "disconnected"
-    reason: str  # empty for connects; "CloseSession" or a fault code for disconnects
-```
-
-#### How client names are resolved
-
-OPC UA session tags (`i=12345`) are opaque numeric IDs. The human-readable application name is only present in `CreateSessionRequest` events under the `applicationName` field. Because of this, the extractor maintains a `tag → name` mapping:
-
-- On `CreateSessionRequest`: the `applicationName` field is extracted. If it contains a pipe character (`|`), the part after the pipe is used (KepServer sometimes prefixes the name with a vendor string). The tag is mapped to this name, and a `"connected"` event is emitted.
-- On `CloseSessionRequest` or `ServiceFaultResponse`: the name is looked up from the map using the session tag. If the tag was never seen in a `CreateSessionRequest` (e.g. the extractor started mid-session), the tag itself is used as a fallback name. A `"disconnected"` event is emitted.
-- **Mid-session heuristic**: if the extractor first sees activity events (`ReadRequest`, `WriteRequest`, `ActivateSessionRequest`) from a tag that has no prior `CreateSessionRequest`, it assumes the client was already connected before logging started and immediately emits a `"connected"` event using the tag as the name.
-
-Tags `NoSession` and `AnonymousClient`, and any tag that looks like a URL (`opc.tcp://…`), are skipped — these are internal KepServer actors, not real client applications.
-
----
-
-### The incremental reader — `extractors/src/metrics/opc_diagnostics.py`
-
-The `OpcDiagnosticsReader` class replaces the original stateless function that re-read the entire file on every loop iteration. Because `opcdiags.log` grows continuously and can reach hundreds of megabytes, a full re-read every second caused ~15 second latency per iteration.
-
-#### How it works
-
-The reader keeps a file handle open and tracks two state variables:
-
-- `_byte_offset` — the byte position in the file up to which all complete events have been processed and committed.
-- `_raw_buffer` — raw bytes that have been read from disk but not yet committed (because they may contain an incomplete event at the tail).
-
-On each call to `read_new_events()`:
-
-1. **Rotation check**: compare `_byte_offset` against the current file size. If the file is smaller than the committed offset, it was truncated or replaced — reset all state and reopen from byte 0.
-2. **Open if needed**: if the file handle is closed or was never opened, open the file and start from byte 0.
-3. **Read new bytes**: seek to `_byte_offset + len(_raw_buffer)` and call `read()`. This reads only bytes appended since the last call — typically a few kilobytes between 1-second ticks.
-4. **Decode**: append new bytes to `_raw_buffer`, then decode the whole buffer as UTF-16-LE. If the buffer has an odd byte count (which would mis-align the 2-byte character boundary), the last byte is excluded from decoding and stays in the buffer for the next call.
-5. **Parse**: run `LOG_EVENT_RE` over the decoded text. For each complete match, parse the event's fields and build an `OpcEvent`.
-6. **Commit**: advance `_byte_offset` by `last_match_end * 2` (character position × 2 bytes per BMP character). Trim `_raw_buffer` by the same amount. Any bytes beyond the last complete event (a partial event in progress) remain in `_raw_buffer` and are prepended to the next read.
-7. **Extract connection events**: pass the newly parsed `OpcEvent` list to `_extract()`, which applies the same `tag → name` logic described above — but crucially, `_tag_to_name` is **an instance variable that persists across calls**. This means a `CloseSessionRequest` seen in iteration N correctly resolves the client name established by the `CreateSessionRequest` seen in iteration N-5.
-
-#### Performance
-
-| Scenario             | Old behaviour         | New behaviour                               |
-| -------------------- | --------------------- | ------------------------------------------- |
-| Startup              | Read entire file once | Read entire file once                       |
-| Each subsequent tick | Re-read entire file   | Read only new bytes (bytes since last tick) |
-| File size 200 MB     | ~15 s per tick        | ~1 ms per tick                              |
-
-#### File rotation handling
-
-If KepServer is restarted or the log file is manually cleared, the new file will be smaller than `_byte_offset`. The reader detects this on the next call, resets the offset to 0, clears the buffer and the `tag_to_name` map, closes the old handle, and reopens the new file from the beginning.
-
----
-
-### The published data model — `OpcConnectionEvent`
-
-Each connection event published to OPC UA has this shape (defined in `lib/models.py`):
-
-```python
-class OpcConnectionEvent(OPCUAModel):
-    timestamp: datetime   # UTC datetime of the event
-    client_name: str      # Human-readable application name (or session tag as fallback)
-    kind: str             # "connected" or "disconnected"
-    reason: str           # "" for connects; "CloseSession" or fault code for disconnects
-    hash: str             # SHA-256 of "timestamp|client_name|kind|reason" (deduplication key)
-```
-
-The `hash` field is a SHA-256 of the four identifying fields, uppercased. It allows the ingestor to detect and discard duplicate events if the extractor restarts and re-publishes historical data.
-
-Events are published as a JSON array to the OPC UA node:
-
-```
-ns=2;s=KepServerLogger.Metrics.OpcConnections.batch
-```
-
-This is a single batch write per loop iteration. If no new events were detected since the last read, the publish call is skipped entirely (`if not events: return`).
-
----
-
-### Configuration
-
-The OPC diagnostics metric is controlled by the following fields in `settings.json`:
-
-```json
-"metrics_to_log": ["opcdiagnostics", ...],
-"metrics_config": {
-    "opcdiagnostics": {
-        "prefix": "ns=2;s=KepServerLogger.Metrics.OpcConnections",
-        "log_path": "C:\\ProgramData\\Kepware\\KEPServerEX\\V6\\opcdiags.log"
-    }
-}
-```
-
-- **`log_path`**: absolute path to the `opcdiags.log` file on the Windows machine running KepServerEX. This must be accessible to the extractor process (it runs on the same machine).
-- **`prefix`**: the OPC UA node address prefix. The batch node is `<prefix>.batch`.
-- If `opcdiagnostics` is absent from `metrics_to_log`, no `OpcDiagnosticsReader` is created and no file is opened.
-
----
-
-### Integration in the main loop — `extractors/src/main.py`
-
-The reader is instantiated **once**, before the loop starts:
-
-```python
-opc_reader = (
-    OpcDiagnosticsReader(settings.metrics_config.opcdiagnostics.log_path)
-    if MetricType.OPC_DIAGNOSTICS in settings.metrics_to_log
-    else None
-)
-```
-
-Each iteration calls `opc_reader.read_new_events()`, which returns only the events that appeared in the log since the previous call. On shutdown (via `KeyboardInterrupt` or `finally`), `opc_reader.close()` releases the file handle.
-
----
-
-## Dev notes
-
-The KepServer driver for the channel 'KepServerLogger' from which all data is sent/received from, is a Simulator. This allows for using an OPC UA Channel without a having a physical device.
-
-KepServer tags doesn't allow the use of dots in the tag name. Thefore, with the actual tag name, the dots are replace with underscores. For example, if the tag name (no prefix) is 'KEPServerEX 6.18 Config API Service_0, the tag name in OPC UA is 'KEPServerEX 6_18 Config API Service_0'.
-
-It is important to ensure, as obvious, that all nodes are correctly configured in the KepServer. This includes the correct address: if two nodes have the same address, they will both share the same data
+- The `KepServerLogger` channel in KepServer uses the **Simulator** driver. This allows defining UA nodes without a physical device.
+- KepServer tag names do not allow dots. Dots in service names are replaced with underscores (e.g. `KEPServerEX 6.18 Runtime` → `KEPServerEX 6_18 Runtime`).
+- `TagList.csv` uses the separator configured in `.env` (`csv_tag_separator`). Verify this matches the file's actual delimiter before deploying.
+- Adding a new process tag source (a new KepServer channel or Advanced Tag group): add rows to `TagList.csv` with a new `Type` value, add a matching `PrefixConfig` entry to `settings.json` under `metrics_config`, and add the corresponding `MetricType` enum value to `lib/config.py`. The ingestor's main loop and database write path require no changes — both PLC and Link tags flow through the same `tags` table.
