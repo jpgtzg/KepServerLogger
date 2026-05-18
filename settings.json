@@ -1,19 +1,49 @@
 {
-    "read_interval": 10000,
-    "logging": [
+    "timestamp_format": "%Y-%m-%dT%H:%M:%SZ",
+    "log_retention_days": 7,
+    "metrics_to_log": [
         "cpu",
         "ram",
         "network",
         "services",
-        "kepserverevents"
+        "kepserverevents",
+        "plc_tags",
+        "link_tags"
     ],
-    "services": [
-        "KEPServerEX 6.18 Config API Service",
-        "KEPServerEX 6.18 Event Logger",
-        "KEPServerEX 6.18 Historian",
-        "KEPServerEX 6.18 IoT Gateway",
-        "KEPServerEX 6.18 Key Service",
-        "KEPServerEX 6.18 Runtime",
-        "KEPServerEX 6.18 Store and Forward"
-    ]
+    "metrics_config": {
+        "cpu": {
+            "prefix": "ns=2;s=KepServerLogger.Metrics.CPU"
+        },
+        "ram": {
+            "prefix": "ns=2;s=KepServerLogger.Metrics.RAM"
+        },
+        "network": {
+            "prefix": "ns=2;s=KepServerLogger.Metrics.Network"
+        },
+        "services": {
+            "prefix": "ns=2;s=KepServerLogger.Metrics.Services",
+            "names": [
+                "KEPServerEX 6.18 Config API Service",
+                "KEPServerEX 6.18 Event Logger",
+                "KEPServerEX 6.18 Historian",
+                "KEPServerEX 6.18 IoT Gateway",
+                "KEPServerEX 6.18 Key Service",
+                "KEPServerEX 6.18 Runtime",
+                "KEPServerEX 6.18 Store and Forward"
+            ]
+        },
+        "kepserverevents": {
+            "prefix": "ns=2;s=KepServerLogger.Metrics.Events"
+        },
+        "plc_tags": {
+            "prefix": "ns=2;s=Kepserver_OPC_DA.FLS.Tags"
+        },
+        "link_tags": {
+            "prefix": "ns=2;s=Kepserver_OPC_UA.RX.Tags"
+        },
+        "opcdiagnostics": {
+            "prefix": "ns=2;s=KepServerLogger.Metrics.OpcConnections",
+            "log_path": "C:\\ProgramData\\Kepware\\KEPServerEX\\V6\\opcdiags.log"
+        }
+    }
 }
