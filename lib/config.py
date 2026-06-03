@@ -19,14 +19,13 @@ class MetricType(str, Enum):
     Options for metrics to log
     """
 
-    PLC_TAGS = "plc_tags"
+    TAG_CHANNELS = "tag_channels"
     CPU = "cpu"
     RAM = "ram"
     NETWORK = "network"
     SERVICES = "services"
     KEPSERVER_EVENTS = "kepserverevents"
     OPC_DIAGNOSTICS = "opcdiagnostics"
-    LINK_TAGS = "link_tags"
 
 
 class PrefixConfig(BaseModel):
@@ -52,8 +51,7 @@ class MetricsConfig(BaseModel):
     network: PrefixConfig
     services: ServiceConfig
     kepserverevents: PrefixConfig
-    plc_tags: PrefixConfig
-    link_tags: PrefixConfig
+    tag_channels: dict[str, str]
     opcdiagnostics: OpcDiagnosticsConfig
 
 

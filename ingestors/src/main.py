@@ -40,8 +40,10 @@ async def main():
     logger.info("Initiating KepServerLogger Central Collector...")
     logger.info(f"Connecting to {config.kepserver_server_url}...")
 
-    plc_tags = get_tags(MetricType.PLC_TAGS)
-    link_tags = get_tags(MetricType.LINK_TAGS)
+    channel_tags = {
+        channel: get_tags(channel)
+        for channel in settings.metrics_config.tag_channels
+    }
 
     client = OPCUAClient(
         url=config.kepserver_server_url,
@@ -66,14 +68,17 @@ async def main():
         start_time = time.time()
         try:
             while True:
-                if MetricType.PLC_TAGS in settings.metrics_to_log:
-                    tag_values, timestamp = await client.read_batch(
-                        tags=plc_tags,
-                        prefix=settings.metrics_config.plc_tags.prefix,
-                    )
-                    rows = db.process_tag_values(tag_values, timestamp)
-                    db.save_many(rows)
-                    logger.info(f"[PLC TAGS] Saved {len(rows)} tags to the database")
+                if MetricType.TAG_CHANNELS in settings.metrics_to_log:
+                    for channel, tags in channel_tags.items():
+                        tag_values, timestamp = await client.read_batch(
+                            tags=tags,
+                            prefix=settings.metrics_config.tag_channels[channel],
+                        )
+                        rows = db.process_tag_values(tag_values, timestamp)
+                        db.save_many(rows)
+                        logger.info(
+                            f"[{channel.upper()}] Saved {len(rows)} values from {len(tags)} tags to the database"
+                        )
                 if MetricType.CPU in settings.metrics_to_log:
                     try:
                         cpu_usage = await subscribe_cpu_usage(client)
@@ -128,14 +133,6 @@ async def main():
                         )
                     except Exception as e:
                         logger.warning(f"[OPC_DIAGS] Skipping: {e}")
-                if MetricType.LINK_TAGS in settings.metrics_to_log:
-                    tag_values, timestamp = await client.read_batch(
-                        tags=link_tags,
-                        prefix=settings.metrics_config.link_tags.prefix,
-                    )
-                    rows = db.process_tag_values(tag_values, timestamp)
-                    db.save_many(rows)
-                    logger.info(f"[LINK TAGS] Saved {len(rows)} tags to the database")
                 await asyncio.sleep(1)
 
         except KeyboardInterrupt:
