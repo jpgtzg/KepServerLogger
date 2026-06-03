@@ -9,7 +9,7 @@ A distributed telemetry system that uses **KepServerEX as the central data hub**
 KepServerLogger is split into two independent applications that communicate exclusively through KepServerEX's OPC UA server:
 
 - **Extractor** — runs on the Windows machine hosting KepServerEX. Collects local system metrics (CPU, RAM, network, services, events, OPC diagnostics) and publishes them as OPC UA nodes on KepServer.
-- **Ingestor** — runs on a separate Linux machine. Connects to the same KepServer OPC UA server, reads all published data (system metrics + PLC/Link tags), and persists it into TimescaleDB.
+- **Ingestor** — runs on a separate Linux machine. Connects to the same KepServer OPC UA server, reads all published data (system metrics + tag channels), and persists it into TimescaleDB.
 
 KepServer acts as the single integration point. Neither component talks to the other directly.
 
@@ -50,8 +50,8 @@ KepServer acts as the single integration point. Neither component talks to the o
 │  │               Ingestor (Docker)               │    │
 │  │                                               │    │
 │  │  Reads from KepServer:                        │    │
-│  │  ├─ PLC tags      ──▶ tags table              │    │
-│  │  ├─ Link tags     ──▶ tags table              │    │
+│  │  ├─ Tag channels  ──▶ tags table              │    │
+│  │  │  (plc_tags, link_tags, ...)                │    │
 │  │  ├─ CPU           ──▶ cpu_usage table         │    │
 │  │  ├─ RAM           ──▶ ram_usage table         │    │
 │  │  ├─ Network       ──▶ network_usage table     │    │
@@ -108,8 +108,7 @@ The extractor targets Windows only and is intended to run as a Windows service (
 KepServerEX serves as the message broker between the extractor and ingestor. It holds three categories of nodes relevant to this system:
 
 - **`KepServerLogger` channel** (Simulator driver) — nodes written by the extractor and read by the ingestor for system metrics. Configured via `Metrics.csv`.
-- **OPC DA channels** (e.g. `Kepserver_OPC_DA.FLS.Tags`) — PLC tags bridged from downstream devices. Read directly by the ingestor. Configured via `TagList.csv` (`Type = plc_tags`).
-- **OPC UA Advanced Tags** (e.g. `Kepserver_OPC_UA.RX.Tags`) — Link tags derived from KepServer's Advanced Tags feature. Read directly by the ingestor. Configured via `TagList.csv` (`Type = link_tags`).
+- **Tag channels** (e.g. `Kepserver_OPC_DA.FLS.Tags`, `Kepserver_OPC_UA.RX.Tags`) — any number of KepServer channels or Advanced Tag groups. Read directly by the ingestor. Each channel is declared in `TagList.csv` (via the `Type` column) and mapped to its OPC UA prefix in `settings.json` under `tag_channels`. Adding a new channel requires no code changes.
 
 All communication uses OPC UA with `Basic256Sha256 SignAndEncrypt`. Both the extractor and ingestor authenticate with a username/password and present a client certificate that must be trusted in KepServer's certificate store.
 
@@ -144,11 +143,11 @@ MyLinkTag,Some advanced tag description, , ,Float32,link_tags
 | `Instrumenttag (address)` | Used for write-back tags; ignored by the ingestor |
 | `Pointsource` | Source system identifier |
 | `PointType` | Data type hint |
-| `Type` | **Routes the tag to its OPC UA prefix.** Must match a `MetricType` value: `plc_tags` or `link_tags` |
+| `Type` | **Channel name.** Must match a key in `settings.json → metrics_config.tag_channels`. |
 
-The `Type` column is the link between a tag row and its OPC UA namespace prefix. The ingestor calls `get_tags(MetricType.PLC_TAGS)` which filters rows where `Type == "plc_tags"` and prepends `settings.metrics_config.plc_tags.prefix`. Adding a new tag source means adding rows with a new `Type` value and a corresponding prefix entry in `settings.json` — no code changes required.
+The `Type` column links a tag row to its OPC UA prefix. At startup the ingestor loads every channel defined in `tag_channels`, filters `TagList.csv` by that channel name, and prepends the corresponding prefix to build fully-qualified OPC UA node IDs. Adding a new tag source means adding rows with a new `Type` value and one entry to `tag_channels` in `settings.json` — no code changes required.
 
-Tags containing `_Write` or `_WRITE` are automatically excluded from PLC tag reads (these are write-back tags used by the extractor, not for logging).
+Tags containing `_Write` or `_WRITE` are automatically excluded from all channel reads (these are write-back tags, not for logging).
 
 All process tags are stored in the same `tags` table regardless of type:
 
@@ -166,7 +165,7 @@ Controls which metrics are active and where their OPC UA nodes live:
     "log_retention_days": 7,
     "metrics_to_log": [
         "cpu", "ram", "network", "services",
-        "kepserverevents", "plc_tags", "link_tags", "opcdiagnostics"
+        "kepserverevents", "tag_channels", "opcdiagnostics"
     ],
     "metrics_config": {
         "cpu":            { "prefix": "ns=2;s=KepServerLogger.Metrics.CPU" },
@@ -174,8 +173,10 @@ Controls which metrics are active and where their OPC UA nodes live:
         "network":        { "prefix": "ns=2;s=KepServerLogger.Metrics.Network" },
         "services":       { "prefix": "ns=2;s=KepServerLogger.Metrics.Services", "names": [...] },
         "kepserverevents":{ "prefix": "ns=2;s=KepServerLogger.Metrics.Events" },
-        "plc_tags":       { "prefix": "ns=2;s=Kepserver_OPC_DA.FLS.Tags" },
-        "link_tags":      { "prefix": "ns=2;s=Kepserver_OPC_UA.RX.Tags" },
+        "tag_channels": {
+            "plc_tags":  "ns=2;s=Kepserver_OPC_DA.FLS.Tags",
+            "link_tags": "ns=2;s=Kepserver_OPC_UA.RX.Tags"
+        },
         "opcdiagnostics": { "prefix": "ns=2;s=KepServerLogger.Metrics.OpcConnections",
                             "log_path": "C:\\ProgramData\\Kepware\\KEPServerEX\\V6\\opcdiags.log" }
     }
@@ -325,4 +326,4 @@ Each stored `OpcConnectionEvent` has a SHA-256 `hash` field used for deduplicati
 - The `KepServerLogger` channel in KepServer uses the **Simulator** driver. This allows defining UA nodes without a physical device.
 - KepServer tag names do not allow dots. Dots in service names are replaced with underscores (e.g. `KEPServerEX 6.18 Runtime` → `KEPServerEX 6_18 Runtime`).
 - `TagList.csv` uses the separator configured in `.env` (`csv_tag_separator`). Verify this matches the file's actual delimiter before deploying.
-- Adding a new process tag source (a new KepServer channel or Advanced Tag group): add rows to `TagList.csv` with a new `Type` value, add a matching `PrefixConfig` entry to `settings.json` under `metrics_config`, and add the corresponding `MetricType` enum value to `lib/config.py`. The ingestor's main loop and database write path require no changes — both PLC and Link tags flow through the same `tags` table.
+- Adding a new process tag source (a new KepServer channel or Advanced Tag group): add rows to `TagList.csv` with a new `Type` value, and add a matching entry to `tag_channels` in `settings.json`. No code changes required — the ingestor discovers channels dynamically at startup and all tag channels flow through the same `tags` table.
