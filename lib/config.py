@@ -78,9 +78,6 @@ class Config(BaseSettings):
     Configuration for the application, read from the .env file
     """
 
-    client_username: str
-    client_password: str
-
     app_uri: str
     host_name: str
     application_name: str
