@@ -85,6 +85,13 @@ class ServiceInfo(OPCUAModel):
     machine_name: str
     process_ids: list[int]
 
+    @field_validator("process_ids", mode="before")
+    @classmethod
+    def parse_process_ids(cls, v):
+        if isinstance(v, str):
+            return [int(pid) for pid in v.split(",") if pid]
+        return v
+
     def to_opcua(self, timestamp_format: str) -> dict:
         data = super().to_opcua(timestamp_format)
         data["process_ids"] = ",".join(str(pid) for pid in self.process_ids)
