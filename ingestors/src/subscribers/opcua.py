@@ -35,19 +35,11 @@ async def subscribe_network_usage(client: OPCUAClient) -> list[NetworkUsage]:
 
 
 async def subscribe_service_info(client: OPCUAClient) -> list[ServiceInfo]:
-    results = []
-    for name in settings.metrics_config.services.names:
-        data = {}
-        service_key = name.replace(".", "_")
-        for index, field in enumerate(ServiceInfo.model_fields.keys()):
-            node = client.get_node(
-                f"{settings.metrics_config.services.prefix}.{service_key}_{index}"
-            )
-            data[field] = await node.read_value()
-        raw_pids = data.get("process_ids") or ""
-        data["process_ids"] = [int(pid) for pid in raw_pids.split(",") if pid]
-        results.append(ServiceInfo(**data))
-    return results
+    node = client.get_node(f"{settings.metrics_config.services.prefix}.batch")
+    raw: str = await node.read_value()
+    if not raw:
+        return []
+    return [ServiceInfo(**s) for s in json.loads(raw)]
 
 
 async def subscribe_kep_events(client: OPCUAClient) -> list[KepEvent]:
