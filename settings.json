@@ -1,6 +1,7 @@
 {
     "timestamp_format": "%Y-%m-%dT%H:%M:%SZ",
     "log_retention_days": 7,
+    "polling_interval_seconds": 1,
     "metrics_to_log": [
         "cpu",
         "ram",
@@ -22,13 +23,11 @@
         "services": {
             "prefix": "ns=2;s=KepServerLogger.Metrics.Services",
             "names": [
-                "KEPServerEX 6.18 Config API Service",
-                "KEPServerEX 6.18 Event Logger",
-                "KEPServerEX 6.18 Historian",
-                "KEPServerEX 6.18 IoT Gateway",
-                "KEPServerEX 6.18 Key Service",
-                "KEPServerEX 6.18 Runtime",
-                "KEPServerEX 6.18 Store and Forward"
+                "Kepware Server Config API Service",
+                "Kepware Server Event Logger",
+                "Kepware Server Key Service",
+                "Kepware Server Runtime",
+                "Kepware Server Store and Forward"
             ]
         },
         "kepserverevents": {

@@ -140,7 +140,7 @@ async def _run_session(opc_reader: Optional[OpcDiagnosticsReader]) -> None:
                             raise
                         logger.exception("[OPC_DIAGS] publish failed")
 
-                await asyncio.sleep(1)
+                await asyncio.sleep(settings.polling_interval_seconds)
     except Exception as e:
         if not _is_reconnect_error(e):
             raise

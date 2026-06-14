@@ -62,6 +62,7 @@ class Settings(BaseModel):
 
     timestamp_format: str
     log_retention_days: int
+    polling_interval_seconds: int = 1
     metrics_to_log: list[MetricType]
     metrics_config: MetricsConfig
 

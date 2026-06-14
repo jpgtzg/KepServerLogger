@@ -133,7 +133,7 @@ async def main():
                         )
                     except Exception as e:
                         logger.warning(f"[OPC_DIAGS] Skipping: {e}")
-                await asyncio.sleep(1)
+                await asyncio.sleep(settings.polling_interval_seconds)
 
         except KeyboardInterrupt:
             logger.info("Stopping logger...")
