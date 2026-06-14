@@ -43,20 +43,9 @@ async def publish_service_info(
     logger.info(
         f"[SERVICES] Publishing {len(service_info)} service(s): {[s.name for s in service_info[:3]]}..."
     )
-    for service in service_info:
-        data = service.to_opcua(settings.timestamp_format)
-        service_key = service.name.replace(".", "_")
-        for index, field in enumerate(ServiceInfo.model_fields.keys()):
-            value = data.get(field)
-            if value is None:
-                raise ValueError(
-                    f"Missing value for field '{field}' in service '{service.name}'"
-                )
-            node = client.get_node(
-                f"{settings.metrics_config.services.prefix}.{service_key}_{index}"
-            )
-            variant_type = await node.read_data_type_as_variant_type()
-            await client.write_value(node, value, variant_type)
+    data = [s.to_opcua(settings.timestamp_format) for s in service_info]
+    node = client.get_node(f"{settings.metrics_config.services.prefix}.batch")
+    await client.write_value(node, json.dumps(data), ua.VariantType.String)
 
 
 async def publish_network_usage(
