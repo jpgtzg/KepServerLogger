@@ -37,6 +37,9 @@
             "plc_tags": "ns=2;s=Kepserver_OPC_DA.FLS.Tags",
             "link_tags": "ns=2;s=Kepserver_OPC_UA.RX.Tags"
         },
+        "mac_address:": {
+            "prefix": "ns=2;s=KepServerLogger.Metrics"
+        },
         "opcdiagnostics": {
             "prefix": "ns=2;s=KepServerLogger.Metrics.OpcConnections",
             "log_path": "C:\\ProgramData\\Kepware\\KEPServerEX\\V6\\opcdiags.log"

@@ -17,9 +17,11 @@ from src.metrics import (
     get_total_cpu_usage,
 )
 from src.metrics.events import get_kepserver_events
+from src.metrics.host_name import get_hostname
 from src.metrics.opc_diagnostics import OpcDiagnosticsReader
 from src.publishers.opcua import (
     publish_cpu_usage,
+    publish_host_name,
     publish_kep_event,
     publish_network_usage,
     publish_opc_connection_events,
@@ -139,6 +141,14 @@ async def _run_session(opc_reader: Optional[OpcDiagnosticsReader]) -> None:
                         if _is_reconnect_error(e):
                             raise
                         logger.exception("[OPC_DIAGS] publish failed")
+
+                try:
+                    host_name = get_hostname()
+                    await publish_host_name(client, host_name)
+                except Exception as e:
+                    if _is_reconnect_error(e):
+                        raise
+                    logger.exception("[HOSTNAME] publish failed")
 
                 await asyncio.sleep(settings.polling_interval_seconds)
     except Exception as e:

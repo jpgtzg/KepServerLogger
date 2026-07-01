@@ -53,6 +53,7 @@ class MetricsConfig(BaseModel):
     kepserverevents: PrefixConfig
     tag_channels: dict[str, str]
     opcdiagnostics: OpcDiagnosticsConfig
+    host_name: PrefixConfig
 
 
 class Settings(BaseModel):
