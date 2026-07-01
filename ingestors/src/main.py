@@ -17,9 +17,10 @@ import asyncio
 import logging
 import time
 
-from lib.config import MetricType, config, settings
+from lib.config import config
 from lib.logging import config_logging
 from lib.opcua_client import OPCUAClient
+from lib.settings import MetricType, settings
 from lib.verify import get_tags
 
 from src.db import IngestorDatabase
@@ -41,8 +42,7 @@ async def main():
     logger.info(f"Connecting to {config.kepserver_server_url}...")
 
     channel_tags = {
-        channel: get_tags(channel)
-        for channel in settings.metrics_config.tag_channels
+        channel: get_tags(channel) for channel in settings.metrics_config.tag_channels
     }
 
     client = OPCUAClient(
