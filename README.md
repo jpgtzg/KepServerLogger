@@ -71,9 +71,9 @@ KepServer acts as the single integration point. Neither component talks to the o
 
 **1. System metrics** — produced by the extractor and published to KepServer's `KepServerLogger` channel (a Simulator driver channel). The extractor writes structured data to pre-configured UA nodes each loop iteration. The ingestor reads those same nodes and deserialises them into typed models before writing to dedicated database tables.
 
-**2. Process tags (PLC Tags / Link Tags)** — these live natively in KepServer. The extractor has no involvement. The ingestor reads them directly from KepServer's OPC DA channel nodes and stores them as raw `(tag, value, status_code, timestamp)` rows in the generic `tags` table.
+**2. Process tags (commonly PLC Tags)** — these live natively in KepServer, already existing and are commonly used in industrial applications. The extractor has no involvement. The ingestor reads them directly from their respective address and stores them as raw `(tag, value, status_code, timestamp)` rows in the generic `tags` table.
 
-The key distinction: system metrics pass through the extractor before reaching KepServer; process tags originate in KepServer and are only read by the ingestor.
+The key distinction: system metrics pass through the extractor before reaching KepServer; process tags originate in KepServer and are only read by the ingestor. Also, process tags are used in the field and are not intended to be modified by this system. The ingestor reads them as-is and stores them in the database.
 
 ---
 
@@ -107,8 +107,8 @@ The extractor targets Windows only and is intended to run as a Windows service (
 
 KepServerEX serves as the message broker between the extractor and ingestor. It holds three categories of nodes relevant to this system:
 
-- **`KepServerLogger` channel** (Simulator driver) — nodes written by the extractor and read by the ingestor for system metrics. Configured via `Metrics.csv`.
-- **Tag channels** (e.g. `Kepserver_OPC_DA.FLS.Tags`, `Kepserver_OPC_UA.RX.Tags`) — any number of KepServer channels or Advanced Tag groups. Read directly by the ingestor. Each channel is declared in `TagList.csv` (via the `Type` column) and mapped to its OPC UA prefix in `settings.json` under `tag_channels`. Adding a new channel requires no code changes.
+- **`KepServerLogger` channel** (Simulator driver) — nodes written by the extractor and read by the ingestor for system metrics. These are part of the KepServerLogger application and are used to transmit metrics between the extractor and the ingestor. Configured via `Metrics.csv`.
+- **Tag channels** (e.g. `Kepserver_OPC_DA.FLS.Tags`, `Kepserver_OPC_UA.RX.Tags`) — any number of KepServer channels or Advanced Tag groups that are not managed by KepServerLogger but rather are desired to be logged. Read directly by the ingestor. Each channel is declared in `TagList.csv` (via the `Type` column) and mapped to its OPC UA prefix in `settings.json` under `tag_channels`. Adding a new channel requires no code changes. The tags under these channels are those referred to as "process tags" in the data flow section.
 
 All communication uses OPC UA with `Basic256Sha256 SignAndEncrypt`. Both the extractor and ingestor authenticate with a username/password and present a client certificate that must be trusted in KepServer's certificate store.
 
@@ -126,7 +126,10 @@ Which metrics are ingested is controlled by `metrics_to_log` in `settings.json`.
 
 ## Tag Configuration
 
-All process tags (PLC and Link) are declared in a single `TagList.csv`. System metrics are configured via `settings.json`.
+- `TagList.csv`. Is used to specify the process tags that the ingestor should read from KepServer. Each row defines a tag, its source channel, and its data type. The `Type` column links the tag to a channel prefix defined in `settings.json`.  
+- For system metrics or KepServerLogger's internal data, tags are configured via `settings.json` by specifying the prefix under which they are stored.
+
+Using data from `TagList.csv` and settings.json (as system metrics are already defined in their structure), the ingestor constructs fully-qualified OPC UA node IDs by prepending the channel prefix to the tag name. This allows the ingestor to read tags from multiple channels without hardcoding their locations.
 
 ### TagList.csv
 
@@ -285,6 +288,8 @@ Both the extractor and ingestor use `Basic256Sha256 SignAndEncrypt`. Each must p
 ---
 
 ## OPC Diagnostics and Client Connection Tracking
+
+> This feature is still under development and should not be used in production yet.
 
 KepServerEX writes all OPC UA session activity to a binary log file:
 
