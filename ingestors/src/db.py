@@ -4,7 +4,7 @@ Logger for ingesting data into the database.
 Receives data from the OPC UA server and ingests it into the database.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from logging import getLogger
 
 from asyncua import ua  # pyright: ignore[reportMissingTypeStubs]
@@ -86,9 +86,11 @@ class IngestorDatabase(ProjectDatabase):
                     PRIMARY KEY (hash, timestamp)
                 );
 
-                CREATE TABLE IF NOT EXISTS host_name_logs (
+                CREATE TABLE IF NOT EXISTS connection_log (
                     timestamp   TIMESTAMPTZ NOT NULL,
-                    host_name   TEXT NOT NULL
+                    event       TEXT NOT NULL,
+                    host_name   TEXT,
+                    reason      TEXT
                 );
                 """
             ],
@@ -100,7 +102,7 @@ class IngestorDatabase(ProjectDatabase):
                 "CREATE INDEX IF NOT EXISTS idx_services_timestamp ON services (timestamp DESC, name);",
                 "CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events (timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_opc_conn_events_timestamp ON opc_connection_events (timestamp DESC);",
-                "CREATE INDEX IF NOT EXISTS idx_host_name_logs_timestamp ON host_name_logs (timestamp DESC);",
+                "CREATE INDEX IF NOT EXISTS idx_connection_log_timestamp ON connection_log (timestamp DESC);",
             ],
             hypertables=[
                 ("tags", "server_timestamp"),
@@ -110,7 +112,7 @@ class IngestorDatabase(ProjectDatabase):
                 ("services", "timestamp"),
                 ("events", "timestamp"),
                 ("opc_connection_events", "timestamp"),
-                ("host_name_logs", "timestamp"),
+                ("connection_log", "timestamp"),
             ],
         )
         logger.info(
@@ -244,9 +246,11 @@ class IngestorDatabase(ProjectDatabase):
                 ),
             )
 
-    def insert_host_name(self, host_name: str, timestamp: datetime) -> None:
+    def log_connection(
+        self, event: str, *, host_name: str | None = None, reason: str | None = None
+    ) -> None:
         with self.transaction():
             self.execute(
-                "INSERT INTO host_name_logs (timestamp, host_name) VALUES (%s, %s);",
-                (timestamp, host_name),
+                "INSERT INTO connection_log (timestamp, event, host_name, reason) VALUES (%s, %s, %s, %s);",
+                (datetime.now(timezone.utc), event, host_name, reason),
             )
