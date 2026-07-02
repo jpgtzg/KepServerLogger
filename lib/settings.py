@@ -5,8 +5,9 @@ This module contains the settings for the application, read from the settings.js
 import json
 from enum import Enum
 from pathlib import Path
+from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 
 class MetricType(str, Enum):
@@ -41,14 +42,14 @@ class MetricsConfig(BaseModel):
     Configuration for all metrics
     """
 
-    cpu: PrefixConfig
-    ram: PrefixConfig
-    network: PrefixConfig
-    services: ServiceConfig
-    kepserverevents: PrefixConfig
-    tag_channels: dict[str, str]
-    opcdiagnostics: OpcDiagnosticsConfig
-    host_name: PrefixConfig
+    cpu: Optional[PrefixConfig] = None
+    ram: Optional[PrefixConfig] = None
+    network: Optional[PrefixConfig] = None
+    services: Optional[ServiceConfig] = None
+    kepserverevents: Optional[PrefixConfig] = None
+    tag_channels: Optional[dict[str, str]] = None
+    opcdiagnostics: Optional[OpcDiagnosticsConfig] = None
+    host_name: Optional[PrefixConfig] = None
 
 
 class Settings(BaseModel):
@@ -61,6 +62,19 @@ class Settings(BaseModel):
     polling_interval_seconds: int = 1
     metrics_to_log: list[MetricType]
     metrics_config: MetricsConfig
+
+    @model_validator(mode="after")
+    def check_metric_configs(self) -> "Settings":
+        missing = [
+            m.value
+            for m in self.metrics_to_log
+            if getattr(self.metrics_config, m.value) is None
+        ]
+        if missing:
+            raise ValueError(
+                f"metrics_config entries missing for enabled metrics: {', '.join(missing)}"
+            )
+        return self
 
     @classmethod
     def load(cls, path: str = "settings.json") -> "Settings":

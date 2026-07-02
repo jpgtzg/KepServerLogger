@@ -6,11 +6,6 @@ import sys
 from logging import getLogger
 from pathlib import Path
 
-from cryptography import x509
-from cryptography.hazmat.primitives.serialization import Encoding
-from cryptography.x509.oid import ExtendedKeyUsageOID
-from dotenv import load_dotenv
-
 from asyncua.crypto.cert_gen import (
     check_certificate,
     dump_private_key_as_pem,
@@ -19,6 +14,10 @@ from asyncua.crypto.cert_gen import (
     load_certificate,
     load_private_key,
 )
+from cryptography import x509
+from cryptography.hazmat.primitives.serialization import Encoding
+from cryptography.x509.oid import ExtendedKeyUsageOID
+from dotenv import load_dotenv
 
 
 def _base_dir() -> Path:
@@ -53,8 +52,8 @@ async def main() -> int:
     cert_path = Path(os.getenv("CERT_PATH") or base_dir / "certs" / "client_cert.pem")
     key_path = Path(os.getenv("KEY_PATH") or base_dir / "certs" / "client_key.pem")
 
-    host_name = os.getenv("HOST_NAME") or socket.gethostname()
-    app_uri = os.getenv("APP_URI") or f"urn:{host_name}:KepServerBridge"
+    host_name = socket.gethostname()
+    app_uri = f"urn:{host_name}:KepServerLogger"
 
     key_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -98,4 +97,3 @@ async def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(asyncio.run(main()))
-

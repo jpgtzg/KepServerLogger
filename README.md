@@ -163,8 +163,6 @@ Declares the list of KepServer instances the ingestor connects to:
 Global infrastructure config shared across all server connections:
 
 ```env
-APP_URI=urn:KepServerLogger:Client
-HOST_NAME=ingestor-host
 APPLICATION_NAME=KepServerLogger
 
 DB_HOST=localhost
