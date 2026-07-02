@@ -1,5 +1,5 @@
 """
-This module defines the configuration and settings models for the application
+This module defines the configuration models for the application
 """
 
 from pydantic_settings import BaseSettings
