@@ -17,13 +17,14 @@ class ServerConfig(BaseModel):
     url: str
     username: str
     password: str
-    db_name:
+    db_name: str
     cert_path: str
     key_path: str
 
     csv_tag_column_name: str
     csv_tag_separator: str
     csv_filename: str
+
 
 
 def load_servers_configs(path: str = "servers.json") -> list[ServerConfig]:
