@@ -8,7 +8,6 @@ from datetime import datetime
 from logging import getLogger
 
 from asyncua import ua  # pyright: ignore[reportMissingTypeStubs]
-from lib.config import config
 from lib.database import ProjectDatabase
 from lib.models import (
     CPUUsage,
@@ -19,7 +18,6 @@ from lib.models import (
     ServiceInfo,
     TagData,
 )
-from lib.settings import settings
 
 logger = getLogger(__name__)
 
@@ -27,7 +25,7 @@ logger = getLogger(__name__)
 class IngestorDatabase(ProjectDatabase):
     def initialize(self) -> None:
         logger.info(
-            f"Connecting to TimescaleDB at {config.db_host}:{config.db_port}/{config.db_name}..."
+            f"Connecting to TimescaleDB at {self._host}:{self._port}/{self._db_name}..."
         )
         self.connect()
         self.initialize_schema(
@@ -109,7 +107,7 @@ class IngestorDatabase(ProjectDatabase):
             ],
         )
         logger.info(
-            f"Database initialized with {settings.log_retention_days} days retention policy."
+            f"Database initialized with {self.retention_days} days retention policy."
         )
 
     def save_many(self, rows: list[TagData]) -> None:

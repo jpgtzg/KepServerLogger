@@ -1,39 +1,40 @@
 from __future__ import annotations
 
-import os
 import re
 from contextlib import contextmanager
 from logging import getLogger
 from typing import Iterable, Iterator, LiteralString, Sequence
 
 import psycopg
-from psycopg.sql import SQL, Identifier, Literal
+from psycopg.sql import SQL, Literal
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _logger = getLogger(__name__)
 
 
 class ProjectDatabase:
-    def __init__(self, *, retention_days: int | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        host: str,
+        port: int | str,
+        db_name: str,
+        user: str,
+        password: str,
+        retention_days: int,
+    ) -> None:
+        self._host = host
+        self._port = str(port)
+        self._db_name = db_name
+        self._user = user
+        self._password = password
+        self._retention_days = retention_days
         self._conn: psycopg.Connection | None = None
-        self._retention_days = (
-            retention_days
-            if retention_days is not None
-            else self._load_retention_days()
-        )
 
     def connect(self) -> None:
-        host = os.getenv("DB_HOST", "localhost")
-        port = os.getenv("DB_PORT", "5432")
-        name = os.getenv("DB_NAME")
-        user = os.getenv("DB_USER")
-        password = os.getenv("DB_PASSWORD")
-
-        if not name or not user or not password:
-            raise RuntimeError("DB_NAME, DB_USER, and DB_PASSWORD must be set.")
-
         conn_string = (
-            f"host={host} port={port} dbname={name} user={user} password={password}"
+            f"host={self._host} port={self._port} dbname={self._db_name}"
+            f" user={self._user} password={self._password}"
         )
         self._conn = psycopg.connect(conn_string, autocommit=False)
 
@@ -133,11 +134,3 @@ class ProjectDatabase:
         if not _IDENTIFIER_RE.match(identifier):
             raise ValueError(f"Unsafe SQL identifier: {identifier}")
 
-    @staticmethod
-    def _load_retention_days() -> int:
-        raw = os.getenv("LOG_RETENTION_DAYS", "7")
-        try:
-            return int(raw)
-        except ValueError:
-            _logger.warning(f"Invalid LOG_RETENTION_DAYS value '{raw}', defaulting to 7.")
-            return 7

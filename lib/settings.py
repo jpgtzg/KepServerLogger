@@ -67,4 +67,3 @@ class Settings(BaseModel):
         return cls.model_validate(json.loads(Path(path).read_text()))
 
 
-settings = Settings.load()

@@ -17,10 +17,12 @@ import asyncio
 import logging
 import time
 
-from lib.config import config
+from lib.config import Config
 from lib.logging import config_logging
+from lib.models import OPCUAModel
 from lib.opcua_client import OPCUAClient
-from lib.settings import MetricType, settings
+from lib.servers import ServerConfig, load_servers_configs
+from lib.settings import MetricType, Settings
 from lib.verify import get_tags
 
 from src.db import IngestorDatabase
@@ -36,28 +38,39 @@ from src.subscribers.opcua import (
 config_logging()
 logger = logging.getLogger(__name__)
 
+config = Config()
+settings = Settings.load()
+OPCUAModel.configure(timestamp_format=settings.timestamp_format)
 
-async def main():
+
+async def main(server: ServerConfig):
     logger.info("Initiating KepServerLogger Central Collector...")
-    logger.info(f"Connecting to {config.kepserver_server_url}...")
+    logger.info(f"Connecting to {server.url}...")
 
     channel_tags = {
         channel: get_tags(channel) for channel in settings.metrics_config.tag_channels
     }
 
     client = OPCUAClient(
-        url=config.kepserver_server_url,
+        url=server.url,
         app_uri=config.app_uri,
         name=config.application_name,
-        cert_path=config.cert_path,
-        key_path=config.key_path,
-        username=config.kepserver_username,
-        password=config.kepserver_password,
+        cert_path=server.cert_path,
+        key_path=server.key_path,
+        username=server.username,
+        password=server.password,
     )
 
     await client.setup()
 
-    db = IngestorDatabase(retention_days=settings.log_retention_days)
+    db = IngestorDatabase(
+        host=config.db_host,
+        port=config.db_port,
+        db_name=server.db_name,
+        user=config.db_user,
+        password=config.db_password,
+        retention_days=settings.log_retention_days,
+    )
     db.initialize()
 
     logger.info("Initialization complete, starting main loop...")
@@ -81,21 +94,21 @@ async def main():
                         )
                 if MetricType.CPU in settings.metrics_to_log:
                     try:
-                        cpu_usage = await subscribe_cpu_usage(client)
+                        cpu_usage = await subscribe_cpu_usage(client, settings.metrics_config)
                         db.insert_cpu_usage(cpu_usage)
                         logger.info("[CPU] Logged CPU usage")
                     except Exception as e:
                         logger.warning(f"[CPU] Skipping: {e}")
                 if MetricType.RAM in settings.metrics_to_log:
                     try:
-                        ram_usage = await subscribe_ram_usage(client)
+                        ram_usage = await subscribe_ram_usage(client, settings.metrics_config)
                         db.insert_ram_usage(ram_usage)
                         logger.info("[RAM] Logged RAM usage")
                     except Exception as e:
                         logger.warning(f"[RAM] Skipping: {e}")
                 if MetricType.NETWORK in settings.metrics_to_log:
                     try:
-                        network_usage = await subscribe_network_usage(client)
+                        network_usage = await subscribe_network_usage(client, settings.metrics_config)
                         for network in network_usage:
                             db.insert_network_metrics(network)
                         logger.info(
@@ -105,7 +118,7 @@ async def main():
                         logger.warning(f"[NETWORK] Skipping: {e}")
                 if MetricType.SERVICES in settings.metrics_to_log:
                     try:
-                        service_info = await subscribe_service_info(client)
+                        service_info = await subscribe_service_info(client, settings.metrics_config)
                         for service in service_info:
                             db.insert_service_info(service)
                         logger.info(
@@ -115,7 +128,7 @@ async def main():
                         logger.warning(f"[SERVICES] Skipping: {e}")
                 if MetricType.KEPSERVER_EVENTS in settings.metrics_to_log:
                     try:
-                        kep_events = await subscribe_kep_events(client)
+                        kep_events = await subscribe_kep_events(client, settings.metrics_config)
                         for event in kep_events:
                             db.insert_event(event)
                         logger.info(
@@ -125,7 +138,7 @@ async def main():
                         logger.warning(f"[EVENTS] Skipping: {e}")
                 if MetricType.OPC_DIAGNOSTICS in settings.metrics_to_log:
                     try:
-                        opc_events = await subscribe_opc_connection_events(client)
+                        opc_events = await subscribe_opc_connection_events(client, settings.metrics_config)
                         for event in opc_events:
                             db.insert_opc_connection_event(event)
                         logger.info(
@@ -138,7 +151,9 @@ async def main():
         except KeyboardInterrupt:
             logger.info("Stopping logger...")
         except Exception as e:
-            logger.error(f"Fatal error in main loop: {type(e).__name__}: {e}", exc_info=True)
+            logger.error(
+                f"Fatal error in main loop: {type(e).__name__}: {e}", exc_info=True
+            )
 
         finally:
             await client.disconnect()
@@ -147,4 +162,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    servers = load_servers_configs()
+    asyncio.run(asyncio.gather(*[main(s) for s in servers]))
