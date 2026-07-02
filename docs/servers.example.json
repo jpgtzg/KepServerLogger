@@ -1,0 +1,26 @@
+[
+    {
+        "name": "plant-a",
+        "url": "opc.tcp://192.168.1.100:49320",
+        "username": "administrator",
+        "password": "your-password-here",
+        "db_name": "kepserver_plant_a",
+        "cert_path": "certs/plant_a_client_cert.pem",
+        "key_path": "certs/plant_a_client_key.pem",
+        "csv_filename": "tags/plant_a_tags.csv",
+        "csv_tag_column_name": "Tag Name",
+        "csv_tag_separator": ","
+    },
+    {
+        "name": "plant-b",
+        "url": "opc.tcp://192.168.1.101:49320",
+        "username": "administrator",
+        "password": "your-password-here",
+        "db_name": "kepserver_plant_b",
+        "cert_path": "certs/plant_b_client_cert.pem",
+        "key_path": "certs/plant_b_client_key.pem",
+        "csv_filename": "tags/plant_b_tags.csv",
+        "csv_tag_column_name": "Tag Name",
+        "csv_tag_separator": ","
+    }
+]

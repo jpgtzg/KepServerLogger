@@ -74,6 +74,8 @@ project.assets.json
 ############################
 appsettings.Development.json
 secrets.json
+/servers.json
+/settings.json
 
 ############################
 # Database files
