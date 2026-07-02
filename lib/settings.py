@@ -63,7 +63,7 @@ class Settings(BaseModel):
     metrics_config: MetricsConfig
 
     @classmethod
-    def load(cls, path: str = "settings.json") -> Settings:
+    def load(cls, path: str = "settings.json") -> "Settings":
         return cls.model_validate(json.loads(Path(path).read_text()))
 
 

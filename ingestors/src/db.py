@@ -8,7 +8,7 @@ from datetime import datetime
 from logging import getLogger
 
 from asyncua import ua  # pyright: ignore[reportMissingTypeStubs]
-from lib.config import config, settings
+from lib.config import config
 from lib.database import ProjectDatabase
 from lib.models import (
     CPUUsage,
@@ -19,6 +19,7 @@ from lib.models import (
     ServiceInfo,
     TagData,
 )
+from lib.settings import settings
 
 logger = getLogger(__name__)
 

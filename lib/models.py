@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 from pydantic import BaseModel, field_validator
 
-from lib.config import settings
+from lib.settings import settings
 
 
 class OPCUAModel(BaseModel):
