@@ -137,6 +137,8 @@ async def main():
 
         except KeyboardInterrupt:
             logger.info("Stopping logger...")
+        except Exception as e:
+            logger.error(f"Fatal error in main loop: {type(e).__name__}: {e}", exc_info=True)
 
         finally:
             await client.disconnect()
