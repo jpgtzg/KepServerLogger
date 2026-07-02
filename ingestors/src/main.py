@@ -86,16 +86,19 @@ async def main(server: ServerConfig):
         try:
             while True:
                 if MetricType.TAG_CHANNELS in settings.metrics_to_log:
-                    for channel, tags in channel_tags.items():
-                        tag_values, timestamp = await client.read_batch(
-                            tags=tags,
-                            prefix=settings.metrics_config.tag_channels[channel],
-                        )
-                        rows = db.process_tag_values(tag_values, timestamp)
-                        db.save_many(rows)
-                        logger.info(
-                            f"[{server_name}][{channel.upper()}] Saved {len(rows)} values from {len(tags)} tags"
-                        )
+                    try:
+                        for channel, tags in channel_tags.items():
+                            tag_values, timestamp = await client.read_batch(
+                                tags=tags,
+                                prefix=settings.metrics_config.tag_channels[channel],
+                            )
+                            rows = db.process_tag_values(tag_values, timestamp)
+                            db.save_many(rows)
+                            logger.info(
+                                f"[{server_name}][{channel.upper()}] Saved {len(rows)} values from {len(tags)} tags"
+                            )
+                    except Exception as e:
+                        logger.warning(f"[{server_name}][TAG_CHANNELS] Skipping: {e}")
                 if MetricType.CPU in settings.metrics_to_log:
                     try:
                         cpu_usage = await subscribe_cpu_usage(
@@ -163,9 +166,13 @@ async def main(server: ServerConfig):
                     except Exception as e:
                         logger.warning(f"[{server_name}][OPC_DIAGS] Skipping: {e}")
                 try:
-                    host_name = await subscribe_host_name(client, settings.metrics_config)
+                    host_name = await subscribe_host_name(
+                        client, settings.metrics_config
+                    )
                     db.insert_host_name(host_name, datetime.now(timezone.utc))
-                    logger.info(f"[{server_name}][HOST_NAME] Logged host name: {host_name}")
+                    logger.info(
+                        f"[{server_name}][HOST_NAME] Logged host name: {host_name}"
+                    )
                 except Exception as e:
                     logger.warning(f"[{server_name}][HOST_NAME] Skipping: {e}")
                 await asyncio.sleep(settings.polling_interval_seconds)
