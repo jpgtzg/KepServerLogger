@@ -70,3 +70,8 @@ async def subscribe_opc_connection_events(
     if not raw:
         return []
     return [OpcConnectionEvent(**e) for e in json.loads(raw)]
+
+
+async def subscribe_host_name(client: OPCUAClient, metrics_config: MetricsConfig) -> str:
+    node = client.get_node(f"{metrics_config.host_name.prefix}.host_name")
+    return await node.read_value()

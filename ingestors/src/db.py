@@ -85,6 +85,11 @@ class IngestorDatabase(ProjectDatabase):
                     reason      TEXT NOT NULL DEFAULT '',
                     PRIMARY KEY (hash, timestamp)
                 );
+
+                CREATE TABLE IF NOT EXISTS host_name_logs (
+                    timestamp   TIMESTAMPTZ NOT NULL,
+                    host_name   TEXT NOT NULL
+                );
                 """
             ],
             indexes=[
@@ -95,6 +100,7 @@ class IngestorDatabase(ProjectDatabase):
                 "CREATE INDEX IF NOT EXISTS idx_services_timestamp ON services (timestamp DESC, name);",
                 "CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events (timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_opc_conn_events_timestamp ON opc_connection_events (timestamp DESC);",
+                "CREATE INDEX IF NOT EXISTS idx_host_name_logs_timestamp ON host_name_logs (timestamp DESC);",
             ],
             hypertables=[
                 ("tags", "server_timestamp"),
@@ -104,6 +110,7 @@ class IngestorDatabase(ProjectDatabase):
                 ("services", "timestamp"),
                 ("events", "timestamp"),
                 ("opc_connection_events", "timestamp"),
+                ("host_name_logs", "timestamp"),
             ],
         )
         logger.info(
@@ -235,4 +242,11 @@ class IngestorDatabase(ProjectDatabase):
                     service_info.machine_name,
                     ",".join(str(pid) for pid in service_info.process_ids),
                 ),
+            )
+
+    def insert_host_name(self, host_name: str, timestamp: datetime) -> None:
+        with self.transaction():
+            self.execute(
+                "INSERT INTO host_name_logs (timestamp, host_name) VALUES (%s, %s);",
+                (timestamp, host_name),
             )
