@@ -104,10 +104,12 @@ The extractor targets Windows only and is intended to run as a Windows service (
 
 KepServerEX is the message broker between the extractor and the ingestor at each site. It holds:
 
-- **`KepServerLogger` channel** (Simulator driver) — nodes written by the extractor and read by the ingestor for system metrics. Configured via `Metrics.csv`.
+- **`KepServerLogger` channel** (Simulator driver) — nodes written by the extractor and read by the ingestor for system metrics. Configured via `docs/UA-Node-Tag-Layout.csv`.
 - **Tag channels** (e.g. `Kepserver_OPC_DA.FLS.Tags`) — any KepServer channels or Advanced Tag groups whose tags should be logged. Read directly by the ingestor.
 
 All communication uses OPC UA with `Basic256Sha256 SignAndEncrypt`. Both extractor and ingestor authenticate with username/password and present a client certificate that must be trusted in KepServer's certificate store.
+
+`docs/UA-Node-Tag-Layout.csv` is a ready-made KepServerEX Simulator driver import for the `KepServerLogger` channel — it defines the string tags (`CPU.usage`, `RAM.free_kb`, `Network.batch`, etc.) at the addresses (`S0000`, `S0001`, ...) that the extractor writes to and the ingestor reads from. Import it directly into a new `KepServerLogger` channel/device rather than creating the tags by hand. The node names/addresses can technically be changed as long as `settings.json → metrics_config` prefixes are updated to match, but it's much easier to keep the provided layout as-is across every site than to keep a custom layout in sync.
 
 ---
 

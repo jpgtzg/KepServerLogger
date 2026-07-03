@@ -1,0 +1,11 @@
+﻿Tag Name,Address,Data Type,Respect Data Type,Client Access,Scan Rate,Scaling,Raw Low,Raw High,Scaled Low,Scaled High,Scaled Data Type,Clamp Low,Clamp High,Eng Units,Description,Negate Value
+"host_name","S0102",String,1,R/W,100,,,,,,,,,,"",
+"CPU.timestamp","S0000",String,1,R/W,100,,,,,,,,,,"",
+"CPU.usage","S0001",String,1,R/W,100,,,,,,,,,,"",
+"Events.batch","S0046",String,1,R/W,100,,,,,,,,,,"",
+"Network.batch","S0048",String,1,R/W,100,,,,,,,,,,"",
+"OpcConnections.batch","S0049",String,1,R/W,100,,,,,,,,,,"",
+"RAM.free_kb","S0004",String,1,R/W,100,,,,,,,,,,"",
+"RAM.timestamp","S0002",String,1,R/W,100,,,,,,,,,,"",
+"RAM.total_kb","S0003",String,1,R/W,100,,,,,,,,,,"",
+"Services.batch","S0040",String,1,R/W,100,,,,,,,,,,"",

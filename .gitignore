@@ -110,6 +110,7 @@ wheels/
 .env
 *.tar
 *.csv
+!docs/UA-Node-Tag-Layout.csv
 logs/
 
 # Python venvs anywhere (avoid committing local tool envs)
