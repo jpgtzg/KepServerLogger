@@ -4,7 +4,7 @@ import hashlib
 import requests
 
 from lib.models import KepEvent
-from lib.config import config
+from src.state import config
 
 def get_kepserver_events() -> list[KepEvent]:
     response = requests.get(

@@ -16,7 +16,7 @@ Reads the tags from a .csv file and ingests the data into the database.
 import asyncio
 import logging
 
-from lib.config import Config
+from lib.config import IngestorConfig
 from lib.logging import config_logging
 from lib.models import OPCUAModel
 from lib.opcua_client import OPCUAClient
@@ -38,7 +38,7 @@ from src.subscribers.opcua import (
 config_logging()
 logger = logging.getLogger(__name__)
 
-config = Config()  # pyright: ignore[reportCallIssue]
+config = IngestorConfig()  # pyright: ignore[reportCallIssue]
 settings = Settings.load()
 OPCUAModel.configure(timestamp_format=settings.timestamp_format)
 
@@ -114,10 +114,14 @@ async def main(server: ServerConfig):
     s = server.name
     logger.info(f"[{s}] Initiating KepServerLogger Central Collector...")
 
-    channel_tags = {
-        channel: get_tags(channel, server, settings.metrics_config)
-        for channel in settings.metrics_config.tag_channels
-    }
+    channel_tags = (
+        {
+            channel: get_tags(channel, server, settings.metrics_config)
+            for channel in settings.metrics_config.tag_channels
+        }
+        if MetricType.TAG_CHANNELS in settings.metrics_to_log
+        else {}
+    )
 
     db = IngestorDatabase(
         host=config.db_host,

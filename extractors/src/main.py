@@ -6,9 +6,9 @@ from concurrent.futures import CancelledError
 from typing import Optional
 
 from asyncua.ua.uaerrors import UaError
-from lib.config import MetricType, config, settings
 from lib.logging import config_logging
 from lib.opcua_client import OPCUAClient
+from lib.settings import MetricType
 
 from src.metrics import (
     get_memory_info,
@@ -28,6 +28,7 @@ from src.publishers.opcua import (
     publish_ram_usage,
     publish_service_info,
 )
+from src.state import config, settings
 
 config_logging()
 logger = logging.getLogger(__name__)

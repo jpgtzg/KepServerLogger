@@ -49,7 +49,7 @@ class MetricsConfig(BaseModel):
     kepserverevents: Optional[PrefixConfig] = None
     tag_channels: Optional[dict[str, str]] = None
     opcdiagnostics: Optional[OpcDiagnosticsConfig] = None
-    host_name: Optional[PrefixConfig] = None
+    host_name: PrefixConfig
 
 
 class Settings(BaseModel):

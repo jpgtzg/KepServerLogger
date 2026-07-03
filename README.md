@@ -125,17 +125,18 @@ A Python asyncio application running in Docker on the central Linux machine. It 
 
 ## Configuration
 
-Configuration is split across three files to separate concerns:
+Configuration is split across three files to separate concerns. `.env` is **not shared** — the extractor and ingestor each have their own, with different fields, backed by separate config models (`ExtractorConfig` and `IngestorConfig` in `lib/config.py`):
 
 | File | Scope | Contains |
 |---|---|---|
-| `servers.json` | Per server | OPC UA URL, credentials, certs, DB name, CSV tag file |
-| `.env` | Global infra | DB host/port/user/password, OPC UA app URI, application name |
+| `servers.json` | Ingestor only | OPC UA URL, credentials, certs, DB name, CSV tag file — one entry per KepServer instance |
+| `.env` (extractor) | Per extractor machine | KepServer connection URL/credentials, client cert/key paths, application name |
+| `.env` (ingestor) | Ingestor only | DB host/port/user/password, application name |
 | `settings.json` | Shared behaviour | Polling interval, retention days, which metrics to log, OPC UA node prefixes |
 
 `settings.json` must be identical on every extractor and on the ingestor — it defines the shared node namespace both sides agree on.
 
-`servers.json` and `.env` are gitignored. See `docs/servers.example.json` and `docs/settings.example.json` for templates. Protect both with `chmod 600`.
+`servers.json` and both `.env` files are gitignored. See `docs/servers.example.json`, `docs/settings.example.json`, `docs/extractor.env.example`, and `docs/ingestor.env.example` for templates. Protect all of them with `chmod 600`.
 
 ### servers.json
 
@@ -158,9 +159,27 @@ Declares the list of KepServer instances the ingestor connects to:
 ]
 ```
 
-### .env
+### .env (extractor)
 
-Global infrastructure config shared across all server connections:
+Deployed next to `extractor.exe` on each KepServer machine. Read by `ExtractorConfig`:
+
+```env
+APPLICATION_NAME=KepServerLogger
+
+KEPSERVER_SERVER_URL=opc.tcp://localhost:49320
+KEPSERVER_USERNAME=administrator
+KEPSERVER_PASSWORD=your-kepserver-password
+KEPSERVER_EVENT_LOG_URL=https://localhost:57573/config/v1/project/services/EventLog
+
+CERT_PATH=extractor_cert.pem
+KEY_PATH=extractor_key.pem
+```
+
+Loaded relative to the executable, not the current working directory, so it works regardless of what launches the `.exe` (e.g. NSSM).
+
+### .env (ingestor)
+
+Global infrastructure config for the central ingestor, shared across all server connections. Read by `IngestorConfig`:
 
 ```env
 APPLICATION_NAME=KepServerLogger
@@ -354,3 +373,4 @@ Each stored `OpcConnectionEvent` has a SHA-256 `hash` field for deduplication.
 - `settings.json` must be kept in sync between all extractors and the ingestor — it defines the shared OPC UA node namespace.
 - Adding a new KepServer instance: add an entry to `servers.json`, create its database, deploy its cert to the ingestor machine, and restart the ingestor. No code changes required.
 - The ingestor retries dropped connections with exponential backoff (5 → 10 → 20 → 40 → 60s). Each reconnect attempt is independent per server. Connection history is recorded in `connection_log`.
+- The extractor and ingestor each read their own `.env` into a dedicated Pydantic settings model (`ExtractorConfig` / `IngestorConfig` in `lib/config.py`) — they have no fields in common, so don't copy one machine's `.env` to the other.
