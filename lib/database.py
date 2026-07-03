@@ -6,7 +6,7 @@ from logging import getLogger
 from typing import Iterable, Iterator, LiteralString, Sequence
 
 import psycopg
-from psycopg.sql import SQL, Literal
+from psycopg.sql import SQL, Identifier, Literal
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _logger = getLogger(__name__)
@@ -30,6 +30,29 @@ class ProjectDatabase:
         self._password = password
         self._retention_days = retention_days
         self._conn: psycopg.Connection | None = None
+
+    def ensure_database_exists(self) -> None:
+        """
+        Creates self._db_name on the server if it doesn't already exist.
+        Connects to the maintenance "postgres" database to do so, since a
+        database can't be created from within a connection to itself and
+        CREATE DATABASE can't run inside a transaction block.
+        """
+        self._validate_identifier(self._db_name)
+        conn_string = (
+            f"host={self._host} port={self._port} dbname=postgres"
+            f" user={self._user} password={self._password}"
+        )
+        with psycopg.connect(conn_string, autocommit=True) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT 1 FROM pg_database WHERE datname = %s", (self._db_name,)
+                )
+                if cur.fetchone() is None:
+                    _logger.info(f"Database '{self._db_name}' does not exist, creating it...")
+                    cur.execute(
+                        SQL("CREATE DATABASE {}").format(Identifier(self._db_name))
+                    )
 
     def connect(self) -> None:
         conn_string = (

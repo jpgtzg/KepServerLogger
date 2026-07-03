@@ -27,10 +27,13 @@ class IngestorDatabase(ProjectDatabase):
         logger.info(
             f"Connecting to TimescaleDB at {self._host}:{self._port}/{self._db_name}..."
         )
+        self.ensure_database_exists()
         self.connect()
         self.initialize_schema(
             create_statements=[
                 """
+                CREATE EXTENSION IF NOT EXISTS timescaledb;
+
                 CREATE TABLE IF NOT EXISTS tags (
                     server_timestamp    TIMESTAMPTZ NOT NULL,
                     tag                 TEXT NOT NULL,
