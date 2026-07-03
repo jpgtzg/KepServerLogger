@@ -8,7 +8,6 @@ import json
 from logging import getLogger
 
 from asyncua import ua
-from lib.config import settings
 from lib.models import (
     CPUUsage,
     KepEvent,
@@ -18,6 +17,7 @@ from lib.models import (
     ServiceInfo,
 )
 from lib.opcua_client import OPCUAClient
+from src.state import settings
 
 logger = getLogger(__name__)
 
