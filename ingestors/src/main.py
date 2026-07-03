@@ -1,16 +1,5 @@
 """
 Ingestor for retrieving data from the OPC UA server and ingesting it into the database.
-
-Reads the tags from a .csv file and ingests the data into the database.
-
-## This ingestor will log the following metrics:
-- Tags
-
-- CPU Usage
-- RAM Usage
-- Network Usage
-- Services Usage
-- KepServer Events
 """
 
 import asyncio
@@ -45,14 +34,20 @@ OPCUAModel.configure(timestamp_format=settings.timestamp_format)
 _RETRY_DELAYS = [5, 10, 20, 40, 60]
 
 
-async def _poll_loop(server_name: str, client: OPCUAClient, db: IngestorDatabase, channel_tags: dict) -> None:
+async def _poll_loop(
+    server_name: str, client: OPCUAClient, db: IngestorDatabase, channel_tags: dict
+) -> None:
     while True:
-        if MetricType.TAG_CHANNELS in settings.metrics_to_log:
+        tag_channels_config = settings.metrics_config.tag_channels
+        if (
+            MetricType.TAG_CHANNELS in settings.metrics_to_log
+            and tag_channels_config is not None
+        ):
             try:
                 for channel, tags in channel_tags.items():
                     tag_values, timestamp = await client.read_batch(
                         tags=tags,
-                        prefix=settings.metrics_config.tag_channels[channel],
+                        prefix=tag_channels_config[channel],
                     )
                     rows = db.process_tag_values(tag_values, timestamp)
                     db.save_many(rows)
@@ -77,18 +72,26 @@ async def _poll_loop(server_name: str, client: OPCUAClient, db: IngestorDatabase
                 logger.warning(f"[{server_name}][RAM] Skipping: {e}")
         if MetricType.NETWORK in settings.metrics_to_log:
             try:
-                network_usage = await subscribe_network_usage(client, settings.metrics_config)
+                network_usage = await subscribe_network_usage(
+                    client, settings.metrics_config
+                )
                 for network in network_usage:
                     db.insert_network_metrics(network)
-                logger.info(f"[{server_name}][NETWORK] Logged {len(network_usage)} interfaces")
+                logger.info(
+                    f"[{server_name}][NETWORK] Logged {len(network_usage)} interfaces"
+                )
             except Exception as e:
                 logger.warning(f"[{server_name}][NETWORK] Skipping: {e}")
         if MetricType.SERVICES in settings.metrics_to_log:
             try:
-                service_info = await subscribe_service_info(client, settings.metrics_config)
+                service_info = await subscribe_service_info(
+                    client, settings.metrics_config
+                )
                 for service in service_info:
                     db.insert_service_info(service)
-                logger.info(f"[{server_name}][SERVICES] Logged {len(service_info)} services")
+                logger.info(
+                    f"[{server_name}][SERVICES] Logged {len(service_info)} services"
+                )
             except Exception as e:
                 logger.warning(f"[{server_name}][SERVICES] Skipping: {e}")
         if MetricType.KEPSERVER_EVENTS in settings.metrics_to_log:
@@ -96,15 +99,21 @@ async def _poll_loop(server_name: str, client: OPCUAClient, db: IngestorDatabase
                 kep_events = await subscribe_kep_events(client, settings.metrics_config)
                 for event in kep_events:
                     db.insert_event(event)
-                logger.info(f"[{server_name}][EVENTS] Logged {len(kep_events)} KepServer events")
+                logger.info(
+                    f"[{server_name}][EVENTS] Logged {len(kep_events)} KepServer events"
+                )
             except Exception as e:
                 logger.warning(f"[{server_name}][EVENTS] Skipping: {e}")
         if MetricType.OPC_DIAGNOSTICS in settings.metrics_to_log:
             try:
-                opc_events = await subscribe_opc_connection_events(client, settings.metrics_config)
+                opc_events = await subscribe_opc_connection_events(
+                    client, settings.metrics_config
+                )
                 for event in opc_events:
                     db.insert_opc_connection_event(event)
-                logger.info(f"[{server_name}][OPC_DIAGS] Logged {len(opc_events)} OPC connection events")
+                logger.info(
+                    f"[{server_name}][OPC_DIAGS] Logged {len(opc_events)} OPC connection events"
+                )
             except Exception as e:
                 logger.warning(f"[{server_name}][OPC_DIAGS] Skipping: {e}")
         await asyncio.sleep(settings.polling_interval_seconds)
@@ -114,12 +123,14 @@ async def main(server: ServerConfig):
     s = server.name
     logger.info(f"[{s}] Initiating KepServerLogger Central Collector...")
 
+    tag_channels_config = settings.metrics_config.tag_channels
     channel_tags = (
         {
             channel: get_tags(channel, server, settings.metrics_config)
-            for channel in settings.metrics_config.tag_channels
+            for channel in tag_channels_config
         }
         if MetricType.TAG_CHANNELS in settings.metrics_to_log
+        and tag_channels_config is not None
         else {}
     )
 

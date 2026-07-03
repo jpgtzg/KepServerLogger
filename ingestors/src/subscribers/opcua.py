@@ -18,6 +18,7 @@ from lib.settings import MetricsConfig
 
 
 async def subscribe_cpu_usage(client: OPCUAClient, metrics_config: MetricsConfig) -> CPUUsage:
+    assert metrics_config.cpu is not None
     data = {}
     for field in CPUUsage.model_fields.keys():
         node = client.get_node(f"{metrics_config.cpu.prefix}.{field}")
@@ -26,6 +27,7 @@ async def subscribe_cpu_usage(client: OPCUAClient, metrics_config: MetricsConfig
 
 
 async def subscribe_ram_usage(client: OPCUAClient, metrics_config: MetricsConfig) -> RAMUsage:
+    assert metrics_config.ram is not None
     data = {}
     for field in RAMUsage.model_fields.keys():
         node = client.get_node(f"{metrics_config.ram.prefix}.{field}")
@@ -34,6 +36,7 @@ async def subscribe_ram_usage(client: OPCUAClient, metrics_config: MetricsConfig
 
 
 async def subscribe_network_usage(client: OPCUAClient, metrics_config: MetricsConfig) -> list[NetworkUsage]:
+    assert metrics_config.network is not None
     node = client.get_node(f"{metrics_config.network.prefix}.batch")
     raw: str = await node.read_value()
     if not raw:
@@ -42,6 +45,7 @@ async def subscribe_network_usage(client: OPCUAClient, metrics_config: MetricsCo
 
 
 async def subscribe_service_info(client: OPCUAClient, metrics_config: MetricsConfig) -> list[ServiceInfo]:
+    assert metrics_config.services is not None
     node = client.get_node(f"{metrics_config.services.prefix}.batch")
     raw: str = await node.read_value()
     if not raw:
@@ -54,6 +58,7 @@ async def subscribe_kep_events(client: OPCUAClient, metrics_config: MetricsConfi
     "batch" is a special node that contains all the events in a single message.
     """
 
+    assert metrics_config.kepserverevents is not None
     node = client.get_node(f"{metrics_config.kepserverevents.prefix}.batch")
     raw: str = await node.read_value()
     if not raw:
@@ -65,6 +70,7 @@ async def subscribe_opc_connection_events(
     client: OPCUAClient,
     metrics_config: MetricsConfig,
 ) -> list[OpcConnectionEvent]:
+    assert metrics_config.opcdiagnostics is not None
     node = client.get_node(f"{metrics_config.opcdiagnostics.prefix}.batch")
     raw: str = await node.read_value()
     if not raw:

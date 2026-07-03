@@ -13,6 +13,7 @@ _EXCLUDE_TAGS = ["_Write", "_WRITE"]
 
 
 def get_tags(channel: str, server: ServerConfig, metrics_config: MetricsConfig) -> list[str]:
+    assert metrics_config.tag_channels is not None
     return extract_tags_from_csv(
         prefix=metrics_config.tag_channels[channel],
         type_filter=channel,
