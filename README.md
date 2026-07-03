@@ -136,9 +136,9 @@ Configuration is split across three files to separate concerns. `.env` is **not 
 | `.env` (ingestor) | Ingestor only | DB host/port/user/password, application name |
 | `settings.json` | Shared behaviour | Polling interval, retention days, which metrics to log, OPC UA node prefixes |
 
-`settings.json` must be identical on every extractor and on the ingestor — it defines the shared node namespace both sides agree on.
+`settings.json` should be kept the same on every extractor and on the ingestor, since it defines the shared node namespace both sides agree on. Strictly, only the OPC UA node-address fields (`metrics_config.*.prefix`, `tag_channels`) and `metrics_to_log` need to match exactly — `metrics_config.services.names` and `metrics_config.opcdiagnostics.log_path` are read only by the extractor and can legitimately differ per machine (e.g. different installed services or a different KepServer install path). It's still easiest to keep one copy of the file everywhere and only vary those two fields when a machine genuinely needs it.
 
-`servers.json` and both `.env` files are gitignored. See `docs/servers.example.json`, `docs/settings.example.json`, `docs/extractor.env.example`, and `docs/ingestor.env.example` for templates. Protect all of them with `chmod 600`.
+`servers.json` and both `.env` files are gitignored. See `docs/servers.example.json`, `docs/settings.extractor.example.json`, `docs/settings.ingestor.example.json`, `docs/extractor.env.example`, and `docs/ingestor.env.example` for templates. Protect all of them with `chmod 600`.
 
 ### servers.json
 
@@ -160,6 +160,8 @@ Declares the list of KepServer instances the ingestor connects to:
     }
 ]
 ```
+
+`cert_path`, `key_path`, and `csv_filename` are resolved relative to the ingestor's working directory (`/app/ingestors` inside the container), not relative to `servers.json` itself. Under Docker Compose, put each server's tag CSV in a `tags/` directory next to `docker-compose.yml` (bind-mounted to `/app/ingestors/tags`) and reference it as `tags/<file>.csv`, as in the example above.
 
 ### .env (extractor)
 
@@ -194,7 +196,7 @@ DB_PASSWORD=your-db-password
 
 ### settings.json
 
-Controls which metrics are active and where their OPC UA nodes live. See `docs/settings.example.json` for the full structure.
+Controls which metrics are active and where their OPC UA nodes live. See `docs/settings.extractor.example.json` (deploy next to `extractor.exe`) and `docs/settings.ingestor.example.json` (deploy on the ingestor) for the full structure — the two are identical except that `metrics_config.services.names` and `metrics_config.opcdiagnostics.log_path` are only meaningful on the extractor's copy.
 
 ---
 
@@ -290,7 +292,7 @@ Querying `connection_log` lets you see when a server went down, how long it was 
 | `extractor.exe` | Built by `build.ps1` |
 | `kepserver-certgen.exe` | Generates the OPC UA client certificate |
 | `.env` | Credentials and KepServer connection settings |
-| `settings.json` | Must match the ingestor's copy |
+| `settings.json` | Node prefixes and `metrics_to_log` must match the ingestor's copy; `services.names`/`opcdiagnostics.log_path` may differ per machine |
 
 **Central Linux machine (Ingestor):**
 
@@ -298,13 +300,66 @@ Querying `connection_log` lets you see when a server went down, how long it was 
 |---|---|
 | `.env` | DB credentials and global app config |
 | `servers.json` | List of KepServer instances (`chmod 600`) |
-| `settings.json` | Must match every extractor's copy |
+| `settings.json` | Node prefixes and `metrics_to_log` must match every extractor's copy |
 | `docker-compose.yml` | Service definitions |
 | `ingestor.tar.gz` | Built by `build_ingestor.sh` |
 | `timescaledb.tar.gz` | Only needed without registry access |
-| `tags/<server>.csv` | Process tag definitions per server |
-| `certs/<server>_cert.pem` | OPC UA client cert per server |
-| `certs/<server>_key.pem` | OPC UA client key per server |
+| `tags/<server>.csv` | Process tag definitions per server — referenced from `servers.json` as `tags/<server>.csv`; the `tags/` directory is bind-mounted into the container |
+| `certs/` | Bind-mounted (read-write) into the container; the ingestor auto-generates each server's client cert/key pair here on first boot if missing — see [OPC UA Certificates](#opc-ua-certificates) |
+
+`docker-compose.yml` (`ingestors/docker-compose.yml` in the repo) — the volume mounts are load-bearing, the app looks for each file at exactly these container paths (all relative to the ingestor's working directory, `/app/ingestors`):
+
+```yaml
+version: "3.9"
+
+services:
+    timescaledb:
+        image: timescale/timescaledb:latest-pg16
+        container_name: timescaledb
+        restart: unless-stopped
+        environment:
+            POSTGRES_USER: ${DB_USER}
+            POSTGRES_PASSWORD: ${DB_PASSWORD}
+        volumes:
+            - timescaledb-data:/var/lib/postgresql/data
+        ports:
+            - "5432:5432"
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d postgres"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
+    ingestors:
+        build:
+            context: ..
+            dockerfile: ingestors/Dockerfile
+        image: ingestors
+        container_name: ingestors
+        network_mode: host
+        restart: unless-stopped
+        stdin_open: true
+        tty: true
+        depends_on:
+            timescaledb:
+                condition: service_healthy
+        env_file:
+            - .env
+        volumes:
+            - ./servers.json:/app/ingestors/servers.json:ro,Z
+            - ./settings.json:/app/ingestors/settings.json:ro,Z
+            - ./tags:/app/ingestors/tags:ro,Z
+            - ./certs:/app/ingestors/certs:Z
+            - ./logs:/app/ingestors/logs
+
+volumes:
+    timescaledb-data:
+```
+
+Notes on the mounts:
+- `certs` is mounted **read-write** (`:Z`, not `:ro,Z`) — the container generates missing per-server certificates into it on boot (see [OPC UA Certificates](#opc-ua-certificates)). Mounting it read-only will make certificate generation fail.
+- `DB_NAME` is intentionally not referenced anywhere in this file — each server's database is created automatically by the ingestor from `servers.json`'s `db_name`, so `timescaledb` only needs `DB_USER`/`DB_PASSWORD` to bootstrap.
+- If you're adding this ingestor alongside an **already-running** deployment (e.g. testing a new version side by side with production), drop the whole `timescaledb:` service and `depends_on:` block instead of running a second Postgres — point `.env`'s `DB_HOST`/`DB_PORT` at the existing instance (`localhost:5432` works if both containers use `network_mode: host`) and use distinct `image`/`container_name` values so they don't collide with the running stack.
 
 Load and start:
 
@@ -313,6 +368,16 @@ docker load -i ingestor.tar.gz
 docker load -i timescaledb.tar.gz   # if applicable
 docker compose up -d
 ```
+
+### First-boot checklist
+
+Before the first `docker compose up -d`, on the ingestor machine's deployment directory:
+
+1. `servers.json` exists and every entry uses the exact field name `csv_filename` (not `csv_file_name`) — the ingestor fails fast with a pydantic validation error if it's misspelled.
+2. `tags/` directory exists and contains each server's CSV, matching the `tags/<file>.csv` path used in `servers.json`.
+3. `certs/` directory exists (even empty) — the container will populate it with a generated cert/key pair per server on first boot. You do **not** need to pre-generate these; there's no Windows machine involved on the ingestor side.
+4. `DB_USER` in `.env` has `CREATEDB` privileges on the target Postgres role — needed for the ingestor to auto-create each server's database on first connect.
+5. After the first successful boot, check the logs for `Generated certificate: certs/<file>.pem` per server, then **manually trust each generated certificate** in that server's respective KepServer OPC UA certificate manager — this step can't be automated from the ingestor side.
 
 ### Updating configuration
 
@@ -335,7 +400,7 @@ docker compose build ingestors && docker compose up -d ingestors
 Both extractor and ingestor use `Basic256Sha256 SignAndEncrypt`. Each client must present a certificate trusted in that KepServer's certificate store.
 
 - **Extractor**: generate with `kepserver-certgen.exe`, then trust the certificate in the local KepServer's OPC UA certificate manager.
-- **Ingestor**: one certificate pair per server, paths declared in `servers.json`. Certificates can be generated with the same `kepserver-certgen.exe` utility and must be trusted in each respective KepServer.
+- **Ingestor**: one certificate pair per server, paths declared in `servers.json`. Since the ingestor runs on Linux, it can't use the Windows-only `kepserver-certgen.exe` — instead, the container generates any missing certificate/key pair for each configured server automatically on startup (see `utils/certgen/src/generate_server_certs.py`, run by `ingestors/entrypoint.sh`), writing them to the paths declared in `servers.json`. You still need to manually trust each generated certificate in that server's respective KepServer certificate manager after the container's first boot.
 
 ---
 
@@ -372,7 +437,7 @@ Each stored `OpcConnectionEvent` has a SHA-256 `hash` field for deduplication.
 
 - The `KepServerLogger` channel in KepServer uses the **Simulator** driver, which allows defining UA nodes without a physical device.
 - KepServer tag names do not allow dots. Dots in service names are replaced with underscores.
-- `settings.json` must be kept in sync between all extractors and the ingestor — it defines the shared OPC UA node namespace.
-- Adding a new KepServer instance: add an entry to `servers.json`, create its database, deploy its cert to the ingestor machine, and restart the ingestor. No code changes required.
+- `settings.json` must be kept in sync between all extractors and the ingestor for the node-address fields (`metrics_config.*.prefix`, `tag_channels`) and `metrics_to_log` — these define the shared OPC UA node namespace. `metrics_config.services.names` and `metrics_config.opcdiagnostics.log_path` are extractor-only and can differ per machine.
+- Adding a new KepServer instance: add an entry to `servers.json`, deploy its cert to the ingestor machine, and restart the ingestor. No code changes required — the ingestor creates the target database (and enables the `timescaledb` extension) on first connect if it doesn't already exist, as long as `DB_USER` has `CREATEDB` privileges.
 - The ingestor retries dropped connections with exponential backoff (5 → 10 → 20 → 40 → 60s). Each reconnect attempt is independent per server. Connection history is recorded in `connection_log`.
 - The extractor and ingestor each read their own `.env` into a dedicated Pydantic settings model (`ExtractorConfig` / `IngestorConfig` in `lib/config.py`) — they have no fields in common, so don't copy one machine's `.env` to the other.
