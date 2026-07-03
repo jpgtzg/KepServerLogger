@@ -53,7 +53,8 @@ async def main() -> int:
     key_path = Path(os.getenv("KEY_PATH") or base_dir / "certs" / "client_key.pem")
 
     host_name = socket.gethostname()
-    app_uri = f"urn:{host_name}:KepServerLogger"
+    application_name = os.getenv("APPLICATION_NAME") or "KepServerLogger"
+    app_uri = f"urn:{host_name}:{application_name}"
 
     key_path.parent.mkdir(parents=True, exist_ok=True)
 
