@@ -7,13 +7,13 @@ Windows-only kepserver-certgen.exe on a Linux ingestor host.
 
 import asyncio
 import logging
-import os
 import socket
 from logging import getLogger
 from pathlib import Path
 
 from certgen import ensure_certificate
 
+from lib.config import IngestorConfig
 from lib.servers import load_servers_configs
 
 logger = getLogger(__name__)
@@ -26,10 +26,12 @@ async def main() -> int:
     )
 
     host_name = socket.gethostname()
-    application_name = os.getenv("APPLICATION_NAME") or "KepServerLogger"
+    # Every server's cert must embed the same app_uri the client actually
+    # presents at connection time (OPCUAClient(app_uri=config.app_uri, ...)
+    # in main.py) — OPC UA rejects a session if they don't match exactly.
+    app_uri = IngestorConfig().app_uri  # pyright: ignore[reportCallIssue]
 
     for server in load_servers_configs():
-        app_uri = f"urn:{host_name}:{application_name}:{server.name}"
         generated = await ensure_certificate(
             Path(server.cert_path), Path(server.key_path), app_uri, host_name
         )
