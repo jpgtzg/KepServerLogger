@@ -377,9 +377,8 @@ Before the first `docker compose up -d`, on the ingestor machine's deployment di
 
 1. `servers.json` exists and every entry uses the exact field name `csv_filename` (not `csv_file_name`) — the ingestor fails fast with a pydantic validation error if it's misspelled.
 2. `tags/` directory exists and contains each server's CSV, matching the `tags/<file>.csv` path used in `servers.json`.
-3. `certs/` directory exists (even empty) — the container will populate it with a generated cert/key pair per server on first boot. You do **not** need to pre-generate these; there's no Windows machine involved on the ingestor side.
-4. `DB_USER` in `.env` has `CREATEDB` privileges on the target Postgres role — needed for the ingestor to auto-create each server's database on first connect.
-5. After the first successful boot, check the logs for `Generated certificate: certs/<file>.pem` per server, then **manually trust each generated certificate** in that server's respective KepServer OPC UA certificate manager — this step can't be automated from the ingestor side.
+3. `DB_USER` in `.env` has `CREATEDB` privileges on the target Postgres role — needed for the ingestor to auto-create each server's database on first connect.
+4. After the first successful boot, check the logs for `Generated certificate: certs/<file>.pem` per server, then **manually trust each generated certificate** in that server's respective KepServer OPC UA certificate manager — this step can't be automated from the ingestor side.
 
 ### Updating configuration
 
@@ -406,7 +405,16 @@ Both extractor and ingestor use `Basic256Sha256 SignAndEncrypt`. Each client mus
 
 ---
 
-## OPC Diagnostics and Client Connection Tracking
+## Dev Notes
+
+- The `KepServerLogger` channel in KepServer uses the **Simulator** driver, which allows defining UA nodes without a physical device.
+- KepServer tag names do not allow dots. Dots in service names are replaced with underscores.
+- `settings.json` must be kept in sync between all extractors and the ingestor for the node-address fields (`metrics_config.*.prefix`, `tag_channels`) and `metrics_to_log` — these define the shared OPC UA node namespace. `metrics_config.services.names` and `metrics_config.opcdiagnostics.log_path` are extractor-only and can differ per machine.
+- Adding a new KepServer instance: add an entry to `servers.json`, deploy its cert to the ingestor machine, and restart the ingestor. No code changes required — the ingestor creates the target database (and enables the `timescaledb` extension) on first connect if it doesn't already exist, as long as `DB_USER` has `CREATEDB` privileges.
+- The ingestor retries dropped connections with exponential backoff (5 → 10 → 20 → 40 → 60s). Each reconnect attempt is independent per server. Connection history is recorded in `connection_log`.
+- The extractor and ingestor each read their own `.env` into a dedicated Pydantic settings model (`ExtractorConfig` / `IngestorConfig` in `lib/config.py`) — they have no fields in common, so don't copy one machine's `.env` to the other.
+
+### OPC Diagnostics and Client Connection Tracking
 
 KepServerEX writes all OPC UA session activity to a binary log file:
 
@@ -416,7 +424,7 @@ C:\ProgramData\Kepware\KEPServerEX\V6\opcdiags.log
 
 The extractor reads this file **incrementally** using a byte-offset cursor — only bytes appended since the last tick are decoded, keeping each iteration at ~1 ms regardless of file size. Parsed events are published to the `OpcConnections.batch` UA node and stored in `opc_connection_events`.
 
-### Event structure
+#### Event structure
 
 The file is UTF-16-LE encoded. Each event follows this pattern:
 
@@ -432,14 +440,3 @@ The file is UTF-16-LE encoded. Each event follows this pattern:
 Human-readable client names are resolved from `CreateSessionRequest` events. A `tag → name` map persists across loop iterations so that a `CloseSessionRequest` in a later tick can still resolve the name established earlier. Tags `NoSession`, `AnonymousClient`, and `opc.tcp://…` URLs are skipped (internal KepServer actors).
 
 Each stored `OpcConnectionEvent` has a SHA-256 `hash` field for deduplication.
-
----
-
-## Dev Notes
-
-- The `KepServerLogger` channel in KepServer uses the **Simulator** driver, which allows defining UA nodes without a physical device.
-- KepServer tag names do not allow dots. Dots in service names are replaced with underscores.
-- `settings.json` must be kept in sync between all extractors and the ingestor for the node-address fields (`metrics_config.*.prefix`, `tag_channels`) and `metrics_to_log` — these define the shared OPC UA node namespace. `metrics_config.services.names` and `metrics_config.opcdiagnostics.log_path` are extractor-only and can differ per machine.
-- Adding a new KepServer instance: add an entry to `servers.json`, deploy its cert to the ingestor machine, and restart the ingestor. No code changes required — the ingestor creates the target database (and enables the `timescaledb` extension) on first connect if it doesn't already exist, as long as `DB_USER` has `CREATEDB` privileges.
-- The ingestor retries dropped connections with exponential backoff (5 → 10 → 20 → 40 → 60s). Each reconnect attempt is independent per server. Connection history is recorded in `connection_log`.
-- The extractor and ingestor each read their own `.env` into a dedicated Pydantic settings model (`ExtractorConfig` / `IngestorConfig` in `lib/config.py`) — they have no fields in common, so don't copy one machine's `.env` to the other.
