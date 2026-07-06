@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: kepserverlogger
+
+resources:
+  - k8s/namespace.yaml
+  - k8s/configmap.yaml
+  - k8s/timescaledb.yaml
+  - k8s/ingestor.yaml
+
+configMapGenerator:
+  - name: kepserverlogger-files
+    files:
+      - settings.json=settings.json
+      - TagList.csv=TagList.csv
+
+images:
+  - name: ingestors
+    newName: registry.local/kepserverlogger/ingestors
+    newTag: 0.1.0
+  - name: timescale/timescaledb
+    newName: registry.local/kepserverlogger/timescaledb
+    newTag: latest-pg16
