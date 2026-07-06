@@ -59,6 +59,8 @@ async def _poll_loop(
                     logger.info(
                         f"[{server_name}][{channel.upper()}] Saved {len(rows)} values from {len(tags)} tags"
                     )
+            except ConnectionError:
+                raise
             except Exception as e:
                 logger.warning(f"[{server_name}][TAG_CHANNELS] Skipping: {e}")
         if MetricType.CPU in settings.metrics_to_log:
@@ -66,6 +68,8 @@ async def _poll_loop(
                 cpu_usage = await subscribe_cpu_usage(client, settings.metrics_config)
                 db.insert_cpu_usage(cpu_usage)
                 logger.info(f"[{server_name}][CPU] Logged CPU usage")
+            except ConnectionError:
+                raise
             except Exception as e:
                 logger.warning(f"[{server_name}][CPU] Skipping: {e}")
         if MetricType.RAM in settings.metrics_to_log:
@@ -73,6 +77,8 @@ async def _poll_loop(
                 ram_usage = await subscribe_ram_usage(client, settings.metrics_config)
                 db.insert_ram_usage(ram_usage)
                 logger.info(f"[{server_name}][RAM] Logged RAM usage")
+            except ConnectionError:
+                raise
             except Exception as e:
                 logger.warning(f"[{server_name}][RAM] Skipping: {e}")
         if MetricType.NETWORK in settings.metrics_to_log:
@@ -85,6 +91,8 @@ async def _poll_loop(
                 logger.info(
                     f"[{server_name}][NETWORK] Logged {len(network_usage)} interfaces"
                 )
+            except ConnectionError:
+                raise
             except Exception as e:
                 logger.warning(f"[{server_name}][NETWORK] Skipping: {e}")
         if MetricType.SERVICES in settings.metrics_to_log:
@@ -97,6 +105,8 @@ async def _poll_loop(
                 logger.info(
                     f"[{server_name}][SERVICES] Logged {len(service_info)} services"
                 )
+            except ConnectionError:
+                raise
             except Exception as e:
                 logger.warning(f"[{server_name}][SERVICES] Skipping: {e}")
         if MetricType.KEPSERVER_EVENTS in settings.metrics_to_log:
@@ -107,6 +117,8 @@ async def _poll_loop(
                 logger.info(
                     f"[{server_name}][EVENTS] Logged {len(kep_events)} KepServer events"
                 )
+            except ConnectionError:
+                raise
             except Exception as e:
                 logger.warning(f"[{server_name}][EVENTS] Skipping: {e}")
         if MetricType.OPC_DIAGNOSTICS in settings.metrics_to_log:
@@ -119,6 +131,8 @@ async def _poll_loop(
                 logger.info(
                     f"[{server_name}][OPC_DIAGS] Logged {len(opc_events)} OPC connection events"
                 )
+            except ConnectionError:
+                raise
             except Exception as e:
                 logger.warning(f"[{server_name}][OPC_DIAGS] Skipping: {e}")
         await asyncio.sleep(settings.polling_interval_seconds)
