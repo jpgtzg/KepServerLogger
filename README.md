@@ -205,14 +205,16 @@ Controls which metrics are active and where their OPC UA nodes live. See `docs/s
 Process tags are declared in a CSV file per server (path set by `csv_filename` in `servers.json`). The `Type` column links each tag to a channel prefix defined in `settings.json → metrics_config.tag_channels`.
 
 ```
-PI Tag name,PI tag description,Instrumenttag (address),Pointsource,PointType,Type
-FM2_BElvT30W.BAL,FM2 OPTIBAT Elevator amps T30, ,OPT,Float32,plc_tags
-MyLinkTag,Some advanced tag description, , ,Float32,link_tags
+Tag name,Description,Type
+FM2_BElvT30W.BAL,FM2 OPTIBAT Elevator amps T30,plc_tags
+MyLinkTag,Some advanced tag description,link_tags
 ```
+
+Only two columns are read by the ingestor; any other columns (description, address, point source, etc.) are ignored and can be named however you like.
 
 | Column | Purpose |
 |---|---|
-| `PI Tag name` | Tag name as it appears in the OPC DA node (`.BAL` suffix is stripped automatically) |
+| Tag name column (name set by `csv_tag_column_name` in `servers.json`) | Tag name as it appears in the OPC UA node (`.BAL` suffix is stripped automatically) |
 | `Type` | Channel name — must match a key in `settings.json → metrics_config.tag_channels` |
 
 Tags containing `_Write` or `_WRITE` are automatically excluded (write-back tags, not for logging).
