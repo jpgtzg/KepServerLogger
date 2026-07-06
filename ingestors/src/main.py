@@ -45,6 +45,11 @@ async def _poll_loop(
         ):
             try:
                 for channel, tags in channel_tags.items():
+                    if not tags:
+                        logger.info(
+                            f"[{server_name}][{channel.upper()}] No tags found, skipping."
+                        )
+                        continue
                     tag_values, timestamp = await client.read_batch(
                         tags=tags,
                         prefix=tag_channels_config[channel],
