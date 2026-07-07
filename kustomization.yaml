@@ -17,8 +17,8 @@ configMapGenerator:
 
 images:
   - name: ingestors
-    newName: registry.local/kepserverlogger/ingestors
+    newName: kepserverlogger/ingestors
     newTag: 0.1.0
   - name: timescale/timescaledb
-    newName: registry.local/kepserverlogger/timescaledb
+    newName: kepserverlogger/timescaledb
     newTag: latest-pg16
