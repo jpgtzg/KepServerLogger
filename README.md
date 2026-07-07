@@ -260,29 +260,6 @@ docker load -i timescaledb.tar.gz   # if applicable
 docker compose up -d
 ```
 
-### K3S / Kubernetes
-
-The ingestor and TimescaleDB can also be deployed to K3S/Kubernetes using the manifests in `k8s/`.
-
-```sh
-kubectl apply -f k8s/namespace.yaml
-kubectl create secret generic kepserverlogger-secret \
-  -n kepserverlogger \
-  --from-literal=DB_USER='postgres' \
-  --from-literal=DB_PASSWORD='REPLACE_ME' \
-  --from-literal=KEPSERVER_USERNAME='REPLACE_ME' \
-  --from-literal=KEPSERVER_PASSWORD='REPLACE_ME'
-kubectl create secret docker-registry kepserverlogger-registry \
-  -n kepserverlogger \
-  --docker-server=registry.local \
-  --docker-username='REPLACE_ME' \
-  --docker-password='REPLACE_ME' \
-  --docker-email='REPLACE_ME'
-kubectl apply -k .
-```
-
-See `k8s/README.md` for private registry setup, generated `ConfigMap` handling, persistent volumes, certificate persistence, and OPC UA networking notes.
-
 ### Updating TagList.csv or settings.json
 
 Both files are bind-mounted into the container. Changes take effect on the next container restart — no image rebuild needed:
