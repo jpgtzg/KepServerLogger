@@ -117,3 +117,7 @@ logs/
 **/certs/*.pem
 
 **.tar.gz
+
+# Generated executables and bundled service (keep local)
+**/Extractor
+Extractor.zip
