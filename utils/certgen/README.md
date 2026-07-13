@@ -4,14 +4,14 @@ This utility generates a **client private key** and a **self-signed application 
 
 ## Environment variables
 
-Set these in a `.env` file next to the `.exe` (recommended) or in your shell:
+The following paths can be overridden via `.env` or shell:
 
-- `APP_URI`: OPC UA Application URI (example: `urn:MYPC:KepServerBridge`)
-- `HOST_NAME`: DNS name / host name to include in the certificate (example: `MYPC`)
+- `CERT_PATH`: output path for the certificate (default: `certs/client_cert.pem` next to the exe)
+- `KEY_PATH`: output path for the private key (default: `certs/client_key.pem` next to the exe)
 
-If not provided:
-- `HOST_NAME` defaults to the current machine hostname
-- `APP_URI` defaults to `urn:{HOST_NAME}:KepServerBridge`
+The OPC UA Application URI and DNS SAN are derived automatically from the machine hostname:
+- URI: `urn:{hostname}:KepServerLogger`
+- DNS SAN: `{hostname}`
 
 ## Output
 
@@ -30,4 +30,3 @@ uv run pyinstaller certgen.spec --noconfirm --clean
 ```
 
 The `.exe` will be created under `utils/certgen/dist/`.
-

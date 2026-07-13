@@ -3,14 +3,19 @@ This module contains the models for the data that is ingested into the database.
 """
 
 from datetime import datetime, timezone
+from typing import ClassVar
 
 from pydantic import BaseModel, field_validator
 
-from lib.config import settings
-
 
 class OPCUAModel(BaseModel):
+    _timestamp_format: ClassVar[str] = "%Y-%m-%dT%H:%M:%S.%fZ"
+
     timestamp: datetime
+
+    @classmethod
+    def configure(cls, *, timestamp_format: str) -> None:
+        cls._timestamp_format = timestamp_format
 
     @field_validator("timestamp", mode="before")
     @classmethod
@@ -22,8 +27,7 @@ class OPCUAModel(BaseModel):
                 else v.replace(tzinfo=timezone.utc)
             )
         try:
-            # Primary format configured for OPC UA payloads (default ends with 'Z').
-            dt = datetime.strptime(v, settings.timestamp_format)
+            dt = datetime.strptime(v, cls._timestamp_format)
             return dt.replace(tzinfo=timezone.utc)
         except ValueError:
             # Accept ISO-8601 with optional milliseconds and optional Z/offset.

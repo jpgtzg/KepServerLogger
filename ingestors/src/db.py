@@ -4,11 +4,10 @@ Logger for ingesting data into the database.
 Receives data from the OPC UA server and ingests it into the database.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from logging import getLogger
 
 from asyncua import ua  # pyright: ignore[reportMissingTypeStubs]
-from lib.config import config, settings
 from lib.database import ProjectDatabase
 from lib.models import (
     CPUUsage,
@@ -26,12 +25,15 @@ logger = getLogger(__name__)
 class IngestorDatabase(ProjectDatabase):
     def initialize(self) -> None:
         logger.info(
-            f"Connecting to TimescaleDB at {config.db_host}:{config.db_port}/{config.db_name}..."
+            f"Connecting to TimescaleDB at {self._host}:{self._port}/{self._db_name}..."
         )
+        self.ensure_database_exists()
         self.connect()
         self.initialize_schema(
             create_statements=[
                 """
+                CREATE EXTENSION IF NOT EXISTS timescaledb;
+
                 CREATE TABLE IF NOT EXISTS tags (
                     server_timestamp    TIMESTAMPTZ NOT NULL,
                     tag                 TEXT NOT NULL,
@@ -86,6 +88,13 @@ class IngestorDatabase(ProjectDatabase):
                     reason      TEXT NOT NULL DEFAULT '',
                     PRIMARY KEY (hash, timestamp)
                 );
+
+                CREATE TABLE IF NOT EXISTS connection_log (
+                    timestamp   TIMESTAMPTZ NOT NULL,
+                    event       TEXT NOT NULL,
+                    host_name   TEXT,
+                    reason      TEXT
+                );
                 """
             ],
             indexes=[
@@ -96,6 +105,7 @@ class IngestorDatabase(ProjectDatabase):
                 "CREATE INDEX IF NOT EXISTS idx_services_timestamp ON services (timestamp DESC, name);",
                 "CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events (timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_opc_conn_events_timestamp ON opc_connection_events (timestamp DESC);",
+                "CREATE INDEX IF NOT EXISTS idx_connection_log_timestamp ON connection_log (timestamp DESC);",
             ],
             hypertables=[
                 ("tags", "server_timestamp"),
@@ -105,10 +115,11 @@ class IngestorDatabase(ProjectDatabase):
                 ("services", "timestamp"),
                 ("events", "timestamp"),
                 ("opc_connection_events", "timestamp"),
+                ("connection_log", "timestamp"),
             ],
         )
         logger.info(
-            f"Database initialized with {settings.log_retention_days} days retention policy."
+            f"Database initialized with {self.retention_days} days retention policy."
         )
 
     def save_many(self, rows: list[TagData]) -> None:
@@ -236,4 +247,13 @@ class IngestorDatabase(ProjectDatabase):
                     service_info.machine_name,
                     ",".join(str(pid) for pid in service_info.process_ids),
                 ),
+            )
+
+    def log_connection(
+        self, event: str, *, host_name: str | None = None, reason: str | None = None
+    ) -> None:
+        with self.transaction():
+            self.execute(
+                "INSERT INTO connection_log (timestamp, event, host_name, reason) VALUES (%s, %s, %s, %s);",
+                (datetime.now(timezone.utc), event, host_name, reason),
             )

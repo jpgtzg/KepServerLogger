@@ -8,7 +8,6 @@ import json
 from logging import getLogger
 
 from asyncua import ua
-from lib.config import settings
 from lib.models import (
     CPUUsage,
     KepEvent,
@@ -18,6 +17,7 @@ from lib.models import (
     ServiceInfo,
 )
 from lib.opcua_client import OPCUAClient
+from src.state import settings
 
 logger = getLogger(__name__)
 
@@ -25,6 +25,7 @@ logger = getLogger(__name__)
 
 
 async def publish_cpu_usage(client: OPCUAClient, cpu_usage: CPUUsage) -> None:
+    assert settings.metrics_config.cpu is not None
     logger.info(f"[CPU] Publishing CPU usage: {cpu_usage}")
     data = cpu_usage.to_opcua(settings.timestamp_format)
 
@@ -35,6 +36,7 @@ async def publish_cpu_usage(client: OPCUAClient, cpu_usage: CPUUsage) -> None:
 
 
 async def publish_ram_usage(client: OPCUAClient, ram_usage: RAMUsage) -> None:
+    assert settings.metrics_config.ram is not None
     logger.info(f"[RAM] Publishing RAM usage: {ram_usage}")
     data = ram_usage.to_opcua(settings.timestamp_format)
 
@@ -47,6 +49,7 @@ async def publish_ram_usage(client: OPCUAClient, ram_usage: RAMUsage) -> None:
 async def publish_service_info(
     client: OPCUAClient, service_info: list[ServiceInfo]
 ) -> None:
+    assert settings.metrics_config.services is not None
     logger.info(
         f"[SERVICES] Publishing {len(service_info)} service(s): {[s.name for s in service_info[:3]]}..."
     )
@@ -58,6 +61,7 @@ async def publish_service_info(
 async def publish_network_usage(
     client: OPCUAClient, network_usage: list[NetworkUsage]
 ) -> None:
+    assert settings.metrics_config.network is not None
     logger.info(f"[NETWORK] Publishing {len(network_usage)} interface(s)")
     data = [iface.to_opcua(settings.timestamp_format) for iface in network_usage]
     node = client.get_node(f"{settings.metrics_config.network.prefix}.batch")
@@ -65,6 +69,7 @@ async def publish_network_usage(
 
 
 async def publish_kep_event(client: OPCUAClient, kep_events: list[KepEvent]) -> None:
+    assert settings.metrics_config.kepserverevents is not None
     logger.info(
         f"[EVENTS] Publishing {len(kep_events)} event(s): {[e.name for e in kep_events[:3]]}..."
     )
@@ -78,6 +83,7 @@ async def publish_kep_event(client: OPCUAClient, kep_events: list[KepEvent]) -> 
 async def publish_opc_connection_events(
     client: OPCUAClient, events: list[OpcConnectionEvent]
 ) -> None:
+    assert settings.metrics_config.opcdiagnostics is not None
     logger.info(f"[OPC_DIAGS] Publishing {len(events)} connection event(s)")
     if not events:
         return

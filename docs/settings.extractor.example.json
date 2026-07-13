@@ -1,0 +1,48 @@
+{
+    "timestamp_format": "%Y-%m-%dT%H:%M:%SZ",
+    "log_retention_days": 7,
+    "polling_interval_seconds": 10,
+    "metrics_to_log": [
+        "cpu",
+        "ram",
+        "network",
+        "services",
+        "kepserverevents",
+        "tag_channels",
+        "opcdiagnostics"
+    ],
+    "metrics_config": {
+        "cpu": {
+            "prefix": "ns=2;s=KepServerLogger.Metrics.CPU"
+        },
+        "ram": {
+            "prefix": "ns=2;s=KepServerLogger.Metrics.RAM"
+        },
+        "network": {
+            "prefix": "ns=2;s=KepServerLogger.Metrics.Network"
+        },
+        "services": {
+            "prefix": "ns=2;s=KepServerLogger.Metrics.Services",
+            "names": [
+                "Kepware Server Config API Service",
+                "Kepware Server Event Logger",
+                "Kepware Server Key Service",
+                "Kepware Server Runtime",
+                "Kepware Server Store and Forward"
+            ]
+        },
+        "kepserverevents": {
+            "prefix": "ns=2;s=KepServerLogger.Metrics.Events"
+        },
+        "tag_channels": {
+            "channel_name": "ns=2;s=YourChannel.Tags"
+        },
+        "host_name": {
+            "prefix": "ns=2;s=KepServerLogger.Metrics"
+        },
+        "opcdiagnostics": {
+            "prefix": "ns=2;s=KepServerLogger.Metrics.OpcConnections",
+            "log_path": "C:\\ProgramData\\Kepware\\KEPServerEX\\V6\\opcdiags.log"
+        }
+    }
+}

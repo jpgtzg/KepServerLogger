@@ -2,9 +2,7 @@ FROM python:3.13-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PYTHONPATH=/app:/app/ingestors:/app/ingestors/src \
-    CERT_PATH=/app/certs/client_cert.pem \
-    KEY_PATH=/app/certs/client_key.pem
+    PYTHONPATH=/app:/app/ingestors:/app/ingestors/src
 
 WORKDIR /app
 
@@ -22,7 +20,5 @@ COPY utils/certgen/ /app/utils/certgen/
 COPY ingestors/entrypoint.sh /app/entrypoint.sh
 
 RUN chmod +x /app/entrypoint.sh
-
-VOLUME ["/app/certs"]
 
 ENTRYPOINT ["/app/entrypoint.sh"]

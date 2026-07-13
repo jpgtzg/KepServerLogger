@@ -6,9 +6,9 @@ from concurrent.futures import CancelledError
 from typing import Optional
 
 from asyncua.ua.uaerrors import UaError
-from lib.config import MetricType, config, settings
 from lib.logging import config_logging
 from lib.opcua_client import OPCUAClient
+from lib.settings import MetricType
 
 from src.metrics import (
     get_memory_info,
@@ -28,6 +28,7 @@ from src.publishers.opcua import (
     publish_ram_usage,
     publish_service_info,
 )
+from src.state import config, settings
 
 config_logging()
 logger = logging.getLogger(__name__)
@@ -50,9 +51,11 @@ def _is_reconnect_error(exc: BaseException) -> bool:
 async def main() -> None:
     logger.info("Starting metrics extractor...")
 
+    opcdiagnostics_config = settings.metrics_config.opcdiagnostics
     opc_reader: Optional[OpcDiagnosticsReader] = (
-        OpcDiagnosticsReader(settings.metrics_config.opcdiagnostics.log_path)
+        OpcDiagnosticsReader(opcdiagnostics_config.log_path)
         if MetricType.OPC_DIAGNOSTICS in settings.metrics_to_log
+        and opcdiagnostics_config is not None
         else None
     )
 
@@ -107,6 +110,14 @@ async def _run_session(opc_reader: Optional[OpcDiagnosticsReader]) -> None:
 
                 if MetricType.SERVICES in settings.metrics_to_log:
                     try:
+                        if (
+                            not settings.metrics_config.services
+                            or not settings.metrics_config.services.names
+                        ):
+                            logger.warning(
+                                "[SERVICES] No service names configured, skipping service info publishing"
+                            )
+                            continue
                         service_info = [
                             get_service_info(service_name)
                             for service_name in settings.metrics_config.services.names

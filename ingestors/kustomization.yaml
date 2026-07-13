@@ -4,21 +4,19 @@ kind: Kustomization
 namespace: kepserverlogger
 
 resources:
-  - k8s/namespace.yaml
-  - k8s/configmap.yaml
-  - k8s/timescaledb.yaml
-  - k8s/ingestor.yaml
+  - k3s/namespace.yaml
+  - k3s/configmap.yaml
+  - k3s/timescaledb.yaml
+  - k3s/ingestor.yaml
 
 configMapGenerator:
   - name: kepserverlogger-files
     files:
       - settings.json=settings.json
-      - TagList.csv=TagList.csv
+      - balcones_pcn_tags.csv=tags/balcones_pcn_tags.csv
+      - balcones_dmz_tags.csv=tags/balcones_dmz_tags.csv
 
-images:
-  - name: ingestors
-    newName: kepserverlogger/ingestors
-    newTag: 0.1.0
-  - name: timescale/timescaledb
-    newName: kepserverlogger/timescaledb
-    newTag: latest-pg16
+secretGenerator:
+  - name: kepserverlogger-servers
+    files:
+      - servers.json=servers.json
