@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kepserverlogger-env
+data:
+  APP_URI: urn:smartops:kepserverlogger-ingestor
+  HOST_NAME: smartops
+  APPLICATION_NAME: kepserverlogger-ingestor
+  KEPSERVER_SERVER_URL: opc.tcp://192.168.14.20:49320
+  KEPSERVER_EVENT_LOG_URL: http://127.0.0.1:57412/config/v1/event_log
+  CSV_TAG_COLUMN_NAME: PI Tag name
+  CSV_TAG_OPCUA_PATH: Kepserver_OPC_DA.FLS.Tags
+  CSV_TAG_SEPARATOR: ","
+  CSV_FILENAME: TagList.csv
+  DB_HOST: timescaledb
+  DB_PORT: "5432"
+  DB_NAME: kepserverlogger
+  CERT_PATH: /app/certs/client_cert.pem
+  KEY_PATH: /app/certs/client_key.pem
