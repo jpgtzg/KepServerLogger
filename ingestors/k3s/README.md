@@ -204,7 +204,9 @@ Fix `servers.json` and redeploy (see [Updating Configuration](#updating-configur
 
 # 9. Expose TimescaleDB For Grafana (Optional)
 
-Required only if Grafana runs outside the cluster. Create a read-only user, then grant it access per `<DB_NAME>`:
+Required only if Grafana runs outside the cluster. This uses a `NodePort` Service, not `kubectl port-forward` — a `NodePort` is a persistent Service that stays up on its own, while `kubectl port-forward` only lasts as long as that command keeps running in a terminal somewhere. If the Grafana host can already reach the K3S node's IP (e.g. it can already ping it), no additional tunneling/forwarding is needed once the `NodePort` Service is applied.
+
+Create a read-only user, then grant it access per `<DB_NAME>`:
 
 ```bash
 kubectl -n kepserverlogger exec -it timescaledb-0 -- psql -U postgres -d postgres
