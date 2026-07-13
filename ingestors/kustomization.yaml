@@ -20,8 +20,3 @@ secretGenerator:
   - name: kepserverlogger-servers
     files:
       - servers.json=servers.json
-
-images:
-  - name: ingestors
-    newName: kepserverlogger/ingestors
-    newTag: 0.1.0
