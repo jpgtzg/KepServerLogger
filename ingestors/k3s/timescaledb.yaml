@@ -39,8 +39,6 @@ spec:
         app.kubernetes.io/name: timescaledb
         app.kubernetes.io/part-of: kepserverlogger
     spec:
-      imagePullSecrets:
-        - name: kepserverlogger-registry
       containers:
         - name: timescaledb
           image: timescale/timescaledb:latest-pg16
@@ -49,11 +47,6 @@ spec:
             - name: postgres
               containerPort: 5432
           env:
-            - name: POSTGRES_DB
-              valueFrom:
-                configMapKeyRef:
-                  name: kepserverlogger-env
-                  key: DB_NAME
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
@@ -69,7 +62,7 @@ spec:
               command:
                 - sh
                 - -c
-                - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+                - pg_isready -U "$POSTGRES_USER"
             initialDelaySeconds: 10
             periodSeconds: 5
             timeoutSeconds: 5
@@ -79,7 +72,7 @@ spec:
               command:
                 - sh
                 - -c
-                - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+                - pg_isready -U "$POSTGRES_USER"
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5

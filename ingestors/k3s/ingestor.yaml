@@ -27,8 +27,6 @@ spec:
         app.kubernetes.io/name: ingestor
         app.kubernetes.io/part-of: kepserverlogger
     spec:
-      imagePullSecrets:
-        - name: kepserverlogger-registry
       initContainers:
         - name: wait-for-timescaledb
           image: timescale/timescaledb:latest-pg16
@@ -36,7 +34,7 @@ spec:
           command:
             - sh
             - -c
-            - until pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME"; do sleep 2; done
+            - until pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER"; do sleep 2; done
           envFrom:
             - configMapRef:
                 name: kepserverlogger-env
@@ -57,17 +55,28 @@ spec:
               subPath: settings.json
               readOnly: true
             - name: config
-              mountPath: /app/ingestors/TagList.csv
-              subPath: TagList.csv
+              mountPath: /app/ingestors/tags/balcones_pcn_tags.csv
+              subPath: balcones_pcn_tags.csv
+              readOnly: true
+            - name: config
+              mountPath: /app/ingestors/tags/balcones_dmz_tags.csv
+              subPath: balcones_dmz_tags.csv
+              readOnly: true
+            - name: servers
+              mountPath: /app/ingestors/servers.json
+              subPath: servers.json
               readOnly: true
             - name: certs
-              mountPath: /app/certs
+              mountPath: /app/ingestors/certs
             - name: logs
               mountPath: /app/ingestors/logs
       volumes:
         - name: config
           configMap:
             name: kepserverlogger-files
+        - name: servers
+          secret:
+            secretName: kepserverlogger-servers
         - name: certs
           persistentVolumeClaim:
             claimName: ingestor-certs
