@@ -27,6 +27,7 @@ spec:
         app.kubernetes.io/name: ingestor
         app.kubernetes.io/part-of: kepserverlogger
     spec:
+      hostname: usprmsmovmp01
       initContainers:
         - name: wait-for-timescaledb
           image: timescale/timescaledb:latest-pg16
