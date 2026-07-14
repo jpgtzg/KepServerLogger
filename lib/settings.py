@@ -47,7 +47,7 @@ class MetricsConfig(BaseModel):
     network: Optional[PrefixConfig] = None
     services: Optional[ServiceConfig] = None
     kepserverevents: Optional[PrefixConfig] = None
-    tag_channels: Optional[dict[str, str]] = None
+    tag_channels: Optional[dict[str, dict[str, str]]] = None
     opcdiagnostics: Optional[OpcDiagnosticsConfig] = None
     host_name: PrefixConfig
 

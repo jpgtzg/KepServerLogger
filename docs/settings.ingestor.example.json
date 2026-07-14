@@ -30,7 +30,10 @@
             "prefix": "ns=2;s=KepServerLogger.Metrics.Events"
         },
         "tag_channels": {
-            "channel_name": "ns=2;s=YourChannel.Tags"
+            "_note": "top-level key must match a server's 'name' in servers.json",
+            "your-server-name": {
+                "channel_name": "ns=2;s=YourChannel.Tags"
+            }
         },
         "host_name": {
             "prefix": "ns=2;s=KepServerLogger.Metrics"

@@ -35,7 +35,9 @@
             "prefix": "ns=2;s=KepServerLogger.Metrics.Events"
         },
         "tag_channels": {
-            "channel_name": "ns=2;s=YourChannel.Tags"
+            "your-server-name": {
+                "channel_name": "ns=2;s=YourChannel.Tags"
+            }
         },
         "host_name": {
             "prefix": "ns=2;s=KepServerLogger.Metrics"

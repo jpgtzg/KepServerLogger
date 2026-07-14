@@ -136,7 +136,7 @@ Configuration is split across three files to separate concerns. `.env` is **not 
 | `.env` (ingestor) | Ingestor only | DB host/port/user/password, application name |
 | `settings.json` | Shared behaviour | Polling interval, retention days, which metrics to log, OPC UA node prefixes |
 
-`settings.json` should be kept the same on every extractor and on the ingestor, since it defines the shared node namespace both sides agree on. Strictly, only the OPC UA node-address fields (`metrics_config.*.prefix`, `tag_channels`) and `metrics_to_log` need to match exactly — `metrics_config.services.names` and `metrics_config.opcdiagnostics.log_path` are read only by the extractor and can legitimately differ per machine (e.g. different installed services or a different KepServer install path). It's still easiest to keep one copy of the file everywhere and only vary those two fields when a machine genuinely needs it.
+`settings.json` should be kept the same on every extractor and on the ingestor, since it defines the shared node namespace both sides agree on. Strictly, only the OPC UA node-address fields (`metrics_config.*.prefix`, `tag_channels`) and `metrics_to_log` need to match exactly — `metrics_config.services.names` and `metrics_config.opcdiagnostics.log_path` are read only by the extractor and can legitimately differ per machine (e.g. different installed services or a different KepServer install path). It's still easiest to keep one copy of the file everywhere and only vary those two fields when a machine genuinely needs it. `tag_channels` is keyed per server (by the `name` in `servers.json`), so a single shared `settings.json` can hold distinct channels/prefixes for each server without conflicting.
 
 `servers.json` and both `.env` files are gitignored. See `docs/servers.example.json`, `docs/settings.extractor.example.json`, `docs/settings.ingestor.example.json`, `docs/extractor.env.example`, and `docs/ingestor.env.example` for templates. Protect all of them with `chmod 600`.
 
@@ -202,7 +202,7 @@ Controls which metrics are active and where their OPC UA nodes live. See `docs/s
 
 ## Tag Configuration
 
-Process tags are declared in a CSV file per server (path set by `csv_filename` in `servers.json`). The `Type` column links each tag to a channel prefix defined in `settings.json → metrics_config.tag_channels`.
+Process tags are declared in a CSV file per server (path set by `csv_filename` in `servers.json`). The `Type` column links each tag to a channel prefix defined in `settings.json → metrics_config.tag_channels`, under that server's own entry (keyed by the server's `name` in `servers.json`) — channels and prefixes are never shared across servers.
 
 ```
 Tag name,Description,Type
@@ -215,11 +215,11 @@ Only two columns are read by the ingestor; any other columns (description, addre
 | Column | Purpose |
 |---|---|
 | Tag name column (name set by `csv_tag_column_name` in `servers.json`) | Tag name as it appears in the OPC UA node (`.BAL` suffix is stripped automatically) |
-| `Type` | Channel name — must match a key in `settings.json → metrics_config.tag_channels` |
+| `Type` | Channel name — must match a key under this server's entry in `settings.json → metrics_config.tag_channels.<server-name>` |
 
 Tags containing `_Write` or `_WRITE` are automatically excluded (write-back tags, not for logging).
 
-Adding a new tag source: add rows with a new `Type` value and one entry to `tag_channels` in `settings.json`. No code changes required.
+Adding a new tag source: add rows with a new `Type` value and one entry under that server's map in `tag_channels` in `settings.json`. No code changes required. Adding a new server: add its entry to `servers.json` and a matching top-level entry (keyed by the same `name`) in `tag_channels`.
 
 ---
 
@@ -410,7 +410,7 @@ Both extractor and ingestor use `Basic256Sha256 SignAndEncrypt`. Each client mus
 - The `KepServerLogger` channel in KepServer uses the **Simulator** driver, which allows defining UA nodes without a physical device.
 - KepServer tag names do not allow dots. Dots in service names are replaced with underscores.
 - `settings.json` must be kept in sync between all extractors and the ingestor for the node-address fields (`metrics_config.*.prefix`, `tag_channels`) and `metrics_to_log` — these define the shared OPC UA node namespace. `metrics_config.services.names` and `metrics_config.opcdiagnostics.log_path` are extractor-only and can differ per machine.
-- Adding a new KepServer instance: add an entry to `servers.json`, deploy its cert to the ingestor machine, and restart the ingestor. No code changes required — the ingestor creates the target database (and enables the `timescaledb` extension) on first connect if it doesn't already exist, as long as `DB_USER` has `CREATEDB` privileges.
+- Adding a new KepServer instance: add an entry to `servers.json`, deploy its cert to the ingestor machine, add a matching per-server entry (same `name`) to `metrics_config.tag_channels` in `settings.json` if tag logging is enabled, and restart the ingestor. No other code changes required — the ingestor creates the target database (and enables the `timescaledb` extension) on first connect if it doesn't already exist, as long as `DB_USER` has `CREATEDB` privileges.
 - The ingestor retries dropped connections with exponential backoff (5 → 10 → 20 → 40 → 60s). Each reconnect attempt is independent per server. Connection history is recorded in `connection_log`.
 - The extractor and ingestor each read their own `.env` into a dedicated Pydantic settings model (`ExtractorConfig` / `IngestorConfig` in `lib/config.py`) — they have no fields in common, so don't copy one machine's `.env` to the other.
 

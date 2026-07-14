@@ -39,9 +39,12 @@ async def _poll_loop(
 ) -> None:
     while True:
         tag_channels_config = settings.metrics_config.tag_channels
+        server_channels_config = (
+            tag_channels_config.get(server_name) if tag_channels_config else None
+        )
         if (
             MetricType.TAG_CHANNELS in settings.metrics_to_log
-            and tag_channels_config is not None
+            and server_channels_config is not None
         ):
             try:
                 for channel, tags in channel_tags.items():
@@ -52,7 +55,7 @@ async def _poll_loop(
                         continue
                     tag_values, timestamp = await client.read_batch(
                         tags=tags,
-                        prefix=tag_channels_config[channel],
+                        prefix=server_channels_config[channel],
                     )
                     rows = db.process_tag_values(tag_values, timestamp)
                     db.save_many(rows)
@@ -143,13 +146,16 @@ async def main(server: ServerConfig):
     logger.info(f"[{s}] Initiating KepServerLogger Central Collector...")
 
     tag_channels_config = settings.metrics_config.tag_channels
+    server_channels_config = (
+        tag_channels_config.get(server.name) if tag_channels_config else None
+    )
     channel_tags = (
         {
             channel: get_tags(channel, server, settings.metrics_config)
-            for channel in tag_channels_config
+            for channel in server_channels_config
         }
         if MetricType.TAG_CHANNELS in settings.metrics_to_log
-        and tag_channels_config is not None
+        and server_channels_config is not None
         else {}
     )
 
@@ -207,6 +213,19 @@ async def run_all(servers: list) -> None:
     await asyncio.gather(*[main(s) for s in servers])
 
 
+def _check_tag_channels_configured(servers: list[ServerConfig]) -> None:
+    if MetricType.TAG_CHANNELS not in settings.metrics_to_log:
+        return
+    tag_channels_config = settings.metrics_config.tag_channels or {}
+    missing = [s.name for s in servers if s.name not in tag_channels_config]
+    if missing:
+        raise ValueError(
+            "metrics_config.tag_channels is missing entries for server(s): "
+            f"{', '.join(missing)}"
+        )
+
+
 if __name__ == "__main__":
     servers = load_servers_configs()
+    _check_tag_channels_configured(servers)
     asyncio.run(run_all(servers))
