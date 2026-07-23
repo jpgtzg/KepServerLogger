@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ingestor-certs
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ingestor
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ingestor
+      app.kubernetes.io/part-of: idl
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ingestor
+        app.kubernetes.io/part-of: idl
+    spec:
+      hostname: usprmsmovmp01
+      initContainers:
+        - name: wait-for-timescaledb
+          image: timescale/timescaledb:latest-pg16
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - until pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER"; do sleep 2; done
+          envFrom:
+            - configMapRef:
+                name: idl-env
+            - secretRef:
+                name: idl-secret
+      containers:
+        - name: ingestor
+          image: ingestor
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: idl-env
+            - secretRef:
+                name: idl-secret
+          volumeMounts:
+            - name: config
+              mountPath: /app/ingestor/settings.json
+              subPath: settings.json
+              readOnly: true
+            - name: config
+              mountPath: /app/ingestor/tags/balcones_pcn_tags.csv
+              subPath: balcones_pcn_tags.csv
+              readOnly: true
+            - name: config
+              mountPath: /app/ingestor/tags/balcones_dmz_tags.csv
+              subPath: balcones_dmz_tags.csv
+              readOnly: true
+            - name: servers
+              mountPath: /app/ingestor/servers.json
+              subPath: servers.json
+              readOnly: true
+            - name: certs
+              mountPath: /app/ingestor/certs
+            - name: logs
+              mountPath: /app/ingestor/logs
+      volumes:
+        - name: config
+          configMap:
+            name: idl-files
+        - name: servers
+          secret:
+            secretName: idl-servers
+        - name: certs
+          persistentVolumeClaim:
+            claimName: ingestor-certs
+        - name: logs
+          emptyDir: {}

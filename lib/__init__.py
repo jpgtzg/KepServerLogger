@@ -1,1 +1,1 @@
-"""Shared library for KepServerLogger."""
+"""Shared library for Industrial Data Logger (IDL)."""

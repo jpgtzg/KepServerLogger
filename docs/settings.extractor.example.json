@@ -13,16 +13,16 @@
     ],
     "metrics_config": {
         "cpu": {
-            "prefix": "ns=2;s=KepServerLogger.Metrics.CPU"
+            "prefix": "ns=2;s=IDL.Metrics.CPU"
         },
         "ram": {
-            "prefix": "ns=2;s=KepServerLogger.Metrics.RAM"
+            "prefix": "ns=2;s=IDL.Metrics.RAM"
         },
         "network": {
-            "prefix": "ns=2;s=KepServerLogger.Metrics.Network"
+            "prefix": "ns=2;s=IDL.Metrics.Network"
         },
         "services": {
-            "prefix": "ns=2;s=KepServerLogger.Metrics.Services",
+            "prefix": "ns=2;s=IDL.Metrics.Services",
             "names": [
                 "Kepware Server Config API Service",
                 "Kepware Server Event Logger",
@@ -32,7 +32,7 @@
             ]
         },
         "kepserverevents": {
-            "prefix": "ns=2;s=KepServerLogger.Metrics.Events"
+            "prefix": "ns=2;s=IDL.Metrics.Events"
         },
         "tag_channels": {
             "your-server-name": {
@@ -40,10 +40,10 @@
             }
         },
         "host_name": {
-            "prefix": "ns=2;s=KepServerLogger.Metrics"
+            "prefix": "ns=2;s=IDL.Metrics"
         },
         "opcdiagnostics": {
-            "prefix": "ns=2;s=KepServerLogger.Metrics.OpcConnections",
+            "prefix": "ns=2;s=IDL.Metrics.OpcConnections",
             "log_path": "C:\\ProgramData\\Kepware\\KEPServerEX\\V6\\opcdiags.log"
         }
     }

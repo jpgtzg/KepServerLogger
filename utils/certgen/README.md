@@ -10,7 +10,7 @@ The following paths can be overridden via `.env` or shell:
 - `KEY_PATH`: output path for the private key (default: `certs/client_key.pem` next to the exe)
 
 The OPC UA Application URI and DNS SAN are derived automatically from the machine hostname:
-- URI: `urn:{hostname}:KepServerLogger`
+- URI: `urn:{hostname}:IDL`
 - DNS SAN: `{hostname}`
 
 ## Output

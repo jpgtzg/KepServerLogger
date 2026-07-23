@@ -1,0 +1,22 @@
+[project]
+name = "extractor"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "asyncio>=4.0.0",
+    "asyncua>=1.1.8",
+    "lib",
+    "pandas>=3.0.1",
+    "psutil>=7.2.2",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.13.1",
+    "pyinstaller>=6.19.0",
+    "pywin32>=311",
+    "python-dotenv>=1.2.2",
+    "requests>=2.33.0",
+]
+
+[tool.uv.sources]
+lib = { path = "../lib", editable = true }

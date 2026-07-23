@@ -2,7 +2,7 @@
 Generates an OPC UA client certificate/key pair for every server declared in
 servers.json, skipping any pair that already exists and is valid. Run by the
 ingestor's entrypoint on container start, since certs can't be produced by the
-Windows-only kepserver-certgen.exe on a Linux ingestor host.
+Windows-only idl-certgen.exe on a Linux ingestor host.
 """
 
 import asyncio
