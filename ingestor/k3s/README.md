@@ -156,8 +156,12 @@ kubectl -n idl cp ./<DB_NAME>-final.dump timescaledb-0:/tmp/<DB_NAME>-final.dump
 kubectl -n idl exec timescaledb-0 -- psql -U postgres -d postgres -c "DROP DATABASE IF EXISTS <DB_NAME> WITH (FORCE);"
 kubectl -n idl exec timescaledb-0 -- psql -U postgres -d postgres -c "CREATE DATABASE <DB_NAME>;"
 kubectl -n idl exec timescaledb-0 -- psql -U postgres -d <DB_NAME> -c "CREATE EXTENSION IF NOT EXISTS timescaledb;"
+kubectl -n idl exec timescaledb-0 -- psql -U postgres -d <DB_NAME> -c "SELECT timescaledb_pre_restore();"
 kubectl -n idl exec timescaledb-0 -- pg_restore -U postgres -d <DB_NAME> /tmp/<DB_NAME>-final.dump
+kubectl -n idl exec timescaledb-0 -- psql -U postgres -d <DB_NAME> -c "SELECT timescaledb_post_restore();"
 ```
+
+`timescaledb_pre_restore()`/`timescaledb_post_restore()` are required, not optional — without them, `pg_restore` inserts hypertable catalog rows (`chunk`, `dimension_slice`, `chunk_constraint`, ...) through TimescaleDB's normal triggers, which reject their own restore data with errors like `null value in column "chunk_id"` or `chunk has no dimension slices` on later queries. `pre_restore()` puts the target database in restore mode so those rows load as plain data; `post_restore()` turns it back off and re-enables background jobs. If a restore was run without these, the database is left in a broken state — `DROP DATABASE ... WITH (FORCE)` and start over, don't try to patch it in place.
 
 Validate:
 
@@ -246,6 +250,26 @@ Once both sites are confirmed ingesting successfully:
 - Inside the running pod, `/app/ingestor/certs` may also still contain a stale `client_cert.pem`/`client_key.pem` pair from before the multi-machine conversion — harmless (unused by the current `servers.json`), but safe to delete if you want the PVC to only reflect the current config.
 - Confirm the Docker Compose ingestor for these sites is stopped everywhere it might be running, so nothing duplicates the connections now that K3S owns them.
 
+# Renaming An Existing K3S Namespace (e.g. `kepserverlogger` → `idl`)
+
+Kubernetes namespaces can't be renamed in place — this project's own `kepserverlogger` → `idl` rename went through the process below, which is really the same "migrate TimescaleDB data" flow as steps 1–8 above, just from an existing K3S namespace instead of from Docker Compose. Some gotchas specific to renaming an *already-deployed* namespace (not covered by a fresh Docker→K3S migration):
+
+1. **Update `kustomization.yaml`'s `namespace:` field before running `kubectl apply -k .`, not after.** If you apply first and change the namespace field second, Kustomize's changed `app.kubernetes.io/part-of` label collides with `Deployment.spec.selector`/`StatefulSet.spec.selector`, which are immutable — you'll get `field is immutable` errors. If this happens, delete just the `Deployment` and `StatefulSet` objects (not the namespace, not the PVCs) and re-run `kubectl apply -k .`; they'll recreate cleanly with the new labels in the *old* namespace. Then update `namespace:` and re-apply — since Kustomize's namespace override applies cluster-wide across the manifest set, this creates a fresh, separate set of objects in the new namespace, leaving the old namespace's objects (and data) untouched. This is the fresh-namespace migration path, just arrived at slightly out of order.
+2. **The DB secret (`idl-secret`) is not Kustomize-generated and must be created manually in the new namespace** (step 5 above) — easy to miss, and it leaves `timescaledb-0` stuck in `CreateContainerConfigError` (`secret "idl-secret" not found`) until created.
+3. **Check the TimescaleDB extension version on the source before dumping.** Even if both namespaces' TimescaleDB pods run the identical image digest, the *source* database's extension can be pinned at an older version than what a fresh `CREATE DATABASE` on the target auto-installs via `template1` (extensions aren't tied to the image version once a database exists — only new databases pick up the image's current bundled version). A mismatch causes `timescaledb_post_restore()` to fail with `catalog version mismatch, expected "X" seen "Y"`, compounding with the usual chunk/constraint COPY errors. You cannot force-downgrade the target (`CREATE EXTENSION ... VERSION` fails with `already exists` once `template1` has auto-installed the newer version, and Postgres extensions don't support downgrading anyway) — the fix is to upgrade the *source* forward instead, before dumping:
+   ```bash
+   kubectl -n <OLD_NAMESPACE> exec timescaledb-0 -- psql -U postgres -d <DB_NAME> -c "ALTER EXTENSION timescaledb UPDATE;"
+   kubectl -n <OLD_NAMESPACE> exec timescaledb-0 -- psql -U postgres -d <DB_NAME> -c "SELECT extversion FROM pg_extension WHERE extname='timescaledb';"
+   ```
+   Confirm the version matches what a fresh database on the target namespace reports, then take the dump.
+4. **Decommissioning the old namespace is optional and irreversible — back up first.** Once the new namespace's ingestor is confirmed connected and logging correctly for every server (step 8), take one more `pg_dump` of each database in the old namespace as a safety net, then:
+   ```bash
+   kubectl delete namespace <OLD_NAMESPACE>
+   ```
+   This removes every Secret/ConfigMap/PVC in that namespace — i.e. the old TimescaleDB data volumes — with no undo. Don't run it until you're fully confident, and note that deleting the namespace also deletes any `NodePort` Service that pointed Grafana at it (see below).
+5. **The Grafana `NodePort` Service needs to be reapplied in the new namespace** — it's namespace-scoped like everything else, so `kubectl apply -f k3s/timescaledb-nodeport.yaml` (step 9) has to be rerun for the new namespace even if it already existed in the old one. Existing Grafana datasource *connections* (host/port/credentials) don't need to change if the node IP and NodePort (`30432`) stay the same — only the in-cluster Service backing that port needs to exist in the new namespace. If a `grafana_reader` role already exists cluster-wide from a previous setup, it does not need to be recreated; roles are cluster-global, not per-namespace or per-database, so it carries over automatically as long as it's the same Postgres cluster/pod lineage. If you stood up a truly new TimescaleDB pod (not just a new namespace pointing at restored data from an old cluster), the role won't exist yet and does need recreating per step 9.
+6. **The dashboard's `dataset` field is likely cosmetic, not authoritative.** If Grafana's datasources are already configured one-per-server-database (rather than one shared datasource with "allow multiple databases" enabled), each datasource's own configured database wins over whatever `"dataset"` value sits in the panel JSON — so a dashboard exported with `"dataset": "idl"` while the real databases are named `kepserver_pcn`/`kepserver_dmz` can still work unmodified. Only fix this field if your Grafana datasource actually has multi-database mode enabled.
+
 # Updating Configuration
 
 `servers.json`, `settings.json`, and the tag CSVs are baked into content-hashed ConfigMaps/Secrets by Kustomize — editing the file on disk alone does nothing, since the running Deployment references the specific hashed object name from the last `kubectl apply -k .`.
@@ -332,6 +356,14 @@ Cause: that server's K3S-generated client certificate isn't trusted in its KepSe
 ## OPC UA BadUserAccessDenied
 
 Cause: the secure channel and cert are fine, but KepServer rejected the credentials or user permissions declared in `servers.json` for that server (step 8).
+
+## Deployment.spec.selector / StatefulSet.spec.selector field is immutable
+
+Cause: `kubectl apply -k .` was run before updating `kustomization.yaml`'s `namespace:` field, so the changed `app.kubernetes.io/part-of` label collided with an existing selector. Correction: delete the affected `Deployment`/`StatefulSet` (not the namespace or PVCs), re-apply to recreate them cleanly, then update `namespace:` and re-apply (see [Renaming An Existing K3S Namespace](#renaming-an-existing-k3s-namespace-eg-kepserverlogger--idl)).
+
+## catalog version mismatch, expected "X" seen "Y" during timescaledb_post_restore()
+
+Cause: the source database's TimescaleDB extension version is older than what a fresh `CREATE DATABASE` on the target auto-installs. Correction: `ALTER EXTENSION timescaledb UPDATE;` on the source database, confirm the version, then re-dump and restore — don't try to force a version on the target (extensions can't downgrade).
 
 # Useful Commands
 
