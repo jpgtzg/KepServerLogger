@@ -124,3 +124,5 @@ logs/
 # Generated executables and bundled service (keep local)
 **/Extractor
 Extractor.zip
+
+NOTES-azure-remote.md
