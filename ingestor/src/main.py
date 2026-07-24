@@ -143,7 +143,7 @@ async def _poll_loop(
 
 async def main(server: ServerConfig):
     s = server.name
-    logger.info(f"[{s}] Initiating KepServerLogger Central Collector...")
+    logger.info(f"[{s}] Initiating IDL Central Collector...")
 
     tag_channels_config = settings.metrics_config.tag_channels
     server_channels_config = (

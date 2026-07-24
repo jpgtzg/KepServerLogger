@@ -3,16 +3,16 @@ import os
 
 block_cipher = None
 
-# Paths relative to the spec file location (ingestors/)
+# Paths relative to the spec file location (ingestor/)
 ROOT = os.path.abspath('..')
-INGESTORS_ROOT = os.path.abspath('.')
-SRC = os.path.join(INGESTORS_ROOT, 'src')
+INGESTOR_ROOT = os.path.abspath('.')
+SRC = os.path.join(INGESTOR_ROOT, 'src')
 
 a = Analysis(
     [os.path.join(SRC, 'main.py')],
     pathex=[
         SRC,           # for 'db' module
-        INGESTORS_ROOT, # for 'subscribers' package
+        INGESTOR_ROOT, # for 'subscribers' package
         ROOT,           # for 'lib' package
     ],
     binaries=[],
@@ -55,7 +55,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='ingestors',
+    name='ingestor',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

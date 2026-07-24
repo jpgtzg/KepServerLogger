@@ -5,7 +5,7 @@ metadata:
 spec:
   selector:
     app.kubernetes.io/name: timescaledb
-    app.kubernetes.io/part-of: kepserverlogger
+    app.kubernetes.io/part-of: idl
   ports:
     - name: postgres
       port: 5432
@@ -32,12 +32,12 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: timescaledb
-      app.kubernetes.io/part-of: kepserverlogger
+      app.kubernetes.io/part-of: idl
   template:
     metadata:
       labels:
         app.kubernetes.io/name: timescaledb
-        app.kubernetes.io/part-of: kepserverlogger
+        app.kubernetes.io/part-of: idl
     spec:
       containers:
         - name: timescaledb
@@ -50,12 +50,12 @@ spec:
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: kepserverlogger-secret
+                  name: idl-secret
                   key: DB_USER
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: kepserverlogger-secret
+                  name: idl-secret
                   key: DB_PASSWORD
           readinessProbe:
             exec:

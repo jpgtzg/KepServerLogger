@@ -13,21 +13,21 @@
     ],
     "metrics_config": {
         "cpu": {
-            "prefix": "ns=2;s=KepServerLogger.Metrics.CPU"
+            "prefix": "ns=2;s=IDL.Metrics.CPU"
         },
         "ram": {
-            "prefix": "ns=2;s=KepServerLogger.Metrics.RAM"
+            "prefix": "ns=2;s=IDL.Metrics.RAM"
         },
         "network": {
-            "prefix": "ns=2;s=KepServerLogger.Metrics.Network"
+            "prefix": "ns=2;s=IDL.Metrics.Network"
         },
         "services": {
             "_note": "prefix must match the extractor's copy; 'names' is unused by the ingestor but required by the schema, so it's left empty here",
-            "prefix": "ns=2;s=KepServerLogger.Metrics.Services",
+            "prefix": "ns=2;s=IDL.Metrics.Services",
             "names": []
         },
         "kepserverevents": {
-            "prefix": "ns=2;s=KepServerLogger.Metrics.Events"
+            "prefix": "ns=2;s=IDL.Metrics.Events"
         },
         "tag_channels": {
             "_note": "top-level key must match a server's 'name' in servers.json",
@@ -36,11 +36,11 @@
             }
         },
         "host_name": {
-            "prefix": "ns=2;s=KepServerLogger.Metrics"
+            "prefix": "ns=2;s=IDL.Metrics"
         },
         "opcdiagnostics": {
             "_note": "prefix must match the extractor's copy; 'log_path' is unused by the ingestor but required by the schema, so it's left empty here",
-            "prefix": "ns=2;s=KepServerLogger.Metrics.OpcConnections",
+            "prefix": "ns=2;s=IDL.Metrics.OpcConnections",
             "log_path": ""
         }
     }

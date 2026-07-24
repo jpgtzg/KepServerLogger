@@ -8,6 +8,6 @@ if ($certgen) {
     Pop-Location
 }
 
-Push-Location .\extractors
+Push-Location .\extractor
 uv run pyinstaller extractor.spec --noconfirm
 Pop-Location

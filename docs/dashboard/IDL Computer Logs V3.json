@@ -77,7 +77,7 @@
             "pluginVersion": "12.4.1",
             "targets": [
                 {
-                    "dataset": "kepserverlogger",
+                    "dataset": "idl",
                     "datasource": {
                         "type": "grafana-postgresql-datasource",
                         "uid": "${datasource}"
@@ -166,7 +166,7 @@
             "pluginVersion": "12.4.1",
             "targets": [
                 {
-                    "dataset": "kepserverlogger",
+                    "dataset": "idl",
                     "datasource": {
                         "type": "grafana-postgresql-datasource",
                         "uid": "${datasource}"
@@ -283,7 +283,7 @@
             "pluginVersion": "12.4.1",
             "targets": [
                 {
-                    "dataset": "kepserverlogger",
+                    "dataset": "idl",
                     "datasource": {
                         "type": "grafana-postgresql-datasource",
                         "uid": "${datasource}"
@@ -363,7 +363,7 @@
             "pluginVersion": "12.4.1",
             "targets": [
                 {
-                    "dataset": "kepserverlogger",
+                    "dataset": "idl",
                     "datasource": {
                         "type": "grafana-postgresql-datasource",
                         "uid": "${datasource}"
@@ -484,7 +484,7 @@
             "pluginVersion": "12.4.1",
             "targets": [
                 {
-                    "dataset": "kepserverlogger",
+                    "dataset": "idl",
                     "datasource": {
                         "type": "grafana-postgresql-datasource",
                         "uid": "${datasource}"
@@ -681,7 +681,7 @@
             "pluginVersion": "12.4.1",
             "targets": [
                 {
-                    "dataset": "kepserverlogger",
+                    "dataset": "idl",
                     "datasource": {
                         "type": "grafana-postgresql-datasource",
                         "uid": "${datasource}"
@@ -778,7 +778,7 @@
             "pluginVersion": "12.4.1",
             "targets": [
                 {
-                    "dataset": "kepserverlogger",
+                    "dataset": "idl",
                     "datasource": {
                         "type": "grafana-postgresql-datasource",
                         "uid": "${datasource}"
@@ -895,7 +895,7 @@
             "pluginVersion": "12.4.1",
             "targets": [
                 {
-                    "dataset": "kepserverlogger",
+                    "dataset": "idl",
                     "datasource": {
                         "type": "grafana-postgresql-datasource",
                         "uid": "${datasource}"
@@ -1023,7 +1023,7 @@
             "pluginVersion": "12.4.1",
             "targets": [
                 {
-                    "dataset": "kepserverlogger",
+                    "dataset": "idl",
                     "datasource": {
                         "type": "grafana-postgresql-datasource",
                         "uid": "${datasource}"
@@ -1140,7 +1140,7 @@
             "pluginVersion": "12.4.1",
             "targets": [
                 {
-                    "dataset": "kepserverlogger",
+                    "dataset": "idl",
                     "datasource": {
                         "type": "grafana-postgresql-datasource",
                         "uid": "${datasource}"
@@ -1257,7 +1257,7 @@
             "pluginVersion": "12.4.1",
             "targets": [
                 {
-                    "dataset": "kepserverlogger",
+                    "dataset": "idl",
                     "datasource": {
                         "type": "grafana-postgresql-datasource",
                         "uid": "${datasource}"
@@ -1405,7 +1405,7 @@
             "pluginVersion": "12.4.1",
             "targets": [
                 {
-                    "dataset": "kepserverlogger",
+                    "dataset": "idl",
                     "datasource": {
                         "type": "grafana-postgresql-datasource",
                         "uid": "${datasource}"
@@ -1472,7 +1472,7 @@
                 "name": "tag",
                 "options": [],
                 "query": {
-                    "dataset": "kepserverlogger",
+                    "dataset": "idl",
                     "editorMode": "code",
                     "format": "table",
                     "query": "SELECT DISTINCT tag FROM tags ORDER BY tag ASC;",
@@ -1510,7 +1510,7 @@
     },
     "timepicker": {},
     "timezone": "America/Monterrey",
-    "title": "Kep Computer Logs V3",
+    "title": "IDL Computer Logs V3",
     "uid": "adnlvhn",
     "version": 28,
     "weekStart": ""

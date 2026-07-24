@@ -20,12 +20,12 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: ingestor
-      app.kubernetes.io/part-of: kepserverlogger
+      app.kubernetes.io/part-of: idl
   template:
     metadata:
       labels:
         app.kubernetes.io/name: ingestor
-        app.kubernetes.io/part-of: kepserverlogger
+        app.kubernetes.io/part-of: idl
     spec:
       hostname: usprmsmovmp01
       initContainers:
@@ -38,46 +38,46 @@ spec:
             - until pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER"; do sleep 2; done
           envFrom:
             - configMapRef:
-                name: kepserverlogger-env
+                name: idl-env
             - secretRef:
-                name: kepserverlogger-secret
+                name: idl-secret
       containers:
         - name: ingestor
-          image: ingestors
+          image: ingestor
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
-                name: kepserverlogger-env
+                name: idl-env
             - secretRef:
-                name: kepserverlogger-secret
+                name: idl-secret
           volumeMounts:
             - name: config
-              mountPath: /app/ingestors/settings.json
+              mountPath: /app/ingestor/settings.json
               subPath: settings.json
               readOnly: true
             - name: config
-              mountPath: /app/ingestors/tags/balcones_pcn_tags.csv
+              mountPath: /app/ingestor/tags/balcones_pcn_tags.csv
               subPath: balcones_pcn_tags.csv
               readOnly: true
             - name: config
-              mountPath: /app/ingestors/tags/balcones_dmz_tags.csv
+              mountPath: /app/ingestor/tags/balcones_dmz_tags.csv
               subPath: balcones_dmz_tags.csv
               readOnly: true
             - name: servers
-              mountPath: /app/ingestors/servers.json
+              mountPath: /app/ingestor/servers.json
               subPath: servers.json
               readOnly: true
             - name: certs
-              mountPath: /app/ingestors/certs
+              mountPath: /app/ingestor/certs
             - name: logs
-              mountPath: /app/ingestors/logs
+              mountPath: /app/ingestor/logs
       volumes:
         - name: config
           configMap:
-            name: kepserverlogger-files
+            name: idl-files
         - name: servers
           secret:
-            secretName: kepserverlogger-servers
+            secretName: idl-servers
         - name: certs
           persistentVolumeClaim:
             claimName: ingestor-certs

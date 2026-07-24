@@ -1,4 +1,4 @@
-# KepServerLogger
+# Industrial Data Logger (IDL)
 
 A distributed telemetry system that uses **KepServerEX as the central data hub** to collect, route, and persist industrial and system metrics into TimescaleDB time-series databases.
 
@@ -6,7 +6,7 @@ A distributed telemetry system that uses **KepServerEX as the central data hub**
 
 ## Overview
 
-KepServerLogger is split into two independent applications that communicate exclusively through KepServerEX's OPC UA server:
+Industrial Data Logger (IDL) is split into two independent applications that communicate exclusively through KepServerEX's OPC UA server:
 
 - **Extractor** — runs on each Windows machine hosting a KepServerEX instance. Collects local system metrics (CPU, RAM, network, services, events, OPC diagnostics) and publishes them as OPC UA nodes on that machine's KepServer.
 - **Ingestor** — runs on a single central Linux machine. Connects concurrently to all registered KepServer instances, reads all published data (system metrics + tag channels), and persists each server's data into its own dedicated TimescaleDB database.
@@ -66,7 +66,7 @@ Each server runs as an independent asyncio coroutine. A failure or reconnect on 
 
 ## Two Classes of Data
 
-**System metrics** — produced by the extractor and published to each KepServer's `KepServerLogger` channel (Simulator driver). The extractor writes structured data to pre-configured UA nodes each loop iteration. The ingestor reads those same nodes and deserialises them into typed models before writing to dedicated database tables.
+**System metrics** — produced by the extractor and published to each KepServer's `IDL` channel (Simulator driver). The extractor writes structured data to pre-configured UA nodes each loop iteration. The ingestor reads those same nodes and deserialises them into typed models before writing to dedicated database tables.
 
 **Process tags (PLC/Link tags)** — these live natively in KepServer. The extractor has no involvement. The ingestor reads them directly from their OPC UA address and stores them as raw `(tag, value, status_code, timestamp)` rows in the `tags` table. These tags are used in the field and are not modified by this system.
 
@@ -74,7 +74,7 @@ Each server runs as an independent asyncio coroutine. A failure or reconnect on 
 
 ## Components
 
-### Extractor (`extractors/`)
+### Extractor (`extractor/`)
 
 A Python application compiled to a Windows `.exe`. Runs on each KepServer machine. On each polling tick it:
 
@@ -82,17 +82,17 @@ A Python application compiled to a Windows `.exe`. Runs on each KepServer machin
 2. Reads new OPC diagnostic events from `opcdiags.log` (incremental, byte-offset based).
 3. Polls the KepServer REST API for event log entries.
 4. Publishes all data as OPC UA nodes to the local KepServer.
-5. Publishes the machine's hostname to `KepServerLogger.Metrics.host_name`.
+5. Publishes the machine's hostname to `IDL.Metrics.host_name`.
 
 | Metric | UA node pattern | DB table |
 |---|---|---|
-| CPU usage | `KepServerLogger.Metrics.CPU.<field>` | `cpu_usage` |
-| RAM usage | `KepServerLogger.Metrics.RAM.<field>` | `ram_usage` |
-| Network I/O | `KepServerLogger.Metrics.Network.batch` | `network_usage` |
-| Windows services | `KepServerLogger.Metrics.Services.<name>` | `services` |
-| KepServer events | `KepServerLogger.Metrics.Events.batch` | `events` |
-| OPC client sessions | `KepServerLogger.Metrics.OpcConnections.batch` | `opc_connection_events` |
-| Hostname | `KepServerLogger.Metrics.host_name` | `connection_log` |
+| CPU usage | `IDL.Metrics.CPU.<field>` | `cpu_usage` |
+| RAM usage | `IDL.Metrics.RAM.<field>` | `ram_usage` |
+| Network I/O | `IDL.Metrics.Network.batch` | `network_usage` |
+| Windows services | `IDL.Metrics.Services.<name>` | `services` |
+| KepServer events | `IDL.Metrics.Events.batch` | `events` |
+| OPC client sessions | `IDL.Metrics.OpcConnections.batch` | `opc_connection_events` |
+| Hostname | `IDL.Metrics.host_name` | `connection_log` |
 
 Batch nodes (`*.batch`) carry a JSON-encoded array. Per-field nodes carry scalar string values.
 
@@ -104,16 +104,16 @@ The extractor targets Windows only and is intended to run as a Windows service (
 
 KepServerEX is the message broker between the extractor and the ingestor at each site. It holds:
 
-- **`KepServerLogger` channel** (Simulator driver) — nodes written by the extractor and read by the ingestor for system metrics. Configured via `docs/UA-Node-Tag-Layout.csv`.
+- **`IDL` channel** (Simulator driver) — nodes written by the extractor and read by the ingestor for system metrics. Configured via `docs/UA-Node-Tag-Layout.csv`.
 - **Tag channels** (e.g. `Kepserver_OPC_DA.FLS.Tags`) — any KepServer channels or Advanced Tag groups whose tags should be logged. Read directly by the ingestor.
 
 All communication uses OPC UA with `Basic256Sha256 SignAndEncrypt`. Both extractor and ingestor authenticate with username/password and present a client certificate that must be trusted in KepServer's certificate store.
 
-`docs/UA-Node-Tag-Layout.csv` is a ready-made KepServerEX Simulator driver import for the `KepServerLogger` channel — it defines the string tags (`CPU.usage`, `RAM.free_kb`, `Network.batch`, etc.) at the addresses (`S0000`, `S0001`, ...) that the extractor writes to and the ingestor reads from. Import it directly into a new `KepServerLogger` channel/device rather than creating the tags by hand. The node names/addresses can technically be changed as long as `settings.json → metrics_config` prefixes are updated to match, but it's much easier to keep the provided layout as-is across every site than to keep a custom layout in sync.
+`docs/UA-Node-Tag-Layout.csv` is a ready-made KepServerEX Simulator driver import for the `IDL` channel — it defines the string tags (`CPU.usage`, `RAM.free_kb`, `Network.batch`, etc.) at the addresses (`S0000`, `S0001`, ...) that the extractor writes to and the ingestor reads from. Import it directly into a new `IDL` channel/device rather than creating the tags by hand. The node names/addresses can technically be changed as long as `settings.json → metrics_config` prefixes are updated to match, but it's much easier to keep the provided layout as-is across every site than to keep a custom layout in sync.
 
 ---
 
-### Ingestor (`ingestors/`)
+### Ingestor (`ingestor/`)
 
 A Python asyncio application running in Docker on the central Linux machine. It connects to all KepServer instances concurrently and independently:
 
@@ -161,14 +161,14 @@ Declares the list of KepServer instances the ingestor connects to:
 ]
 ```
 
-`cert_path`, `key_path`, and `csv_filename` are resolved relative to the ingestor's working directory (`/app/ingestors` inside the container), not relative to `servers.json` itself. Under Docker Compose, put each server's tag CSV in a `tags/` directory next to `docker-compose.yml` (bind-mounted to `/app/ingestors/tags`) and reference it as `tags/<file>.csv`, as in the example above.
+`cert_path`, `key_path`, and `csv_filename` are resolved relative to the ingestor's working directory (`/app/ingestor` inside the container), not relative to `servers.json` itself. Under Docker Compose, put each server's tag CSV in a `tags/` directory next to `docker-compose.yml` (bind-mounted to `/app/ingestor/tags`) and reference it as `tags/<file>.csv`, as in the example above.
 
 ### .env (extractor)
 
 Deployed next to `extractor.exe` on each KepServer machine. Read by `ExtractorConfig`:
 
 ```env
-APPLICATION_NAME=KepServerLogger
+APPLICATION_NAME=IDL
 
 KEPSERVER_SERVER_URL=opc.tcp://localhost:49320
 KEPSERVER_USERNAME=administrator
@@ -186,11 +186,11 @@ Loaded relative to the executable, not the current working directory, so it work
 Global infrastructure config for the central ingestor, shared across all server connections. Read by `IngestorConfig`:
 
 ```env
-APPLICATION_NAME=KepServerLogger
+APPLICATION_NAME=IDL
 
 DB_HOST=localhost
 DB_PORT=5432
-DB_USER=keplogger
+DB_USER=idl_logger
 DB_PASSWORD=your-db-password
 ```
 
@@ -281,8 +281,8 @@ Querying `connection_log` lets you see when a server went down, how long it was 
 **Ingestor (Linux):**
 
 ```sh
-./build_ingestor.sh ingestors/Dockerfile ingestors
-./build_ingestor.sh --timescale ingestors/Dockerfile ingestors  # also saves TimescaleDB image
+./build_ingestor.sh ingestor/Dockerfile ingestor
+./build_ingestor.sh --timescale ingestor/Dockerfile ingestor  # also saves TimescaleDB image
 ```
 
 ### Files to deploy
@@ -292,7 +292,7 @@ Querying `connection_log` lets you see when a server went down, how long it was 
 | File | Notes |
 |---|---|
 | `extractor.exe` | Built by `build.ps1` |
-| `kepserver-certgen.exe` | Generates the OPC UA client certificate |
+| `idl-certgen.exe` | Generates the OPC UA client certificate |
 | `.env` | Credentials and KepServer connection settings |
 | `settings.json` | Node prefixes and `metrics_to_log` must match the ingestor's copy; `services.names`/`opcdiagnostics.log_path` may differ per machine |
 
@@ -309,7 +309,7 @@ Querying `connection_log` lets you see when a server went down, how long it was 
 | `tags/<server>.csv` | Process tag definitions per server — referenced from `servers.json` as `tags/<server>.csv`; the `tags/` directory is bind-mounted into the container |
 | `certs/` | Bind-mounted (read-write) into the container; the ingestor auto-generates each server's client cert/key pair here on first boot if missing — see [OPC UA Certificates](#opc-ua-certificates) |
 
-`docker-compose.yml` (`ingestors/docker-compose.yml` in the repo) — the volume mounts are load-bearing, the app looks for each file at exactly these container paths (all relative to the ingestor's working directory, `/app/ingestors`):
+`docker-compose.yml` (`ingestor/docker-compose.yml` in the repo) — the volume mounts are load-bearing, the app looks for each file at exactly these container paths (all relative to the ingestor's working directory, `/app/ingestor`):
 
 ```yaml
 version: "3.9"
@@ -332,12 +332,12 @@ services:
             timeout: 5s
             retries: 10
 
-    ingestors:
+    ingestor:
         build:
             context: ..
-            dockerfile: ingestors/Dockerfile
-        image: ingestors
-        container_name: ingestors
+            dockerfile: ingestor/Dockerfile
+        image: ingestor
+        container_name: ingestor
         network_mode: host
         restart: unless-stopped
         stdin_open: true
@@ -348,11 +348,11 @@ services:
         env_file:
             - .env
         volumes:
-            - ./servers.json:/app/ingestors/servers.json:ro,Z
-            - ./settings.json:/app/ingestors/settings.json:ro,Z
-            - ./tags:/app/ingestors/tags:ro,Z
-            - ./certs:/app/ingestors/certs:Z
-            - ./logs:/app/ingestors/logs
+            - ./servers.json:/app/ingestor/servers.json:ro,Z
+            - ./settings.json:/app/ingestor/settings.json:ro,Z
+            - ./tags:/app/ingestor/tags:ro,Z
+            - ./certs:/app/ingestor/certs:Z
+            - ./logs:/app/ingestor/logs
 
 volumes:
     timescaledb-data:
@@ -385,13 +385,13 @@ Before the first `docker compose up -d`, on the ingestor machine's deployment di
 `servers.json`, `settings.json`, and CSV tag files are bind-mounted into the container. Changes take effect on restart — no image rebuild:
 
 ```sh
-docker compose restart ingestors
+docker compose restart ingestor
 ```
 
-Code changes (`lib/`, `ingestors/src/`) require a rebuild:
+Code changes (`lib/`, `ingestor/src/`) require a rebuild:
 
 ```sh
-docker compose build ingestors && docker compose up -d ingestors
+docker compose build ingestor && docker compose up -d ingestor
 ```
 
 ---
@@ -400,14 +400,14 @@ docker compose build ingestors && docker compose up -d ingestors
 
 Both extractor and ingestor use `Basic256Sha256 SignAndEncrypt`. Each client must present a certificate trusted in that KepServer's certificate store.
 
-- **Extractor**: generate with `kepserver-certgen.exe`, then trust the certificate in the local KepServer's OPC UA certificate manager.
-- **Ingestor**: one certificate pair per server, paths declared in `servers.json`. Since the ingestor runs on Linux, it can't use the Windows-only `kepserver-certgen.exe` — instead, the container generates any missing certificate/key pair for each configured server automatically on startup (see `utils/certgen/src/generate_server_certs.py`, run by `ingestors/entrypoint.sh`), writing them to the paths declared in `servers.json`. You still need to manually trust each generated certificate in that server's respective KepServer certificate manager after the container's first boot.
+- **Extractor**: generate with `idl-certgen.exe`, then trust the certificate in the local KepServer's OPC UA certificate manager.
+- **Ingestor**: one certificate pair per server, paths declared in `servers.json`. Since the ingestor runs on Linux, it can't use the Windows-only `idl-certgen.exe` — instead, the container generates any missing certificate/key pair for each configured server automatically on startup (see `utils/certgen/src/generate_server_certs.py`, run by `ingestor/entrypoint.sh`), writing them to the paths declared in `servers.json`. You still need to manually trust each generated certificate in that server's respective KepServer certificate manager after the container's first boot.
 
 ---
 
 ## Dev Notes
 
-- The `KepServerLogger` channel in KepServer uses the **Simulator** driver, which allows defining UA nodes without a physical device.
+- The `IDL` channel in KepServer uses the **Simulator** driver, which allows defining UA nodes without a physical device.
 - KepServer tag names do not allow dots. Dots in service names are replaced with underscores.
 - `settings.json` must be kept in sync between all extractors and the ingestor for the node-address fields (`metrics_config.*.prefix`, `tag_channels`) and `metrics_to_log` — these define the shared OPC UA node namespace. `metrics_config.services.names` and `metrics_config.opcdiagnostics.log_path` are extractor-only and can differ per machine.
 - Adding a new KepServer instance: add an entry to `servers.json`, deploy its cert to the ingestor machine, add a matching per-server entry (same `name`) to `metrics_config.tag_channels` in `settings.json` if tag logging is enabled, and restart the ingestor. No other code changes required — the ingestor creates the target database (and enables the `timescaledb` extension) on first connect if it doesn't already exist, as long as `DB_USER` has `CREATEDB` privileges.

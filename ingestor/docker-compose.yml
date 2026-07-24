@@ -18,12 +18,12 @@ services:
             timeout: 5s
             retries: 10
 
-    ingestors:
+    ingestor:
         build:
             context: ..
-            dockerfile: ingestors/Dockerfile
-        image: ingestors
-        container_name: ingestors
+            dockerfile: ingestor/Dockerfile
+        image: ingestor
+        container_name: ingestor
         network_mode: host
         restart: unless-stopped
         stdin_open: true
@@ -34,11 +34,11 @@ services:
         env_file:
             - .env
         volumes:
-            - ./servers.json:/app/ingestors/servers.json:ro,Z
-            - ./settings.json:/app/ingestors/settings.json:ro,Z
-            - ./tags:/app/ingestors/tags:ro,Z
-            - ./certs:/app/ingestors/certs:Z
-            - ./logs:/app/ingestors/logs
+            - ./servers.json:/app/ingestor/servers.json:ro,Z
+            - ./settings.json:/app/ingestor/settings.json:ro,Z
+            - ./tags:/app/ingestor/tags:ro,Z
+            - ./certs:/app/ingestor/certs:Z
+            - ./logs:/app/ingestor/logs
 
 volumes:
     timescaledb-data:

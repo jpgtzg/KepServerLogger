@@ -1,5 +1,5 @@
 [project]
-name = "kepserver-certgen"
+name = "idl-certgen"
 version = "0.1.0"
 description = "Utility to generate OPC UA client certificate/key for KepServer connection."
 readme = "README.md"

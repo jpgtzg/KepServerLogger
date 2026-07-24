@@ -44,7 +44,7 @@ async def main() -> int:
     key_path = Path(os.getenv("KEY_PATH") or base_dir / "certs" / "client_key.pem")
 
     host_name = socket.gethostname()
-    application_name = os.getenv("APPLICATION_NAME") or "KepServerLogger"
+    application_name = os.getenv("APPLICATION_NAME") or "IDL"
     app_uri = f"urn:{host_name}:{application_name}"
 
     generated = await ensure_certificate(cert_path, key_path, app_uri, host_name)
