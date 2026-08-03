@@ -18,6 +18,7 @@ class MetricType(str, Enum):
     TAG_CHANNELS = "tag_channels"
     CPU = "cpu"
     RAM = "ram"
+    STORAGE = "storage"
     NETWORK = "network"
     SERVICES = "services"
     KEPSERVER_EVENTS = "kepserverevents"
@@ -44,6 +45,7 @@ class MetricsConfig(BaseModel):
 
     cpu: Optional[PrefixConfig] = None
     ram: Optional[PrefixConfig] = None
+    storage: Optional[PrefixConfig] = None
     network: Optional[PrefixConfig] = None
     services: Optional[ServiceConfig] = None
     kepserverevents: Optional[PrefixConfig] = None
@@ -79,5 +81,3 @@ class Settings(BaseModel):
     @classmethod
     def load(cls, path: str = "settings.json") -> "Settings":
         return cls.model_validate(json.loads(Path(path).read_text()))
-
-

@@ -11,14 +11,15 @@ from lib.opcua_client import OPCUAClient
 from lib.settings import MetricType
 
 from src.metrics import (
+    OpcDiagnosticsReader,
+    get_hostname,
+    get_kepserver_events,
     get_memory_info,
     get_network_interfaces,
     get_service_info,
+    get_storage,
     get_total_cpu_usage,
 )
-from src.metrics.events import get_kepserver_events
-from src.metrics.host_name import get_hostname
-from src.metrics.opc_diagnostics import OpcDiagnosticsReader
 from src.publishers.opcua import (
     publish_cpu_usage,
     publish_host_name,
@@ -27,6 +28,7 @@ from src.publishers.opcua import (
     publish_opc_connection_events,
     publish_ram_usage,
     publish_service_info,
+    publish_storage_usage,
 )
 from src.state import config, settings
 
@@ -107,6 +109,14 @@ async def _run_session(opc_reader: Optional[OpcDiagnosticsReader]) -> None:
                         if _is_reconnect_error(e):
                             raise
                         logger.exception("[RAM] publish failed")
+
+                if MetricType.STORAGE in settings.metrics_to_log:
+                    try:
+                        await publish_storage_usage(client, get_storage())
+                    except Exception as e:
+                        if _is_reconnect_error(e):
+                            raise
+                        logger.exception("[STORAGE] publish failed")
 
                 if MetricType.SERVICES in settings.metrics_to_log:
                     try:

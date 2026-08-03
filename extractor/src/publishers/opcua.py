@@ -15,8 +15,11 @@ from lib.models import (
     OpcConnectionEvent,
     RAMUsage,
     ServiceInfo,
+    StorageUsage,
 )
 from lib.opcua_client import OPCUAClient
+
+from src.metrics import storage
 from src.state import settings
 
 logger = getLogger(__name__)
@@ -42,6 +45,17 @@ async def publish_ram_usage(client: OPCUAClient, ram_usage: RAMUsage) -> None:
 
     for field, value in data.items():
         node = client.get_node(f"{settings.metrics_config.ram.prefix}.{field}")
+        variant_type = await node.read_data_type_as_variant_type()
+        await client.write_value(node, value, variant_type)
+
+
+async def publish_storage_usage(client: OPCUAClient, storage_usage: StorageUsage):
+    assert settings.metrics_config.storage is not None
+    logger.info(f"[STORAGE] Publishing STORAGE usage: {storage_usage}")
+    data = storage_usage.to_opcua(settings.timestamp_format)
+
+    for field, value in data.items()
+        node = client.get_node(f"{settings.metrics_config.storage.prefix}.{field}")
         variant_type = await node.read_data_type_as_variant_type()
         await client.write_value(node, value, variant_type)
 
