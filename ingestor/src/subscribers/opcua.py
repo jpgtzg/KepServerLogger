@@ -12,12 +12,15 @@ from lib.models import (
     OpcConnectionEvent,
     RAMUsage,
     ServiceInfo,
+    StorageUsage,
 )
 from lib.opcua_client import OPCUAClient
 from lib.settings import MetricsConfig
 
 
-async def subscribe_cpu_usage(client: OPCUAClient, metrics_config: MetricsConfig) -> CPUUsage:
+async def subscribe_cpu_usage(
+    client: OPCUAClient, metrics_config: MetricsConfig
+) -> CPUUsage:
     assert metrics_config.cpu is not None
     data = {}
     for field in CPUUsage.model_fields.keys():
@@ -26,7 +29,9 @@ async def subscribe_cpu_usage(client: OPCUAClient, metrics_config: MetricsConfig
     return CPUUsage(**data)
 
 
-async def subscribe_ram_usage(client: OPCUAClient, metrics_config: MetricsConfig) -> RAMUsage:
+async def subscribe_ram_usage(
+    client: OPCUAClient, metrics_config: MetricsConfig
+) -> RAMUsage:
     assert metrics_config.ram is not None
     data = {}
     for field in RAMUsage.model_fields.keys():
@@ -35,7 +40,20 @@ async def subscribe_ram_usage(client: OPCUAClient, metrics_config: MetricsConfig
     return RAMUsage(**data)
 
 
-async def subscribe_network_usage(client: OPCUAClient, metrics_config: MetricsConfig) -> list[NetworkUsage]:
+async def subscribe_storage_usage(
+    client: OPCUAClient, metrics_config: MetricsConfig
+) -> StorageUsage:
+    assert metrics_config.storage is not None
+    data = {}
+    for field in StorageUsage.model_fields.keys():
+        node = client.get_node(f"{metrics_config.storage.prefix}.{field}")
+        data[field] = await node.read_value()
+    return StorageUsage(**data)
+
+
+async def subscribe_network_usage(
+    client: OPCUAClient, metrics_config: MetricsConfig
+) -> list[NetworkUsage]:
     assert metrics_config.network is not None
     node = client.get_node(f"{metrics_config.network.prefix}.batch")
     raw: str = await node.read_value()
@@ -44,7 +62,9 @@ async def subscribe_network_usage(client: OPCUAClient, metrics_config: MetricsCo
     return [NetworkUsage(**iface) for iface in json.loads(raw)]
 
 
-async def subscribe_service_info(client: OPCUAClient, metrics_config: MetricsConfig) -> list[ServiceInfo]:
+async def subscribe_service_info(
+    client: OPCUAClient, metrics_config: MetricsConfig
+) -> list[ServiceInfo]:
     assert metrics_config.services is not None
     node = client.get_node(f"{metrics_config.services.prefix}.batch")
     raw: str = await node.read_value()
@@ -53,7 +73,9 @@ async def subscribe_service_info(client: OPCUAClient, metrics_config: MetricsCon
     return [ServiceInfo(**s) for s in json.loads(raw)]
 
 
-async def subscribe_kep_events(client: OPCUAClient, metrics_config: MetricsConfig) -> list[KepEvent]:
+async def subscribe_kep_events(
+    client: OPCUAClient, metrics_config: MetricsConfig
+) -> list[KepEvent]:
     """
     "batch" is a special node that contains all the events in a single message.
     """
@@ -78,6 +100,8 @@ async def subscribe_opc_connection_events(
     return [OpcConnectionEvent(**e) for e in json.loads(raw)]
 
 
-async def subscribe_host_name(client: OPCUAClient, metrics_config: MetricsConfig) -> str:
+async def subscribe_host_name(
+    client: OPCUAClient, metrics_config: MetricsConfig
+) -> str:
     node = client.get_node(f"{metrics_config.host_name.prefix}.host_name")
     return await node.read_value()

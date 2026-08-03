@@ -16,6 +16,7 @@ from lib.models import (
     OpcConnectionEvent,
     RAMUsage,
     ServiceInfo,
+    StorageUsage,
     TagData,
 )
 
@@ -95,6 +96,13 @@ class IngestorDatabase(ProjectDatabase):
                     host_name   TEXT,
                     reason      TEXT
                 );
+
+                CREATE TABLE IF NOT EXISTS storage_usage (
+                    timestamp   TIMESTAMPTZ NOT NULL,
+                    total_gb    REAL NOT NULL,
+                    used_gb     REAL NOT NULL,
+                    free_gb     REAL NOT NULL,
+                );
                 """
             ],
             indexes=[
@@ -102,6 +110,7 @@ class IngestorDatabase(ProjectDatabase):
                 "CREATE INDEX IF NOT EXISTS idx_cpu_timestamp ON cpu_usage (timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_network_timestamp ON network_usage (timestamp DESC, interface);",
                 "CREATE INDEX IF NOT EXISTS idx_ram_timestamp ON ram_usage (timestamp DESC);",
+                "CREATE INDEX IF NOT EXISTS idx_storage_timestamp ON storage_usage (timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_services_timestamp ON services (timestamp DESC, name);",
                 "CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events (timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_opc_conn_events_timestamp ON opc_connection_events (timestamp DESC);",
@@ -112,6 +121,7 @@ class IngestorDatabase(ProjectDatabase):
                 ("cpu_usage", "timestamp"),
                 ("network_usage", "timestamp"),
                 ("ram_usage", "timestamp"),
+                ("storage_usage", "timestamp"),
                 ("services", "timestamp"),
                 ("events", "timestamp"),
                 ("opc_connection_events", "timestamp"),
@@ -194,6 +204,13 @@ class IngestorDatabase(ProjectDatabase):
             self.execute(
                 "INSERT INTO ram_usage (timestamp, total_kb, free_kb) VALUES (%s, %s, %s);",
                 (ram_usage.timestamp, ram_usage.total_kb, ram_usage.free_kb),
+            )
+
+    def insert_storage_usage(self, storage_usage: StorageUsage) -> None:
+        with self.transaction():
+            self.execute(
+                "INSERT INTO storage_usage (timestamp, total_gb, used_gb, free_gb) VALUES (%s, %s, %s, %s);",
+                (storage_usage.timestamp, storage_usage.total_gb, storage_usage.used_gb, storage_usage.free_gb),
             )
 
     def insert_network_metrics(self, network_usage: NetworkUsage) -> None:

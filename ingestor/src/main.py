@@ -22,6 +22,7 @@ from src.subscribers.opcua import (
     subscribe_opc_connection_events,
     subscribe_ram_usage,
     subscribe_service_info,
+    subscribe_storage_usage,
 )
 
 config_logging()
@@ -84,6 +85,17 @@ async def _poll_loop(
                 raise
             except Exception as e:
                 logger.warning(f"[{server_name}][RAM] Skipping: {e}")
+        if MetricType.STORAGE in settings.metrics_to_log:
+            try:
+                storage_usage = await subscribe_storage_usage(
+                    client, settings.metrics_config
+                )
+                db.insert_storage_usage(storage_usage=storage_usage)
+                logger.info(f"[{server_name}][STORAGE] Logged STORAGE usage")
+            except ConnectionError:
+                raise
+            except Exception as e:
+                logger.warning(f"[{server_name}][STORAGE] Skipping: {e}")
         if MetricType.NETWORK in settings.metrics_to_log:
             try:
                 network_usage = await subscribe_network_usage(
