@@ -32,3 +32,9 @@ def config_logging(log_dir: str = "logs", app_level: int = logging.INFO):
 
     for name in ("src", "lib", "__main__"):
         logging.getLogger(name).setLevel(app_level)
+
+    # asyncua logs protocol internals (including raw certificate bytes) at INFO,
+    # which drowns out real warnings/errors and can render as unreadable binary
+    # garbage in the log file. WARNING+ from asyncua is still real signal (e.g.
+    # "Future for request id ... is already done" on a timed-out request).
+    logging.getLogger("asyncua").setLevel(logging.WARNING)
