@@ -228,7 +228,18 @@ async def main(server: ServerConfig):
 
 
 async def run_all(servers: list) -> None:
-    await asyncio.gather(*[main(s) for s in servers])
+    # return_exceptions=True: main() only returns on a fatal, unexpected error
+    # (KeyboardInterrupt/CancelledError are re-raised deliberately; everything else
+    # is retried forever inside main()'s own loop). Without this, one server hitting
+    # such an error would cancel every other still-healthy server's coroutine too.
+    results = await asyncio.gather(
+        *[main(s) for s in servers], return_exceptions=True
+    )
+    for server, result in zip(servers, results):
+        if isinstance(result, BaseException) and not isinstance(
+            result, asyncio.CancelledError
+        ):
+            logger.error(f"[{server.name}] Stopped unexpectedly: {result}", exc_info=result)
 
 
 def _check_tag_channels_configured(servers: list[ServerConfig]) -> None:
