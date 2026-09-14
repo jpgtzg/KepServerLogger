@@ -74,9 +74,9 @@ class RAMUsage(OPCUAModel):
     free_kb: int
 
 class StorageUsage(OPCUAModel):
-    free_gb : float
-    used_gb : float
-    total_gb : float
+    free_gb: float
+    used_gb: float
+    total_gb: float
 
 
 class NetworkUsage(OPCUAModel):

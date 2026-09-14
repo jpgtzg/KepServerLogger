@@ -19,7 +19,6 @@ from lib.models import (
 )
 from lib.opcua_client import OPCUAClient
 
-from src.metrics import storage
 from src.state import settings
 
 logger = getLogger(__name__)
@@ -54,7 +53,7 @@ async def publish_storage_usage(client: OPCUAClient, storage_usage: StorageUsage
     logger.info(f"[STORAGE] Publishing STORAGE usage: {storage_usage}")
     data = storage_usage.to_opcua(settings.timestamp_format)
 
-    for field, value in data.items()
+    for field, value in data.items():
         node = client.get_node(f"{settings.metrics_config.storage.prefix}.{field}")
         variant_type = await node.read_data_type_as_variant_type()
         await client.write_value(node, value, variant_type)

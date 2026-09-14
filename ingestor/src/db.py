@@ -101,7 +101,7 @@ class IngestorDatabase(ProjectDatabase):
                     timestamp   TIMESTAMPTZ NOT NULL,
                     total_gb    REAL NOT NULL,
                     used_gb     REAL NOT NULL,
-                    free_gb     REAL NOT NULL,
+                    free_gb     REAL NOT NULL
                 );
                 """
             ],
