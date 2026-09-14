@@ -4,6 +4,7 @@ Logger for ingesting data into the database.
 Receives data from the OPC UA server and ingests it into the database.
 """
 
+import traceback
 from datetime import datetime, timezone
 from logging import getLogger
 
@@ -97,6 +98,14 @@ class IngestorDatabase(ProjectDatabase):
                     reason      TEXT
                 );
 
+                CREATE TABLE IF NOT EXISTS ingestor_logs (
+                    timestamp   TIMESTAMPTZ NOT NULL,
+                    level       TEXT NOT NULL,
+                    component   TEXT NOT NULL,
+                    message     TEXT NOT NULL,
+                    traceback   TEXT
+                );
+
                 CREATE TABLE IF NOT EXISTS storage_usage (
                     timestamp   TIMESTAMPTZ NOT NULL,
                     total_gb    REAL NOT NULL,
@@ -115,6 +124,7 @@ class IngestorDatabase(ProjectDatabase):
                 "CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events (timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_opc_conn_events_timestamp ON opc_connection_events (timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_connection_log_timestamp ON connection_log (timestamp DESC);",
+                "CREATE INDEX IF NOT EXISTS idx_ingestor_logs_timestamp ON ingestor_logs (timestamp DESC, level);",
             ],
             hypertables=[
                 ("tags", "server_timestamp"),
@@ -126,6 +136,7 @@ class IngestorDatabase(ProjectDatabase):
                 ("events", "timestamp"),
                 ("opc_connection_events", "timestamp"),
                 ("connection_log", "timestamp"),
+                ("ingestor_logs", "timestamp"),
             ],
         )
         logger.info(
@@ -273,4 +284,27 @@ class IngestorDatabase(ProjectDatabase):
             self.execute(
                 "INSERT INTO connection_log (timestamp, event, host_name, reason) VALUES (%s, %s, %s, %s);",
                 (datetime.now(timezone.utc), event, host_name, reason),
+            )
+
+    def log_event(self, level: str, component: str, exc: BaseException) -> None:
+        """
+        Records an error/warning that was otherwise only sent to the log file
+        (e.g. a per-metric read that was skipped rather than treated as a full
+        disconnect), so it can be queried later without needing the raw logs.
+        """
+        with self.transaction():
+            self.execute(
+                """
+                INSERT INTO ingestor_logs (timestamp, level, component, message, traceback)
+                VALUES (%s, %s, %s, %s, %s);
+                """,
+                (
+                    datetime.now(timezone.utc),
+                    level,
+                    component,
+                    f"{type(exc).__name__}: {exc}",
+                    "".join(
+                        traceback.format_exception(type(exc), exc, exc.__traceback__)
+                    ),
+                ),
             )

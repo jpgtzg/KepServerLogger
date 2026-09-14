@@ -239,6 +239,7 @@ Each KepServer instance writes to its own database (named by `db_name` in `serve
 | `events` | `timestamp` | KepServer event log entries |
 | `opc_connection_events` | `timestamp` | OPC UA client connect/disconnect events from opcdiags.log |
 | `connection_log` | `timestamp` | Ingestor-side connect/disconnect events with hostname |
+| `ingestor_logs` | `timestamp` | Every error/warning the ingestor swallowed while polling that server (per-metric skip, reconnect cause), with full traceback |
 
 All tables are TimescaleDB hypertables with a retention policy set by `log_retention_days` in `settings.json`.
 
@@ -254,6 +255,20 @@ Records when the ingestor established or lost a connection to each server:
 | `reason` | Error message on disconnect; `null` on connect |
 
 Querying `connection_log` lets you see when a server went down, how long it was unreachable, and whether it came back on the same physical machine (relevant in manually-clustered environments).
+
+### ingestor_logs
+
+Most transient errors (a single metric read failing, a batch tag read timing out) don't tear down the connection — they're logged and skipped so the poll loop keeps going. Those are recorded here instead of only going to `logs/app.log`, so they can be queried later without needing the raw log file:
+
+| Column | Description |
+|---|---|
+| `timestamp` | UTC time of the event |
+| `level` | `'WARNING'` (metric skipped, connection stayed up) or `'ERROR'` (connection was dropped and a reconnect was scheduled) |
+| `component` | Which metric or stage failed (`CPU`, `TAG_CHANNELS`, `RECONNECT`, etc.) |
+| `message` | `<exception type>: <message>` |
+| `traceback` | Full Python traceback for the error |
+
+A common pattern to watch for: repeated `TAG_CHANNELS` / `UaError: Failed to send request to OPC UA server` warnings for one server indicate its batch tag read is timing out against `_OPCUA_REQUEST_TIMEOUT_SECONDS` in `ingestor/src/main.py` (30s by default) — usually a sign of network latency or an oversized batch, not a dead connection.
 
 ---
 
