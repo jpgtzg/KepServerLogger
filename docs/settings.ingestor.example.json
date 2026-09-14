@@ -5,6 +5,7 @@
     "metrics_to_log": [
         "cpu",
         "ram",
+        "storage",
         "network",
         "services",
         "kepserverevents",
@@ -17,6 +18,9 @@
         },
         "ram": {
             "prefix": "ns=2;s=IDL.Metrics.RAM"
+        },
+        "storage": {
+            "prefix": "ns=2;s=IDL.Metrics.Storage"
         },
         "network": {
             "prefix": "ns=2;s=IDL.Metrics.Network"

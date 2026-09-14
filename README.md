@@ -88,6 +88,7 @@ A Python application compiled to a Windows `.exe`. Runs on each KepServer machin
 |---|---|---|
 | CPU usage | `IDL.Metrics.CPU.<field>` | `cpu_usage` |
 | RAM usage | `IDL.Metrics.RAM.<field>` | `ram_usage` |
+| Storage usage | `IDL.Metrics.Storage.<field>` | `storage_usage` |
 | Network I/O | `IDL.Metrics.Network.batch` | `network_usage` |
 | Windows services | `IDL.Metrics.Services.<name>` | `services` |
 | KepServer events | `IDL.Metrics.Events.batch` | `events` |
@@ -232,6 +233,7 @@ Each KepServer instance writes to its own database (named by `db_name` in `serve
 | `tags` | `server_timestamp` | All process tag values (raw passthrough) |
 | `cpu_usage` | `timestamp` | CPU usage percentage |
 | `ram_usage` | `timestamp` | Total and free RAM in KB |
+| `storage_usage` | `timestamp` | Total, used, and free disk space in GB (`C:\`) |
 | `network_usage` | `timestamp` | Per-interface sent/received KB |
 | `services` | `timestamp` | Windows service status snapshots |
 | `events` | `timestamp` | KepServer event log entries |

@@ -9,3 +9,7 @@
 "RAM.timestamp","S0002",String,1,R/W,100,,,,,,,,,,"",
 "RAM.total_kb","S0003",String,1,R/W,100,,,,,,,,,,"",
 "Services.batch","S0040",String,1,R/W,100,,,,,,,,,,"",
+"Storage.timestamp","S0050",String,1,R/W,100,,,,,,,,,,"",
+"Storage.free_gb","S0051",String,1,R/W,100,,,,,,,,,,"",
+"Storage.used_gb","S0052",String,1,R/W,100,,,,,,,,,,"",
+"Storage.total_gb","S0053",String,1,R/W,100,,,,,,,,,,"",
