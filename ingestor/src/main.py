@@ -38,11 +38,31 @@ _RETRY_DELAYS = [5, 10, 20, 40, 60]
 # which can legitimately take longer than that to come back — raising it avoids
 # spurious "Failed to send request to OPC UA server" timeouts on large batches.
 _OPCUA_REQUEST_TIMEOUT_SECONDS = 30
+# A metric that keeps failing (e.g. a batch tag read repeatedly timing out) never
+# raises ConnectionError on its own, so the poll loop would otherwise "Skip" it
+# forever without ever reconnecting — matching the observed need to manually
+# restart the service. Once the same metric fails this many ticks in a row, treat
+# it as a dead connection and force the same reconnect-with-backoff path a manual
+# restart takes. A single success resets the counter for that metric.
+_MAX_CONSECUTIVE_METRIC_FAILURES = 3
 
 
 async def _poll_loop(
     server_name: str, client: OPCUAClient, db: IngestorDatabase, channel_tags: dict
 ) -> None:
+    consecutive_failures: dict[str, int] = {}
+
+    def _on_success(component: str) -> None:
+        consecutive_failures.pop(component, None)
+
+    def _on_failure(component: str) -> None:
+        count = consecutive_failures.get(component, 0) + 1
+        consecutive_failures[component] = count
+        if count >= _MAX_CONSECUTIVE_METRIC_FAILURES:
+            raise ConnectionError(
+                f"{component} failed {count} times in a row, forcing reconnect"
+            )
+
     while True:
         tag_channels_config = settings.metrics_config.tag_channels
         server_channels_config = (
@@ -68,31 +88,37 @@ async def _poll_loop(
                     logger.info(
                         f"[{server_name}][{channel.upper()}] Saved {len(rows)} values from {len(tags)} tags"
                     )
+                _on_success("TAG_CHANNELS")
             except ConnectionError:
                 raise
             except Exception as e:
                 logger.warning(f"[{server_name}][TAG_CHANNELS] Skipping: {e}")
                 db.log_event("WARNING", "TAG_CHANNELS", e)
+                _on_failure("TAG_CHANNELS")
         if MetricType.CPU in settings.metrics_to_log:
             try:
                 cpu_usage = await subscribe_cpu_usage(client, settings.metrics_config)
                 db.insert_cpu_usage(cpu_usage)
                 logger.info(f"[{server_name}][CPU] Logged CPU usage")
+                _on_success("CPU")
             except ConnectionError:
                 raise
             except Exception as e:
                 logger.warning(f"[{server_name}][CPU] Skipping: {e}")
                 db.log_event("WARNING", "CPU", e)
+                _on_failure("CPU")
         if MetricType.RAM in settings.metrics_to_log:
             try:
                 ram_usage = await subscribe_ram_usage(client, settings.metrics_config)
                 db.insert_ram_usage(ram_usage)
                 logger.info(f"[{server_name}][RAM] Logged RAM usage")
+                _on_success("RAM")
             except ConnectionError:
                 raise
             except Exception as e:
                 logger.warning(f"[{server_name}][RAM] Skipping: {e}")
                 db.log_event("WARNING", "RAM", e)
+                _on_failure("RAM")
         if MetricType.STORAGE in settings.metrics_to_log:
             try:
                 storage_usage = await subscribe_storage_usage(
@@ -100,11 +126,13 @@ async def _poll_loop(
                 )
                 db.insert_storage_usage(storage_usage=storage_usage)
                 logger.info(f"[{server_name}][STORAGE] Logged STORAGE usage")
+                _on_success("STORAGE")
             except ConnectionError:
                 raise
             except Exception as e:
                 logger.warning(f"[{server_name}][STORAGE] Skipping: {e}")
                 db.log_event("WARNING", "STORAGE", e)
+                _on_failure("STORAGE")
         if MetricType.NETWORK in settings.metrics_to_log:
             try:
                 network_usage = await subscribe_network_usage(
@@ -115,11 +143,13 @@ async def _poll_loop(
                 logger.info(
                     f"[{server_name}][NETWORK] Logged {len(network_usage)} interfaces"
                 )
+                _on_success("NETWORK")
             except ConnectionError:
                 raise
             except Exception as e:
                 logger.warning(f"[{server_name}][NETWORK] Skipping: {e}")
                 db.log_event("WARNING", "NETWORK", e)
+                _on_failure("NETWORK")
         if MetricType.SERVICES in settings.metrics_to_log:
             try:
                 service_info = await subscribe_service_info(
@@ -130,11 +160,13 @@ async def _poll_loop(
                 logger.info(
                     f"[{server_name}][SERVICES] Logged {len(service_info)} services"
                 )
+                _on_success("SERVICES")
             except ConnectionError:
                 raise
             except Exception as e:
                 logger.warning(f"[{server_name}][SERVICES] Skipping: {e}")
                 db.log_event("WARNING", "SERVICES", e)
+                _on_failure("SERVICES")
         if MetricType.KEPSERVER_EVENTS in settings.metrics_to_log:
             try:
                 kep_events = await subscribe_kep_events(client, settings.metrics_config)
@@ -143,11 +175,13 @@ async def _poll_loop(
                 logger.info(
                     f"[{server_name}][EVENTS] Logged {len(kep_events)} KepServer events"
                 )
+                _on_success("EVENTS")
             except ConnectionError:
                 raise
             except Exception as e:
                 logger.warning(f"[{server_name}][EVENTS] Skipping: {e}")
                 db.log_event("WARNING", "EVENTS", e)
+                _on_failure("EVENTS")
         if MetricType.OPC_DIAGNOSTICS in settings.metrics_to_log:
             try:
                 opc_events = await subscribe_opc_connection_events(
@@ -158,11 +192,13 @@ async def _poll_loop(
                 logger.info(
                     f"[{server_name}][OPC_DIAGS] Logged {len(opc_events)} OPC connection events"
                 )
+                _on_success("OPC_DIAGS")
             except ConnectionError:
                 raise
             except Exception as e:
                 logger.warning(f"[{server_name}][OPC_DIAGS] Skipping: {e}")
                 db.log_event("WARNING", "OPC_DIAGS", e)
+                _on_failure("OPC_DIAGS")
         await asyncio.sleep(settings.polling_interval_seconds)
 
 

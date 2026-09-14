@@ -270,6 +270,8 @@ Most transient errors (a single metric read failing, a batch tag read timing out
 
 A common pattern to watch for: repeated `TAG_CHANNELS` / `UaError: Failed to send request to OPC UA server` warnings for one server indicate its batch tag read is timing out against `_OPCUA_REQUEST_TIMEOUT_SECONDS` in `ingestor/src/main.py` (30s by default) — usually a sign of network latency or an oversized batch, not a dead connection.
 
+A single metric timing out on one tick doesn't force a reconnect — the poll loop just logs it and moves on, since the connection is usually still fine. But if the **same metric** fails `_MAX_CONSECUTIVE_METRIC_FAILURES` ticks in a row (3 by default), the ingestor treats it as a dead connection and forces the same reconnect-with-backoff sequence a manual restart triggers, rather than skipping that metric forever. A single successful read resets that metric's failure count.
+
 ---
 
 ## Deployment
