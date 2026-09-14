@@ -24,8 +24,9 @@ class OPCUAClient(Client):
         key_path: str,
         username: str,
         password: str,
+        timeout: float = 4,
     ):
-        super().__init__(url)
+        super().__init__(url, timeout=timeout)
         self.application_uri: str = app_uri
         self.name: str = name
         self._cert_path: str = cert_path

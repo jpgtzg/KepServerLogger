@@ -33,6 +33,11 @@ settings = Settings.load()
 OPCUAModel.configure(timestamp_format=settings.timestamp_format)
 
 _RETRY_DELAYS = [5, 10, 20, 40, 60]
+# asyncua's own default (4s) is tuned for a local connection. The ingestor talks to
+# KepServer over the network and reads batches of up to ~1700 tags in one request,
+# which can legitimately take longer than that to come back — raising it avoids
+# spurious "Failed to send request to OPC UA server" timeouts on large batches.
+_OPCUA_REQUEST_TIMEOUT_SECONDS = 30
 
 
 async def _poll_loop(
@@ -193,6 +198,7 @@ async def main(server: ServerConfig):
                 key_path=server.key_path,
                 username=server.username,
                 password=server.password,
+                timeout=_OPCUA_REQUEST_TIMEOUT_SECONDS,
             )
             await client.setup()
 
