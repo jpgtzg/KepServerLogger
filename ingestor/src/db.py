@@ -5,6 +5,7 @@ Receives data from the OPC UA server and ingests it into the database.
 """
 
 import traceback
+import uuid
 from datetime import datetime, timezone
 from logging import getLogger
 
@@ -91,19 +92,22 @@ class IngestorDatabase(ProjectDatabase):
                     PRIMARY KEY (hash, timestamp)
                 );
 
-                CREATE TABLE IF NOT EXISTS connection_log (
+                CREATE TABLE IF NOT EXISTS active_log (
                     timestamp   TIMESTAMPTZ NOT NULL,
                     event       TEXT NOT NULL,
                     host_name   TEXT,
-                    reason      TEXT
+                    reason      TEXT,
+                    error_id    TEXT
                 );
 
                 CREATE TABLE IF NOT EXISTS ingestor_logs (
+                    id          TEXT NOT NULL,
                     timestamp   TIMESTAMPTZ NOT NULL,
                     level       TEXT NOT NULL,
                     component   TEXT NOT NULL,
                     message     TEXT NOT NULL,
-                    traceback   TEXT
+                    traceback   TEXT,
+                    PRIMARY KEY (id, timestamp)
                 );
 
                 CREATE TABLE IF NOT EXISTS storage_usage (
@@ -123,8 +127,10 @@ class IngestorDatabase(ProjectDatabase):
                 "CREATE INDEX IF NOT EXISTS idx_services_timestamp ON services (timestamp DESC, name);",
                 "CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events (timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_opc_conn_events_timestamp ON opc_connection_events (timestamp DESC);",
-                "CREATE INDEX IF NOT EXISTS idx_connection_log_timestamp ON connection_log (timestamp DESC);",
+                "CREATE INDEX IF NOT EXISTS idx_active_log_timestamp ON active_log (timestamp DESC);",
+                "CREATE INDEX IF NOT EXISTS idx_active_log_error_id ON active_log (error_id);",
                 "CREATE INDEX IF NOT EXISTS idx_ingestor_logs_timestamp ON ingestor_logs (timestamp DESC, level);",
+                "CREATE INDEX IF NOT EXISTS idx_ingestor_logs_id ON ingestor_logs (id);",
             ],
             hypertables=[
                 ("tags", "server_timestamp"),
@@ -135,7 +141,7 @@ class IngestorDatabase(ProjectDatabase):
                 ("services", "timestamp"),
                 ("events", "timestamp"),
                 ("opc_connection_events", "timestamp"),
-                ("connection_log", "timestamp"),
+                ("active_log", "timestamp"),
                 ("ingestor_logs", "timestamp"),
             ],
         )
@@ -277,28 +283,47 @@ class IngestorDatabase(ProjectDatabase):
                 ),
             )
 
-    def log_connection(
-        self, event: str, *, host_name: str | None = None, reason: str | None = None
+    def log_status(
+        self,
+        event: str,
+        *,
+        host_name: str | None = None,
+        reason: str | None = None,
+        error_id: str | None = None,
     ) -> None:
-        with self.transaction():
-            self.execute(
-                "INSERT INTO connection_log (timestamp, event, host_name, reason) VALUES (%s, %s, %s, %s);",
-                (datetime.now(timezone.utc), event, host_name, reason),
-            )
-
-    def log_event(self, level: str, component: str, exc: BaseException) -> None:
         """
-        Records an error/warning that was otherwise only sent to the log file
-        (e.g. a per-metric read that was skipped rather than treated as a full
-        disconnect), so it can be queried later without needing the raw logs.
+        Records the ingestor's connection state: 'active' while it holds a live
+        OPC UA session, 'inactive' whenever that session ends (shutdown or a
+        fatal error that forces a reconnect). `error_id` links an 'inactive'
+        row to the `ingestor_logs` row (see `log_event`) that explains why,
+        instead of duplicating the exception message here.
         """
         with self.transaction():
             self.execute(
                 """
-                INSERT INTO ingestor_logs (timestamp, level, component, message, traceback)
+                INSERT INTO active_log (timestamp, event, host_name, reason, error_id)
                 VALUES (%s, %s, %s, %s, %s);
                 """,
+                (datetime.now(timezone.utc), event, host_name, reason, error_id),
+            )
+
+    def log_event(self, level: str, component: str, exc: BaseException) -> str:
+        """
+        Records an error/warning that was otherwise only sent to the log file
+        (e.g. a per-metric read that was skipped rather than treated as a full
+        disconnect), so it can be queried later without needing the raw logs.
+        Returns the generated row id so callers can cross-reference it, e.g.
+        from `active_log.error_id`.
+        """
+        event_id = str(uuid.uuid4())
+        with self.transaction():
+            self.execute(
+                """
+                INSERT INTO ingestor_logs (id, timestamp, level, component, message, traceback)
+                VALUES (%s, %s, %s, %s, %s, %s);
+                """,
                 (
+                    event_id,
                     datetime.now(timezone.utc),
                     level,
                     component,
@@ -308,3 +333,4 @@ class IngestorDatabase(ProjectDatabase):
                     ),
                 ),
             )
+        return event_id

@@ -33,17 +33,7 @@ settings = Settings.load()
 OPCUAModel.configure(timestamp_format=settings.timestamp_format)
 
 _RETRY_DELAYS = [5, 10, 20, 40, 60]
-# asyncua's own default (4s) is tuned for a local connection. The ingestor talks to
-# KepServer over the network and reads batches of up to ~1700 tags in one request,
-# which can legitimately take longer than that to come back — raising it avoids
-# spurious "Failed to send request to OPC UA server" timeouts on large batches.
 _OPCUA_REQUEST_TIMEOUT_SECONDS = 30
-# A metric that keeps failing (e.g. a batch tag read repeatedly timing out) never
-# raises ConnectionError on its own, so the poll loop would otherwise "Skip" it
-# forever without ever reconnecting — matching the observed need to manually
-# restart the service. Once the same metric fails this many ticks in a row, treat
-# it as a dead connection and force the same reconnect-with-backoff path a manual
-# restart takes. A single success resets the counter for that metric.
 _MAX_CONSECUTIVE_METRIC_FAILURES = 3
 
 
@@ -203,8 +193,7 @@ async def _poll_loop(
 
 
 async def main(server: ServerConfig):
-    s = server.name
-    logger.info(f"[{s}] Initiating IDL Central Collector...")
+    logger.info(f"[{server.name}] Initiating IDL Central Collector...")
 
     tag_channels_config = settings.metrics_config.tag_channels
     server_channels_config = (
@@ -233,7 +222,7 @@ async def main(server: ServerConfig):
     retry_count = 0
     while True:
         try:
-            logger.info(f"[{s}] Connecting to {server.url}...")
+            logger.info(f"[{server.name}] Connecting to {server.url}...")
             client = OPCUAClient(
                 url=server.url,
                 app_uri=config.app_uri,
@@ -248,58 +237,46 @@ async def main(server: ServerConfig):
 
             async with client:
                 host_name = await subscribe_host_name(client, settings.metrics_config)
-                db.log_connection("connected", host_name=host_name)
-                logger.info(f"[{s}] Connected — host: {host_name}")
+                db.log_status("active", host_name=host_name)
+                logger.info(f"[{server.name}] Connected — host: {host_name}")
                 retry_count = 0
 
-                await _poll_loop(s, client, db, channel_tags)
+                await _poll_loop(server.name, client, db, channel_tags)
 
         except (KeyboardInterrupt, asyncio.CancelledError):
-            db.log_connection("disconnected", reason="shutdown")
-            logger.info(f"[{s}] Shutting down.")
+            db.log_status("inactive", reason="shutdown")
+            logger.info(f"[{server.name}] Shutting down.")
             raise
 
         except Exception as e:
             delay = _RETRY_DELAYS[min(retry_count, len(_RETRY_DELAYS) - 1)]
-            db.log_connection("disconnected", reason=f"{type(e).__name__}: {e}")
-            db.log_event("ERROR", "RECONNECT", e)
-            logger.error(
-                f"[{s}] Connection lost: {type(e).__name__}: {e}. "
+            error_id = db.log_event("ERROR", "RECONNECT", e)
+            db.log_status("inactive", error_id=error_id)
+            logger.exception(
+                f"[{server.name}] Connection lost: {type(e).__name__}: {e}. "
                 f"Retrying in {delay}s... (attempt {retry_count + 1})",
-                exc_info=True,
             )
             retry_count += 1
             await asyncio.sleep(delay)
 
 
 async def run_all(servers: list) -> None:
-    # return_exceptions=True: main() only returns on a fatal, unexpected error
-    # (KeyboardInterrupt/CancelledError are re-raised deliberately; everything else
-    # is retried forever inside main()'s own loop). Without this, one server hitting
-    # such an error would cancel every other still-healthy server's coroutine too.
-    results = await asyncio.gather(
-        *[main(s) for s in servers], return_exceptions=True
-    )
+    results = await asyncio.gather(*[main(s) for s in servers], return_exceptions=True)
     for server, result in zip(servers, results):
-        if isinstance(result, BaseException) and not isinstance(
-            result, asyncio.CancelledError
-        ):
-            logger.error(f"[{server.name}] Stopped unexpectedly: {result}", exc_info=result)
-
-
-def _check_tag_channels_configured(servers: list[ServerConfig]) -> None:
-    if MetricType.TAG_CHANNELS not in settings.metrics_to_log:
-        return
-    tag_channels_config = settings.metrics_config.tag_channels or {}
-    missing = [s.name for s in servers if s.name not in tag_channels_config]
-    if missing:
-        raise ValueError(
-            "metrics_config.tag_channels is missing entries for server(s): "
-            f"{', '.join(missing)}"
-        )
+        if isinstance(result, Exception):
+            logger.error(
+                f"[{server.name}] Stopped unexpectedly: {result}", exc_info=result
+            )
 
 
 if __name__ == "__main__":
     servers = load_servers_configs()
-    _check_tag_channels_configured(servers)
+    if MetricType.TAG_CHANNELS in settings.metrics_to_log:
+        tag_channels_config = settings.metrics_config.tag_channels or {}
+        missing = [s.name for s in servers if s.name not in tag_channels_config]
+        if missing:
+            raise ValueError(
+                "metrics_config.tag_channels is missing entries for server(s): "
+                f"{', '.join(missing)}"
+            )
     asyncio.run(run_all(servers))

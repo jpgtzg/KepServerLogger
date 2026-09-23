@@ -93,7 +93,7 @@ A Python application compiled to a Windows `.exe`. Runs on each KepServer machin
 | Windows services | `IDL.Metrics.Services.<name>` | `services` |
 | KepServer events | `IDL.Metrics.Events.batch` | `events` |
 | OPC client sessions | `IDL.Metrics.OpcConnections.batch` | `opc_connection_events` |
-| Hostname | `IDL.Metrics.host_name` | `connection_log` |
+| Hostname | `IDL.Metrics.host_name` | `active_log` |
 
 Batch nodes (`*.batch`) carry a JSON-encoded array. Per-field nodes carry scalar string values.
 
@@ -120,9 +120,9 @@ A Python asyncio application running in Docker on the central Linux machine. It 
 
 - Each connection runs in its own coroutine (`main(server)`).
 - Each server writes to its own dedicated TimescaleDB database (configured via `db_name` in `servers.json`).
-- On startup the ingestor reads the hostname published by the extractor and logs a `connected` event to `connection_log`. This records which physical machine answered the connection — useful in manually-clustered environments where a failover means the same IP is served by a different host.
-- If a connection drops, the ingestor logs a `disconnected` event, waits with exponential backoff (5 → 10 → 20 → 40 → 60s), and retries. The other servers are unaffected.
-- On reconnect, a new `connected` event is written with the current hostname — allowing you to see whether the same or a different machine came back.
+- On startup the ingestor reads the hostname published by the extractor and logs an `active` event to `active_log`. This records which physical machine answered the connection — useful in manually-clustered environments where a failover means the same IP is served by a different host.
+- If a connection drops, the ingestor logs an `inactive` event (linked to the `ingestor_logs` row that caused it, see below), waits with exponential backoff (5 → 10 → 20 → 40 → 60s), and retries. The other servers are unaffected.
+- On reconnect, a new `active` event is written with the current hostname — allowing you to see whether the same or a different machine came back.
 
 ---
 
@@ -238,23 +238,33 @@ Each KepServer instance writes to its own database (named by `db_name` in `serve
 | `services` | `timestamp` | Windows service status snapshots |
 | `events` | `timestamp` | KepServer event log entries |
 | `opc_connection_events` | `timestamp` | OPC UA client connect/disconnect events from opcdiags.log |
-| `connection_log` | `timestamp` | Ingestor-side connect/disconnect events with hostname |
+| `active_log` | `timestamp` | Ingestor-side active/inactive transitions, with hostname and a link to the causing error |
 | `ingestor_logs` | `timestamp` | Every error/warning the ingestor swallowed while polling that server (per-metric skip, reconnect cause), with full traceback |
 
 All tables are TimescaleDB hypertables with a retention policy set by `log_retention_days` in `settings.json`.
 
-### connection_log
+### active_log
 
-Records when the ingestor established or lost a connection to each server:
+Records when the ingestor's OPC UA session became active or went inactive for each server. It's a state-transition log, not an error log — an `inactive` row always coincides with a reconnect, and the actual cause lives in `ingestor_logs`:
 
 | Column | Description |
 |---|---|
-| `timestamp` | UTC time of the event |
-| `event` | `'connected'` or `'disconnected'` |
-| `host_name` | Hostname of the KepServer machine at connect time; `null` on disconnect |
-| `reason` | Error message on disconnect; `null` on connect |
+| `timestamp` | UTC time of the transition |
+| `event` | `'active'` or `'inactive'` |
+| `host_name` | Hostname of the KepServer machine at connect time; `null` on `inactive` |
+| `reason` | Free-text reason with no underlying exception, e.g. `'shutdown'`; `null` otherwise |
+| `error_id` | FK-style reference to `ingestor_logs.id` — set when `inactive` was caused by a fatal error (join to get the full exception + traceback); `null` for a clean `shutdown` |
 
-Querying `connection_log` lets you see when a server went down, how long it was unreachable, and whether it came back on the same physical machine (relevant in manually-clustered environments).
+Join the two to see exactly which error ended a session:
+
+```sql
+SELECT a.timestamp, a.event, a.host_name, a.reason, l.component, l.message
+FROM active_log a
+LEFT JOIN ingestor_logs l ON l.id = a.error_id
+ORDER BY a.timestamp DESC;
+```
+
+Querying `active_log` lets you see when a server went down, how long it was unreachable, and whether it came back on the same physical machine (relevant in manually-clustered environments).
 
 ### ingestor_logs
 
@@ -262,6 +272,7 @@ Most transient errors (a single metric read failing, a batch tag read timing out
 
 | Column | Description |
 |---|---|
+| `id` | UUID for this row, referenced by `active_log.error_id` when the error caused a reconnect |
 | `timestamp` | UTC time of the event |
 | `level` | `'WARNING'` (metric skipped, connection stayed up) or `'ERROR'` (connection was dropped and a reconnect was scheduled) |
 | `component` | Which metric or stage failed (`CPU`, `TAG_CHANNELS`, `RECONNECT`, etc.) |
@@ -430,7 +441,7 @@ Both extractor and ingestor use `Basic256Sha256 SignAndEncrypt`. Each client mus
 - KepServer tag names do not allow dots. Dots in service names are replaced with underscores.
 - `settings.json` must be kept in sync between all extractors and the ingestor for the node-address fields (`metrics_config.*.prefix`, `tag_channels`) and `metrics_to_log` — these define the shared OPC UA node namespace. `metrics_config.services.names` and `metrics_config.opcdiagnostics.log_path` are extractor-only and can differ per machine.
 - Adding a new KepServer instance: add an entry to `servers.json`, deploy its cert to the ingestor machine, add a matching per-server entry (same `name`) to `metrics_config.tag_channels` in `settings.json` if tag logging is enabled, and restart the ingestor. No other code changes required — the ingestor creates the target database (and enables the `timescaledb` extension) on first connect if it doesn't already exist, as long as `DB_USER` has `CREATEDB` privileges.
-- The ingestor retries dropped connections with exponential backoff (5 → 10 → 20 → 40 → 60s). Each reconnect attempt is independent per server. Connection history is recorded in `connection_log`.
+- The ingestor retries dropped connections with exponential backoff (5 → 10 → 20 → 40 → 60s). Each reconnect attempt is independent per server. Connection history is recorded in `active_log`, joinable to `ingestor_logs` via `error_id` for the underlying cause.
 - The extractor and ingestor each read their own `.env` into a dedicated Pydantic settings model (`ExtractorConfig` / `IngestorConfig` in `lib/config.py`) — they have no fields in common, so don't copy one machine's `.env` to the other.
 
 ### OPC Diagnostics and Client Connection Tracking
