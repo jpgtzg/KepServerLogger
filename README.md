@@ -266,6 +266,19 @@ ORDER BY a.timestamp DESC;
 
 Querying `active_log` lets you see when a server went down, how long it was unreachable, and whether it came back on the same physical machine (relevant in manually-clustered environments).
 
+> **Upgrading an existing database:** tables are created with `CREATE TABLE IF NOT EXISTS`, so `connection_log` is not renamed and `ingestor_logs` does not gain its `id` column automatically. Per server database, run the following (before or right after deploying) — old `connection_log` rows are kept as history:
+>
+> ```sql
+> ALTER TABLE ingestor_logs ADD COLUMN IF NOT EXISTS id TEXT;
+> UPDATE ingestor_logs SET id = gen_random_uuid()::text WHERE id IS NULL;
+> ALTER TABLE connection_log RENAME TO active_log;
+> ALTER TABLE active_log ADD COLUMN IF NOT EXISTS error_id TEXT;
+> UPDATE active_log SET event = 'active' WHERE event = 'connected';
+> UPDATE active_log SET event = 'inactive' WHERE event = 'disconnected';
+> ```
+>
+> The `ingestor_logs` primary key `(id, timestamp)` is only created on fresh tables; the added `id` column is enough for the `error_id` join to work on upgraded ones.
+
 ### ingestor_logs
 
 Most transient errors (a single metric read failing, a batch tag read timing out) don't tear down the connection — they're logged and skipped so the poll loop keeps going. Those are recorded here instead of only going to `logs/app.log`, so they can be queried later without needing the raw log file:
@@ -282,6 +295,22 @@ Most transient errors (a single metric read failing, a batch tag read timing out
 A common pattern to watch for: repeated `TAG_CHANNELS` / `UaError: Failed to send request to OPC UA server` warnings for one server indicate its batch tag read is timing out against `_OPCUA_REQUEST_TIMEOUT_SECONDS` in `ingestor/src/main.py` (30s by default) — usually a sign of network latency or an oversized batch, not a dead connection.
 
 A single metric timing out on one tick doesn't force a reconnect — the poll loop just logs it and moves on, since the connection is usually still fine. But if the **same metric** fails `_MAX_CONSECUTIVE_METRIC_FAILURES` ticks in a row (3 by default), the ingestor treats it as a dead connection and forces the same reconnect-with-backoff sequence a manual restart triggers, rather than skipping that metric forever. A single successful read resets that metric's failure count.
+
+### Grafana: Connection Status vs. Ingestor Logs
+
+The dashboard (`docs/dashboard/IDL Computer Logs V3.json`) has two panels built on these tables. They answer different questions:
+
+| | **Logger Connection Status** | **Ingestor Logs** |
+|---|---|---|
+| Table | `active_log`, joined to `ingestor_logs` for the reason | `ingestor_logs` |
+| Question | Is the ingestor connected to this server, and to which host? | What went wrong, and when? |
+| Rows | One per state change: `active` when a session starts, `inactive` when it ends | One per error/warning the ingestor swallowed |
+| Frequency | Rare — only on connect and disconnect | Can be frequent — every skipped metric read is a `WARNING` |
+| Display | State timeline: green bars labelled with the host name, red for `inactive` | Table of the latest 100 entries, newest first, `level` coloured |
+
+Use the timeline to spot that something went down, and the table to find out why. The two are linked by `active_log.error_id`: for an `inactive` bar caused by a fatal error, the `RECONNECT` row in Ingestor Logs is the cause, and the timeline tooltip shows that message (`COALESCE(active_log.reason, ingestor_logs.message)`). Most Ingestor Logs rows are `WARNING`s that never caused a disconnect.
+
+The connection-status panel also queries the most recent event at or before the end of the time range and clamps it to the start of the range, so the timeline shows the current state even when nothing changed inside the selected window. Its colour mapping keys on the literal status value `inactive` — keep it in sync if the event names change.
 
 ---
 
@@ -432,6 +461,8 @@ Both extractor and ingestor use `Basic256Sha256 SignAndEncrypt`. Each client mus
 
 - **Extractor**: generate with `idl-certgen.exe`, then trust the certificate in the local KepServer's OPC UA certificate manager.
 - **Ingestor**: one certificate pair per server, paths declared in `servers.json`. Since the ingestor runs on Linux, it can't use the Windows-only `idl-certgen.exe` — instead, the container generates any missing certificate/key pair for each configured server automatically on startup (see `utils/certgen/src/generate_server_certs.py`, run by `ingestor/entrypoint.sh`), writing them to the paths declared in `servers.json`. You still need to manually trust each generated certificate in that server's respective KepServer certificate manager after the container's first boot.
+
+If a certificate isn't trusted (or is otherwise rejected during the secure-channel handshake), `lib/opcua_client.py` patches asyncua so the rejection fails the pending request immediately with the real status code (e.g. `BadSecurityChecksFailed`) instead of a generic `TimeoutError` after the request timeout. That status code ends up in the `RECONNECT` row of `ingestor_logs`, linked from the `inactive` row in `active_log`.
 
 ---
 
