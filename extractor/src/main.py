@@ -3,7 +3,6 @@ import logging
 import os
 import time
 from concurrent.futures import CancelledError
-from typing import Optional
 
 from asyncua.ua.uaerrors import UaError
 from lib.logging import config_logging
@@ -54,7 +53,7 @@ async def main() -> None:
     logger.info("Starting metrics extractor...")
 
     opcdiagnostics_config = settings.metrics_config.opcdiagnostics
-    opc_reader: Optional[OpcDiagnosticsReader] = (
+    opc_reader: OpcDiagnosticsReader | None = (
         OpcDiagnosticsReader(opcdiagnostics_config.log_path)
         if MetricType.OPC_DIAGNOSTICS in settings.metrics_to_log
         and opcdiagnostics_config is not None
@@ -71,7 +70,7 @@ async def main() -> None:
             opc_reader.close()
 
 
-async def _run_session(opc_reader: Optional[OpcDiagnosticsReader]) -> None:
+async def _run_session(opc_reader: OpcDiagnosticsReader | None) -> None:
     logger.info(f"Connecting to {config.kepserver_server_url}...")
 
     client = OPCUAClient(
@@ -87,7 +86,7 @@ async def _run_session(opc_reader: Optional[OpcDiagnosticsReader]) -> None:
     await client.setup()
 
     logger.info("Initialization complete, starting main loop...")
-    time.sleep(5)
+    await asyncio.sleep(5)
 
     start_time = time.time()
     try:
@@ -184,7 +183,6 @@ async def _run_session(opc_reader: Optional[OpcDiagnosticsReader]) -> None:
 
 
 if __name__ == "__main__":
-    # Match current implementation target (Windows-only service metrics).
     if os.name != "nt":
         raise RuntimeError("This extractor currently targets Windows.")
     asyncio.run(main())
