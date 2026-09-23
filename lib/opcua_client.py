@@ -6,12 +6,47 @@ from datetime import datetime
 from logging import getLogger
 
 from asyncua import Client, ua
+from asyncua.client.ua_client import UASocketProtocol
 from asyncua.common.node import Node
 from asyncua.crypto.security_policies import SecurityPolicyBasic256Sha256
 
 from lib.utils import utcnow
 
 logger = getLogger(__name__)
+
+_original_process_received_message = UASocketProtocol._process_received_message
+
+
+def _process_received_message_eager_error(self, msg) -> None:
+    """asyncua's stock handler for a protocol-level ErrorMessage (e.g. a rejected
+    certificate during the secure-channel handshake) only logs and disconnects the
+    socket — it never rejects the Future that the caller is awaiting via
+    wait_for(). That leaves the caller blocked until wait_for()'s own timeout
+    fires, surfacing a generic TimeoutError and swallowing the real reason (e.g.
+    BadSecurityChecksFailed). Reject any in-flight requests immediately with the
+    actual status code instead.
+    """
+    if not isinstance(msg, ua.ErrorMessage):
+        _original_process_received_message(self, msg)
+        return
+
+    self.logger.fatal("Received an error: %r", msg)
+    self.disconnect_socket()
+
+    exc: Exception = ConnectionError("Received ErrorMessage from server")
+    if msg.Error is not None:
+        try:
+            msg.Error.check()
+        except Exception as status_exc:
+            exc = status_exc
+
+    for request_id, future in list(self._callbackmap.items()):
+        if not future.done():
+            future.set_exception(exc)
+        del self._callbackmap[request_id]
+
+
+UASocketProtocol._process_received_message = _process_received_message_eager_error
 
 
 class OPCUAClient(Client):
