@@ -1,0 +1,53 @@
+name: Build extractor (Windows)
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths:
+      - "extractor/**"
+      - "lib/**"
+      - "utils/certgen/**"
+      - ".github/workflows/build-extractor.yml"
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.13"
+
+      - name: Install extractor dependencies
+        working-directory: extractor
+        run: uv sync --frozen
+
+      - name: Build extractor.exe
+        working-directory: extractor
+        run: uv run pyinstaller extractor.spec --noconfirm
+
+      - name: Install certgen dependencies
+        working-directory: utils/certgen
+        run: uv sync --frozen
+
+      - name: Build idl-certgen.exe
+        working-directory: utils/certgen
+        run: uv run pyinstaller certgen.spec --noconfirm
+
+      - name: Upload extractor.exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: extractor-windows
+          path: extractor/dist/extractor.exe
+          retention-days: 14
+
+      - name: Upload idl-certgen.exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: idl-certgen-windows
+          path: utils/certgen/dist/idl-certgen.exe
+          retention-days: 14
