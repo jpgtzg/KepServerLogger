@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import hashlib
-import requests
 
+import requests
 from lib.models import KepEvent
+
 from src.state import config
+
 
 def get_kepserver_events() -> list[KepEvent]:
     response = requests.get(
@@ -28,7 +30,7 @@ def get_kepserver_events() -> list[KepEvent]:
 
         events.append(
             KepEvent(
-                timestamp=timestamp,
+                timestamp=KepEvent.parse_timestamp(timestamp),
                 name=name,
                 source=source,
                 message=message,

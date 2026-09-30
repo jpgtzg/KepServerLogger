@@ -1,10 +1,8 @@
 import platform
 
-import win32service  # Note: this is a Windows-only module  # pyright: ignore[reportMissingModuleSource]
-
+import win32service  # pyright: ignore[reportMissingModuleSource]
 from lib.models import ServiceInfo
 from lib.utils import utcnow
-
 
 SERVICE_STATE_MAP = {
     win32service.SERVICE_STOPPED: "Stopped",
