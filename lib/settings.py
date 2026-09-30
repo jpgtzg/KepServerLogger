@@ -22,15 +22,10 @@ class MetricType(str, Enum):
     NETWORK = "network"
     SERVICES = "services"
     KEPSERVER_EVENTS = "kepserverevents"
-    OPC_DIAGNOSTICS = "opcdiagnostics"
 
 
 class PrefixConfig(BaseModel):
     prefix: str
-
-
-class OpcDiagnosticsConfig(PrefixConfig):
-    log_path: str
 
 
 class ServiceConfig(BaseModel):
@@ -50,7 +45,6 @@ class MetricsConfig(BaseModel):
     services: Optional[ServiceConfig] = None
     kepserverevents: Optional[PrefixConfig] = None
     tag_channels: Optional[dict[str, dict[str, str]]] = None
-    opcdiagnostics: Optional[OpcDiagnosticsConfig] = None
     host_name: PrefixConfig
 
 
@@ -59,7 +53,6 @@ class Settings(BaseModel):
     Settings for the application, read from the settings.json file
     """
 
-    timestamp_format: str
     log_retention_days: int
     polling_interval_seconds: int = 1
     metrics_to_log: list[MetricType]

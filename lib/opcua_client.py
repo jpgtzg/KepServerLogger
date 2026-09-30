@@ -114,14 +114,11 @@ class OPCUAClient(Client):
         return tag_values, timestamp
 
     async def write_value(
-        self, node: Node, value: float | int | str | bool, data_type: ua.VariantType
+        self, node: Node, value: float | str | bool, data_type: ua.VariantType
     ) -> None:
         if not self._ready:
             raise RuntimeError("Client not ready, call setup() first")
 
-        # KepServer nodes are often configured as Strings, even for numeric values.
-        # If we try to send a float/int to a String-typed node, asyncua will attempt
-        # to encode it as bytes and fail (e.g. "'float' object has no attribute 'encode'").
         coerced_value: float | int | str | bool = value
         if data_type == ua.VariantType.String and not isinstance(value, str):
             coerced_value = str(value)

@@ -3,19 +3,14 @@ This module contains the models for the data that is ingested into the database.
 """
 
 from datetime import datetime, timezone
-from typing import ClassVar
 
 from pydantic import BaseModel, field_validator
 
+from lib.utils import TIMESTAMP_FORMAT
+
 
 class OPCUAModel(BaseModel):
-    _timestamp_format: ClassVar[str] = "%Y-%m-%dT%H:%M:%S.%fZ"
-
     timestamp: datetime
-
-    @classmethod
-    def configure(cls, *, timestamp_format: str) -> None:
-        cls._timestamp_format = timestamp_format
 
     @field_validator("timestamp", mode="before")
     @classmethod
@@ -27,14 +22,8 @@ class OPCUAModel(BaseModel):
                 else v.replace(tzinfo=timezone.utc)
             )
         try:
-            dt = datetime.strptime(v, cls._timestamp_format)
-            return dt.replace(tzinfo=timezone.utc)
+            return datetime.strptime(v, TIMESTAMP_FORMAT).replace(tzinfo=timezone.utc)
         except ValueError:
-            # Accept ISO-8601 with optional milliseconds and optional Z/offset.
-            # Examples observed from KepServer event log:
-            # - 2026-04-08T16:03:49.541
-            # - 2026-04-08T16:03:49.541Z
-            # - 2026-04-08T16:03:49+00:00
             try:
                 iso = v.replace("Z", "+00:00")
                 dt = datetime.fromisoformat(iso)
@@ -46,14 +35,14 @@ class OPCUAModel(BaseModel):
             except Exception as e:
                 raise ValueError(f"Could not parse timestamp '{v}': {e}")
 
-    def to_opcua(self, timestamp_format: str) -> dict:
+    def to_opcua(self) -> dict:
         data = self.model_dump()
         ts = (
             self.timestamp.astimezone(timezone.utc)
             if self.timestamp.tzinfo
             else self.timestamp.replace(tzinfo=timezone.utc)
         )
-        data["timestamp"] = ts.strftime(timestamp_format)
+        data["timestamp"] = ts.strftime(TIMESTAMP_FORMAT)
         return data
 
 
@@ -72,6 +61,7 @@ class CPUUsage(OPCUAModel):
 class RAMUsage(OPCUAModel):
     total_kb: int
     free_kb: int
+
 
 class StorageUsage(OPCUAModel):
     free_gb: float
@@ -101,8 +91,8 @@ class ServiceInfo(OPCUAModel):
             return [int(pid) for pid in v.split(",") if pid]
         return v
 
-    def to_opcua(self, timestamp_format: str) -> dict:
-        data = super().to_opcua(timestamp_format)
+    def to_opcua(self) -> dict:
+        data = super().to_opcua()
         data["process_ids"] = ",".join(str(pid) for pid in self.process_ids)
         return data
 
@@ -114,8 +104,5 @@ class KepEvent(OPCUAModel):
     hash: str
 
 
-class OpcConnectionEvent(OPCUAModel):
-    client_name: str
-    kind: str
-    reason: str
-    hash: str
+class Hostname(OPCUAModel):
+    host_name: str

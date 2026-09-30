@@ -1,3 +1,5 @@
 {
+  "venvPath": "../extractor",
+  "venv": ".venv",
   "extraPaths": [".."]
 }
