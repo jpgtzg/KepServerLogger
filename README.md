@@ -8,7 +8,7 @@ A distributed telemetry system that uses **KepServerEX as the central data hub**
 
 Industrial Data Logger (IDL) is split into two independent applications that communicate exclusively through KepServerEX's OPC UA server:
 
-- **Extractor** — runs on each Windows machine hosting a KepServerEX instance. Collects local system metrics (CPU, RAM, network, services, events, OPC diagnostics) and publishes them as OPC UA nodes on that machine's KepServer.
+- **Extractor** — runs on each Windows machine hosting a KepServerEX instance. Collects local system metrics (CPU, RAM, network, services, events) and publishes them as OPC UA nodes on that machine's KepServer.
 - **Ingestor** — runs on a single central Linux machine. Connects concurrently to all registered KepServer instances, reads all published data (system metrics + tag channels), and persists each server's data into its own dedicated TimescaleDB database.
 
 KepServer acts as the integration point for each site. Neither component talks to the other directly.
@@ -79,10 +79,9 @@ Each server runs as an independent asyncio coroutine. A failure or reconnect on 
 A Python application compiled to a Windows `.exe`. Runs on each KepServer machine. On each polling tick it:
 
 1. Reads local system metrics via `psutil` and Windows APIs.
-2. Reads new OPC diagnostic events from `opcdiags.log` (incremental, byte-offset based).
-3. Polls the KepServer REST API for event log entries.
-4. Publishes all data as OPC UA nodes to the local KepServer.
-5. Publishes the machine's hostname to `IDL.Metrics.host_name`.
+2. Polls the KepServer REST API for event log entries.
+3. Publishes all data as OPC UA nodes to the local KepServer.
+4. Publishes the machine's hostname to `IDL.Metrics.host_name`.
 
 | Metric | UA node pattern | DB table |
 |---|---|---|
@@ -92,7 +91,6 @@ A Python application compiled to a Windows `.exe`. Runs on each KepServer machin
 | Network I/O | `IDL.Metrics.Network.batch` | `network_usage` |
 | Windows services | `IDL.Metrics.Services.<name>` | `services` |
 | KepServer events | `IDL.Metrics.Events.batch` | `events` |
-| OPC client sessions | `IDL.Metrics.OpcConnections.batch` | `opc_connection_events` |
 | Hostname | `IDL.Metrics.host_name` | `active_log` |
 
 Batch nodes (`*.batch`) carry a JSON-encoded array. Per-field nodes carry scalar string values.
@@ -137,7 +135,7 @@ Configuration is split across three files to separate concerns. `.env` is **not 
 | `.env` (ingestor) | Ingestor only | DB host/port/user/password, application name |
 | `settings.json` | Shared behaviour | Polling interval, retention days, which metrics to log, OPC UA node prefixes |
 
-`settings.json` should be kept the same on every extractor and on the ingestor, since it defines the shared node namespace both sides agree on. Strictly, only the OPC UA node-address fields (`metrics_config.*.prefix`, `tag_channels`) and `metrics_to_log` need to match exactly — `metrics_config.services.names` and `metrics_config.opcdiagnostics.log_path` are read only by the extractor and can legitimately differ per machine (e.g. different installed services or a different KepServer install path). It's still easiest to keep one copy of the file everywhere and only vary those two fields when a machine genuinely needs it. `tag_channels` is keyed per server (by the `name` in `servers.json`), so a single shared `settings.json` can hold distinct channels/prefixes for each server without conflicting.
+`settings.json` should be kept the same on every extractor and on the ingestor, since it defines the shared node namespace both sides agree on. Strictly, only the OPC UA node-address fields (`metrics_config.*.prefix`, `tag_channels`) and `metrics_to_log` need to match exactly — `metrics_config.services.names` is read only by the extractor and can legitimately differ per machine (e.g. different installed services). It's still easiest to keep one copy of the file everywhere and only vary that field when a machine genuinely needs it. `tag_channels` is keyed per server (by the `name` in `servers.json`), so a single shared `settings.json` can hold distinct channels/prefixes for each server without conflicting.
 
 `servers.json` and both `.env` files are gitignored. See `docs/servers.example.json`, `docs/settings.extractor.example.json`, `docs/settings.ingestor.example.json`, `docs/extractor.env.example`, and `docs/ingestor.env.example` for templates. Protect all of them with `chmod 600`.
 
@@ -197,7 +195,7 @@ DB_PASSWORD=your-db-password
 
 ### settings.json
 
-Controls which metrics are active and where their OPC UA nodes live. See `docs/settings.extractor.example.json` (deploy next to `extractor.exe`) and `docs/settings.ingestor.example.json` (deploy on the ingestor) for the full structure — the two are identical except that `metrics_config.services.names` and `metrics_config.opcdiagnostics.log_path` are only meaningful on the extractor's copy.
+Controls which metrics are active and where their OPC UA nodes live. See `docs/settings.extractor.example.json` (deploy next to `extractor.exe`) and `docs/settings.ingestor.example.json` (deploy on the ingestor) for the full structure — the two are identical except that `metrics_config.services.names` is only meaningful on the extractor's copy.
 
 ---
 
@@ -237,7 +235,6 @@ Each KepServer instance writes to its own database (named by `db_name` in `serve
 | `network_usage` | `timestamp` | Per-interface sent/received KB |
 | `services` | `timestamp` | Windows service status snapshots |
 | `events` | `timestamp` | KepServer event log entries |
-| `opc_connection_events` | `timestamp` | OPC UA client connect/disconnect events from opcdiags.log |
 | `active_log` | `timestamp` | Ingestor-side active/inactive transitions, with hostname and a link to the causing error |
 | `ingestor_logs` | `timestamp` | Every error/warning the ingestor swallowed while polling that server (per-metric skip, reconnect cause), with full traceback |
 
@@ -353,7 +350,7 @@ The connection-status panel also queries the most recent event at or before the 
 | `extractor.exe` | Built by `build.ps1` |
 | `idl-certgen.exe` | Generates the OPC UA client certificate |
 | `.env` | Credentials and KepServer connection settings |
-| `settings.json` | Node prefixes and `metrics_to_log` must match the ingestor's copy; `services.names`/`opcdiagnostics.log_path` may differ per machine |
+| `settings.json` | Node prefixes and `metrics_to_log` must match the ingestor's copy; `services.names` may differ per machine |
 
 **Central Linux machine (Ingestor):**
 
@@ -470,34 +467,36 @@ If a certificate isn't trusted (or is otherwise rejected during the secure-chann
 
 - The `IDL` channel in KepServer uses the **Simulator** driver, which allows defining UA nodes without a physical device.
 - KepServer tag names do not allow dots. Dots in service names are replaced with underscores.
-- `settings.json` must be kept in sync between all extractors and the ingestor for the node-address fields (`metrics_config.*.prefix`, `tag_channels`) and `metrics_to_log` — these define the shared OPC UA node namespace. `metrics_config.services.names` and `metrics_config.opcdiagnostics.log_path` are extractor-only and can differ per machine.
+- `settings.json` must be kept in sync between all extractors and the ingestor for the node-address fields (`metrics_config.*.prefix`, `tag_channels`) and `metrics_to_log` — these define the shared OPC UA node namespace. `metrics_config.services.names` is extractor-only and can differ per machine.
 - Adding a new KepServer instance: add an entry to `servers.json`, deploy its cert to the ingestor machine, add a matching per-server entry (same `name`) to `metrics_config.tag_channels` in `settings.json` if tag logging is enabled, and restart the ingestor. No other code changes required — the ingestor creates the target database (and enables the `timescaledb` extension) on first connect if it doesn't already exist, as long as `DB_USER` has `CREATEDB` privileges.
 - The ingestor retries dropped connections with exponential backoff (5 → 10 → 20 → 40 → 60s). Each reconnect attempt is independent per server. Connection history is recorded in `active_log`, joinable to `ingestor_logs` via `error_id` for the underlying cause.
 - The extractor and ingestor each read their own `.env` into a dedicated Pydantic settings model (`ExtractorConfig` / `IngestorConfig` in `lib/config.py`) — they have no fields in common, so don't copy one machine's `.env` to the other.
 
-### OPC Diagnostics and Client Connection Tracking
+### Adding a New Metric
 
-KepServerEX writes all OPC UA session activity to a binary log file:
+Every metric follows the same pattern on both sides: a value in `settings.json`, one function that does the work, and one line in a table. Nothing else in the main loops needs to change. The steps below use a metric called `disk_io` as an example.
 
-```
-C:\ProgramData\Kepware\KEPServerEX\V6\opcdiags.log
-```
+**1. Shared (`lib/`)**
 
-The extractor reads this file **incrementally** using a byte-offset cursor — only bytes appended since the last tick are decoded, keeping each iteration at ~1 ms regardless of file size. Parsed events are published to the `OpcConnections.batch` UA node and stored in `opc_connection_events`.
+- `lib/models.py`: add a model that extends `OPCUAModel`. Its fields become the OPC UA node names (`<prefix>.<field>`), and `timestamp` comes from the base class.
+- `lib/settings.py`: add the metric to the `MetricType` enum and a matching optional field on `MetricsConfig`. **The enum value must equal the `MetricsConfig` field name** (for example `DISK_IO = "disk_io"` and `disk_io: Optional[PrefixConfig] = None`), because `Settings` uses the value to check that every enabled metric has a config entry.
+- `settings.json` (and `docs/settings.*.example.json`): add `"disk_io"` to `metrics_to_log` and a `metrics_config.disk_io.prefix` entry. Keep it identical on the extractor and the ingestor, since the prefix is the shared node address.
+- KepServer: create the tags the metric needs under that prefix, and add them to `docs/UA-Node-Tag-Layout.csv`.
+  - A scalar metric needs one tag per model field, for example `Metrics.DiskIO.timestamp` and `Metrics.DiskIO.read_kb`.
+  - A list of items (batch) needs a single string tag named `<prefix>.batch`.
 
-#### Event structure
+**2. Extractor (`extractor/src/`)**
 
-The file is UTF-16-LE encoded. Each event follows this pattern:
+- `metrics/disk_io.py`: add a getter that collects the data and returns the model, or a list of models for a batch. Export it from `metrics/__init__.py`.
+- `publish.py`: add `publish_disk_io(client, metrics)`. It calls the getter, then `publish_scalar(client, data, metrics.disk_io.prefix, "<log message>")` for one model, or `publish_batch(...)` for a list.
+- `main.py`: add `(MetricType.DISK_IO, "DISK_IO", publish_disk_io)` to the `PUBLISHERS` list. The loop calls each entry through `safe_handle` if its type is in `metrics_to_log`.
 
-```
-[<session-tag>]  <EventType>
-0:  Event started
-0000000000: timestamp (UTC): 2026-04-30T10:23:01.456
-0000000000: applicationName: OPC Foundation|UA .NET Standard
-...
-0:  Event complete
-```
+**3. Ingestor (`ingestor/src/`)**
 
-Human-readable client names are resolved from `CreateSessionRequest` events. A `tag → name` map persists across loop iterations so that a `CloseSessionRequest` in a later tick can still resolve the name established earlier. Tags `NoSession`, `AnonymousClient`, and `opc.tcp://…` URLs are skipped (internal KepServer actors).
+- `db.py`: create the table and its index in `initialize()`, add it to the `hypertables` list (this drives retention), and add an `insert_disk_io(...)` method.
+- `subscribe.py`: add `subscribe_disk_io(client, db, metrics)`. It calls `subscribe_scalar(client, metrics.disk_io.prefix, DiskIO)` (or `subscribe_batch(...)`), inserts the result through `db`, and logs the outcome.
+- `main.py`: add `(MetricType.DISK_IO, "DISK_IO", subscribe_disk_io)` to the `COLLECTORS` list.
 
-Each stored `OpcConnectionEvent` has a SHA-256 `hash` field for deduplication.
+**Error handling is automatic.** Both loops wrap each entry in `safe_handle` (`lib/opc_handlers.py`). A failing metric is logged and skipped, it does not stop the others, and after `MAX_CONSECUTIVE_METRIC_FAILURES` failures in a row (3, in `lib/utils.py`) it forces a reconnect. The ingestor also records each failure in `ingestor_logs`. Functions should raise on failure instead of catching their own exceptions. A `ConnectionError` is always re-raised so the session reconnects.
+
+**Not covered by this pattern.** The hostname (published every cycle by the extractor and read once on connect by the ingestor) and tag channels (per-server, added to `collectors` in the ingestor's `main()`) are special cases and have their own code paths.
