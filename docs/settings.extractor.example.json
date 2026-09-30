@@ -9,8 +9,7 @@
         "network",
         "services",
         "kepserverevents",
-        "tag_channels",
-        "opcdiagnostics"
+        "tag_channels"
     ],
     "metrics_config": {
         "cpu": {
@@ -45,10 +44,6 @@
         },
         "host_name": {
             "prefix": "ns=2;s=IDL.Metrics"
-        },
-        "opcdiagnostics": {
-            "prefix": "ns=2;s=IDL.Metrics.OpcConnections",
-            "log_path": "C:\\ProgramData\\Kepware\\KEPServerEX\\V6\\opcdiags.log"
         }
     }
 }

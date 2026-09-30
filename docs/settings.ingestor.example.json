@@ -9,8 +9,7 @@
         "network",
         "services",
         "kepserverevents",
-        "tag_channels",
-        "opcdiagnostics"
+        "tag_channels"
     ],
     "metrics_config": {
         "cpu": {
@@ -41,11 +40,6 @@
         },
         "host_name": {
             "prefix": "ns=2;s=IDL.Metrics"
-        },
-        "opcdiagnostics": {
-            "_note": "prefix must match the extractor's copy; 'log_path' is unused by the ingestor but required by the schema, so it's left empty here",
-            "prefix": "ns=2;s=IDL.Metrics.OpcConnections",
-            "log_path": ""
         }
     }
 }

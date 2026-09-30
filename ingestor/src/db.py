@@ -15,7 +15,6 @@ from lib.models import (
     CPUUsage,
     KepEvent,
     NetworkUsage,
-    OpcConnectionEvent,
     RAMUsage,
     ServiceInfo,
     StorageUsage,
@@ -83,15 +82,6 @@ class IngestorDatabase(ProjectDatabase):
                     process_ids     TEXT NOT NULL
                 );
 
-                CREATE TABLE IF NOT EXISTS opc_connection_events (
-                    hash        TEXT NOT NULL,
-                    timestamp   TIMESTAMPTZ NOT NULL,
-                    client_name TEXT NOT NULL,
-                    kind        TEXT NOT NULL,
-                    reason      TEXT NOT NULL DEFAULT '',
-                    PRIMARY KEY (hash, timestamp)
-                );
-
                 CREATE TABLE IF NOT EXISTS active_log (
                     timestamp   TIMESTAMPTZ NOT NULL,
                     event       TEXT NOT NULL,
@@ -126,7 +116,6 @@ class IngestorDatabase(ProjectDatabase):
                 "CREATE INDEX IF NOT EXISTS idx_storage_timestamp ON storage_usage (timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_services_timestamp ON services (timestamp DESC, name);",
                 "CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events (timestamp DESC);",
-                "CREATE INDEX IF NOT EXISTS idx_opc_conn_events_timestamp ON opc_connection_events (timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_active_log_timestamp ON active_log (timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_active_log_error_id ON active_log (error_id);",
                 "CREATE INDEX IF NOT EXISTS idx_ingestor_logs_timestamp ON ingestor_logs (timestamp DESC, level);",
@@ -140,7 +129,6 @@ class IngestorDatabase(ProjectDatabase):
                 ("storage_usage", "timestamp"),
                 ("services", "timestamp"),
                 ("events", "timestamp"),
-                ("opc_connection_events", "timestamp"),
                 ("active_log", "timestamp"),
                 ("ingestor_logs", "timestamp"),
             ],
@@ -227,7 +215,12 @@ class IngestorDatabase(ProjectDatabase):
         with self.transaction():
             self.execute(
                 "INSERT INTO storage_usage (timestamp, total_gb, used_gb, free_gb) VALUES (%s, %s, %s, %s);",
-                (storage_usage.timestamp, storage_usage.total_gb, storage_usage.used_gb, storage_usage.free_gb),
+                (
+                    storage_usage.timestamp,
+                    storage_usage.total_gb,
+                    storage_usage.used_gb,
+                    storage_usage.free_gb,
+                ),
             )
 
     def insert_network_metrics(self, network_usage: NetworkUsage) -> None:
@@ -246,23 +239,6 @@ class IngestorDatabase(ProjectDatabase):
                     network_usage.network_interface_type,
                     network_usage.kb_bytes_sent,
                     network_usage.kb_bytes_received,
-                ),
-            )
-
-    def insert_opc_connection_event(self, event: OpcConnectionEvent) -> None:
-        with self.transaction():
-            self.execute(
-                """
-                INSERT INTO opc_connection_events (hash, timestamp, client_name, kind, reason)
-                VALUES (%s, %s, %s, %s, %s)
-                ON CONFLICT (hash, timestamp) DO NOTHING;
-                """,
-                (
-                    event.hash,
-                    event.timestamp,
-                    event.client_name,
-                    event.kind,
-                    event.reason,
                 ),
             )
 
