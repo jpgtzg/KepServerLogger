@@ -2,75 +2,48 @@ import asyncio
 import logging
 import os
 import time
-from concurrent.futures import CancelledError
 
-from asyncua.ua.uaerrors import UaError
 from lib.logging import config_logging
 from lib.opcua_client import OPCUAClient
 from lib.settings import MetricType
+from lib.utils import RECONNECT_DELAY
 
-from src.metrics import (
-    OpcDiagnosticsReader,
-    get_hostname,
-    get_kepserver_events,
-    get_memory_info,
-    get_network_interfaces,
-    get_service_info,
-    get_storage,
-    get_total_cpu_usage,
-)
-from src.publishers.opcua import (
-    publish_cpu_usage,
-    publish_host_name,
-    publish_kep_event,
-    publish_network_usage,
-    publish_opc_connection_events,
-    publish_ram_usage,
-    publish_service_info,
-    publish_storage_usage,
+from src.publish import (
+    publish_cpu,
+    publish_hostname,
+    publish_kepserver_events,
+    publish_network,
+    publish_ram,
+    publish_services,
+    publish_storage,
+    safe_handle,
 )
 from src.state import config, settings
 
 config_logging()
 logger = logging.getLogger(__name__)
 
-_RECONNECT_ERRORS = (ConnectionError, CancelledError, UaError)
-_RECONNECT_DELAY = 5
-
-# In frozen executables (e.g. PyInstaller) asyncua can be imported twice,
-# producing two distinct UaError class objects. isinstance() then returns False
-# for the "wrong" copy. Checking the MRO by name catches both copies.
-_RECONNECT_CLASS_NAMES = frozenset(cls.__name__ for cls in _RECONNECT_ERRORS)
-
-
-def _is_reconnect_error(exc: BaseException) -> bool:
-    return isinstance(exc, _RECONNECT_ERRORS) or any(
-        c.__name__ in _RECONNECT_CLASS_NAMES for c in type(exc).__mro__
-    )
+COLLECTORS = [
+    (MetricType.CPU, "CPU", publish_cpu),
+    (MetricType.RAM, "RAM", publish_ram),
+    (MetricType.STORAGE, "STORAGE", publish_storage),
+    (MetricType.NETWORK, "NETWORK", publish_network),
+    (MetricType.SERVICES, "SERVICES", publish_services),
+    (MetricType.KEPSERVER_EVENTS, "KEPSERVER_EVENTS", publish_kepserver_events),
+]
 
 
 async def main() -> None:
     logger.info("Starting metrics extractor...")
 
-    opcdiagnostics_config = settings.metrics_config.opcdiagnostics
-    opc_reader: OpcDiagnosticsReader | None = (
-        OpcDiagnosticsReader(opcdiagnostics_config.log_path)
-        if MetricType.OPC_DIAGNOSTICS in settings.metrics_to_log
-        and opcdiagnostics_config is not None
-        else None
-    )
-
     try:
         while True:
-            await _run_session(opc_reader)
+            await _run_session()
     except KeyboardInterrupt:
         logger.info("Stopping logger...")
-    finally:
-        if opc_reader:
-            opc_reader.close()
 
 
-async def _run_session(opc_reader: OpcDiagnosticsReader | None) -> None:
+async def _run_session() -> None:
     logger.info(f"Connecting to {config.kepserver_server_url}...")
 
     client = OPCUAClient(
@@ -93,91 +66,22 @@ async def _run_session(opc_reader: OpcDiagnosticsReader | None) -> None:
         async with client:
             logger.info("OPC UA client connected, starting main loop")
             while True:
-                if MetricType.CPU in settings.metrics_to_log:
-                    try:
-                        await publish_cpu_usage(client, get_total_cpu_usage())
-                    except Exception as e:
-                        if _is_reconnect_error(e):
-                            raise
-                        logger.exception("[CPU] publish failed")
+                for metric_type, tag, function in COLLECTORS:
+                    if metric_type in settings.metrics_to_log:
+                        await safe_handle(
+                            tag, function(client, settings.metrics_config)
+                        )
 
-                if MetricType.RAM in settings.metrics_to_log:
-                    try:
-                        await publish_ram_usage(client, get_memory_info())
-                    except Exception as e:
-                        if _is_reconnect_error(e):
-                            raise
-                        logger.exception("[RAM] publish failed")
-
-                if MetricType.STORAGE in settings.metrics_to_log:
-                    try:
-                        await publish_storage_usage(client, get_storage())
-                    except Exception as e:
-                        if _is_reconnect_error(e):
-                            raise
-                        logger.exception("[STORAGE] publish failed")
-
-                if MetricType.SERVICES in settings.metrics_to_log:
-                    try:
-                        if (
-                            not settings.metrics_config.services
-                            or not settings.metrics_config.services.names
-                        ):
-                            logger.warning(
-                                "[SERVICES] No service names configured, skipping service info publishing"
-                            )
-                            continue
-                        service_info = [
-                            get_service_info(service_name)
-                            for service_name in settings.metrics_config.services.names
-                        ]
-                        await publish_service_info(client, service_info)
-                    except Exception as e:
-                        if _is_reconnect_error(e):
-                            raise
-                        logger.exception("[SERVICES] publish failed")
-
-                if MetricType.NETWORK in settings.metrics_to_log:
-                    try:
-                        await publish_network_usage(client, get_network_interfaces())
-                    except Exception as e:
-                        if _is_reconnect_error(e):
-                            raise
-                        logger.exception("[NETWORK] publish failed")
-
-                if MetricType.KEPSERVER_EVENTS in settings.metrics_to_log:
-                    try:
-                        await publish_kep_event(client, get_kepserver_events())
-                    except Exception as e:
-                        if _is_reconnect_error(e):
-                            raise
-                        logger.exception("[EVENTS] publish failed")
-
-                if MetricType.OPC_DIAGNOSTICS in settings.metrics_to_log and opc_reader:
-                    try:
-                        events = opc_reader.read_new_events()
-                        await publish_opc_connection_events(client, events)
-                    except Exception as e:
-                        if _is_reconnect_error(e):
-                            raise
-                        logger.exception("[OPC_DIAGS] publish failed")
-
-                try:
-                    host_name = get_hostname()
-                    await publish_host_name(client, host_name)
-                except Exception as e:
-                    if _is_reconnect_error(e):
-                        raise
-                    logger.exception("[HOSTNAME] publish failed")
+                await safe_handle(
+                    "HOSTNAME", publish_hostname(client, settings.metrics_config)
+                )
 
                 await asyncio.sleep(settings.polling_interval_seconds)
-    except Exception as e:
-        if not _is_reconnect_error(e):
-            raise
+    except ConnectionError as e:
         logger.warning(
-            f"Connection lost ({type(e).__name__}: {e}), reconnecting in {_RECONNECT_DELAY}s..."
+            f"Connection lost ({type(e).__name__}: {e}), reconnecting in {RECONNECT_DELAY}s..."
         )
-        await asyncio.sleep(_RECONNECT_DELAY)
+        await asyncio.sleep(RECONNECT_DELAY)
     finally:
         logger.info(f"Session uptime: {time.time() - start_time:.2f} seconds")
 
