@@ -12,7 +12,7 @@ a = Analysis(
     [os.path.join(SRC, 'main.py')],
     pathex=[
         SRC,           # for 'db' module
-        INGESTOR_ROOT, # for 'subscribers' package
+        INGESTOR_ROOT, # for ingestor package root
         ROOT,           # for 'lib' package
     ],
     binaries=[],
