@@ -2,13 +2,13 @@
 
 Publishing functions for various metrics.
 
-When adding new metrics, add a new function here and update the COLLECTORS list in main.py.
+When adding new metrics, add a new function here and update the PUBLISHERS list in main.py.
 """
 
 import logging
 
+from lib.opc_handlers import publish_batch, publish_scalar
 from lib.opcua_client import OPCUAClient
-from lib.publishers import publish_batch, publish_scalar
 
 from src.metrics import (
     get_hostname,
@@ -21,15 +21,6 @@ from src.metrics import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-async def safe_handle(tag: str, coro) -> None:
-    try:
-        await coro
-    except ConnectionError:
-        raise
-    except Exception as e:
-        logger.exception(f"[{tag}] publish failed: {e}")
 
 
 async def publish_cpu(client: OPCUAClient, metrics) -> None:

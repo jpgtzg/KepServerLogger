@@ -4,9 +4,11 @@ import os
 import time
 
 from lib.logging import config_logging
+from lib.monitor import OPCUAMonitor
+from lib.opc_handlers import safe_handle
 from lib.opcua_client import OPCUAClient
 from lib.settings import MetricType
-from lib.utils import RECONNECT_DELAY
+from lib.utils import OPCUA_REQUEST_TIMEOUT_SECONDS, RECONNECT_DELAY
 
 from src.publish import (
     publish_cpu,
@@ -16,14 +18,13 @@ from src.publish import (
     publish_ram,
     publish_services,
     publish_storage,
-    safe_handle,
 )
 from src.state import config, settings
 
 config_logging()
 logger = logging.getLogger(__name__)
 
-COLLECTORS = [
+PUBLISHERS = [
     (MetricType.CPU, "CPU", publish_cpu),
     (MetricType.RAM, "RAM", publish_ram),
     (MetricType.STORAGE, "STORAGE", publish_storage),
@@ -54,6 +55,7 @@ async def _run_session() -> None:
         key_path=config.key_path,
         username=config.kepserver_username,
         password=config.kepserver_password,
+        timeout=OPCUA_REQUEST_TIMEOUT_SECONDS,
     )
 
     await client.setup()
@@ -65,15 +67,20 @@ async def _run_session() -> None:
     try:
         async with client:
             logger.info("OPC UA client connected, starting main loop")
+            monitor = OPCUAMonitor()
             while True:
-                for metric_type, tag, function in COLLECTORS:
+                for metric_type, tag, function in PUBLISHERS:
                     if metric_type in settings.metrics_to_log:
                         await safe_handle(
-                            tag, function(client, settings.metrics_config)
+                            tag,
+                            monitor,
+                            function(client, settings.metrics_config),
                         )
 
                 await safe_handle(
-                    "HOSTNAME", publish_hostname(client, settings.metrics_config)
+                    "HOSTNAME",
+                    monitor,
+                    publish_hostname(client, settings.metrics_config),
                 )
 
                 await asyncio.sleep(settings.polling_interval_seconds)
