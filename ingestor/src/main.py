@@ -107,7 +107,7 @@ async def main(server: ServerConfig):
                                 metric,
                                 monitor,
                                 function(client, db, settings.metrics_config),
-                                on_error=lambda e, metric=metric: db.log_event(
+                                on_error_hook=lambda e, metric=metric: db.log_event(
                                     "WARNING", metric, e
                                 ),
                             )
