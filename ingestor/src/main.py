@@ -53,7 +53,6 @@ async def main(server: ServerConfig):
 
     collectors = list(COLLECTORS)
 
-    # If the server has tag channels configured, add the TAG_CHANNELS collector to the beginning of the list
     if server_channels_config is not None:
         collectors.insert(
             0,

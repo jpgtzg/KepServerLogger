@@ -23,7 +23,7 @@ async def safe_handle(
     metric: str,
     monitor: OPCUAMonitor,
     coro,
-    on_error: Callable[[Exception], object] | None = None,
+    on_error_action: Callable[[Exception], object] | None = None,
 ) -> None:
     try:
         await coro
@@ -32,8 +32,8 @@ async def safe_handle(
         raise
     except Exception as e:
         logger.exception(f"[{metric}] publish failed")
-        if on_error is not None:
-            on_error(e)
+        if on_error_action is not None:
+            on_error_action(e)
         monitor.on_failure(metric)
 
 
