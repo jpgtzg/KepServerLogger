@@ -9,7 +9,12 @@ RECONNECT_DELAY = 5
 MAX_CONSECUTIVE_METRIC_FAILURES = 3
 OPCUA_REQUEST_TIMEOUT_SECONDS = 30
 
+MAX_HEARTBEAT_NUMBER = 255
+
 _EXCLUDE_TAGS = ["_Write", "_WRITE"]
+
+COLLECTOR_HEARTBEAT_SEND_PATH = "ns=2;s=IDL.Metrics.collector_heartbeat_send"
+COLLECTOR_HEARTBEAT_RECEIVE_PATH = "ns=2;s=IDL.Metrics.collector_heartbeat_receive"
 
 
 def utcnow() -> datetime:
