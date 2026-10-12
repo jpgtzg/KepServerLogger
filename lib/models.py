@@ -104,9 +104,5 @@ class KepEvent(OPCUAModel):
     hash: str
 
 
-class Hostname(OPCUAModel):
-    host_name: str
-
-
 class Heartbeat(OPCUAModel):
     value: int

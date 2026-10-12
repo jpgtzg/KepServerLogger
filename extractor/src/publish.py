@@ -92,9 +92,7 @@ async def publish_kepserver_events(client: OPCUAClient, metrics) -> None:
 
 async def publish_hostname(client: OPCUAClient, metrics) -> None:
     hostname = get_hostname()
-    await publish_scalar(
-        client,
-        hostname,
-        metrics.host_name.prefix,
-        f"[HOSTNAME] Publishing hostname: {hostname}",
-    )
+    logger.info(f"[HOSTNAME] Publishing hostname: {hostname}")
+    node = client.get_node(metrics.host_name.prefix)
+    variant_type = await node.read_data_type_as_variant_type()
+    await client.write_value(node, hostname, variant_type)

@@ -43,7 +43,7 @@
             }
         },
         "host_name": {
-            "prefix": "ns=2;s=IDL.Metrics"
+            "prefix": "ns=2;s=IDL.Metrics.host_name"
         }
     }
 }

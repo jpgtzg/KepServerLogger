@@ -2,7 +2,6 @@ import logging
 
 from lib.models import (
     CPUUsage,
-    Hostname,
     KepEvent,
     NetworkUsage,
     RAMUsage,
@@ -61,8 +60,7 @@ async def subscribe_kepserver_events(
 
 
 async def subscribe_hostname(client: OPCUAClient, metrics) -> str:
-    hostname = await subscribe_scalar(client, metrics.host_name.prefix, Hostname)
-    return hostname.host_name
+    return await client.get_node(metrics.host_name.prefix).read_value()
 
 
 async def subscribe_tag_channels(
