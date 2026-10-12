@@ -106,3 +106,7 @@ class KepEvent(OPCUAModel):
 
 class Hostname(OPCUAModel):
     host_name: str
+
+
+class Heartbeat(OPCUAModel):
+    value: int

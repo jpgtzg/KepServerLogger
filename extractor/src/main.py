@@ -3,12 +3,19 @@ import logging
 import os
 import time
 
+from lib.heartbeat import HeartbeatHandler
 from lib.logging import config_logging
 from lib.monitor import OPCUAMonitor
 from lib.opc_handlers import safe_handle
 from lib.opcua_client import OPCUAClient
 from lib.settings import MetricType
-from lib.utils import OPCUA_REQUEST_TIMEOUT_SECONDS, RECONNECT_DELAY
+from lib.utils import (
+    COLLECTOR_HEARTBEAT_RECEIVE_PATH,
+    COLLECTOR_HEARTBEAT_SEND_PATH,
+    MAX_HEARTBEAT_NUMBER,
+    OPCUA_REQUEST_TIMEOUT_SECONDS,
+    RECONNECT_DELAY,
+)
 
 from src.publish import (
     publish_cpu,
@@ -68,6 +75,18 @@ async def _run_session() -> None:
         async with client:
             logger.info("OPC UA client connected, starting main loop")
             monitor = OPCUAMonitor()
+
+            heartbeat = HeartbeatHandler(
+                client=client,
+                max_heartbeat=MAX_HEARTBEAT_NUMBER,
+                echo=True,
+                send_path=COLLECTOR_HEARTBEAT_SEND_PATH,
+                receive_path=COLLECTOR_HEARTBEAT_RECEIVE_PATH,
+                max_rtt=settings.polling_interval_seconds * 2,
+                stale_after=settings.polling_interval_seconds * 5,
+            )
+            await heartbeat.start()
+
             while True:
                 for metric_type, tag, function in PUBLISHERS:
                     if metric_type in settings.metrics_to_log:
@@ -82,6 +101,8 @@ async def _run_session() -> None:
                     monitor,
                     publish_hostname(client, settings.metrics_config),
                 )
+
+                heartbeat.is_stale()
 
                 await asyncio.sleep(settings.polling_interval_seconds)
     except ConnectionError as e:

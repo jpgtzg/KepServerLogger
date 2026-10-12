@@ -4,8 +4,10 @@ Ingestor for retrieving data from the OPC UA server and ingesting it into the da
 
 import asyncio
 import logging
+from asyncio.timeouts import Timeout
 from functools import partial
 
+from lib.heartbeat import HeartbeatHandler
 from lib.logging import config_logging
 from lib.monitor import OPCUAMonitor
 from lib.opc_handlers import safe_handle
@@ -13,6 +15,9 @@ from lib.opcua_client import OPCUAClient
 from lib.servers import ServerConfig, load_servers_configs
 from lib.settings import MetricType
 from lib.utils import (
+    COLLECTOR_HEARTBEAT_RECEIVE_PATH,
+    COLLECTOR_HEARTBEAT_SEND_PATH,
+    MAX_HEARTBEAT_NUMBER,
     OPCUA_REQUEST_TIMEOUT_SECONDS,
     RECONNECT_DELAY,
     get_channel_tags,
@@ -100,6 +105,18 @@ async def main(server: ServerConfig):
                 retry_count = 0
 
                 monitor = OPCUAMonitor()
+
+                heartbeat = HeartbeatHandler(
+                    client=client,
+                    max_heartbeat=MAX_HEARTBEAT_NUMBER,
+                    echo=False,
+                    send_path=COLLECTOR_HEARTBEAT_SEND_PATH,
+                    receive_path=COLLECTOR_HEARTBEAT_RECEIVE_PATH,
+                    max_rtt=settings.polling_interval_seconds * 2,
+                    stale_after=settings.polling_interval_seconds * 5,
+                )
+                await heartbeat.start()
+
                 while True:
                     for metric_type, metric, function in collectors:
                         if metric_type in settings.metrics_to_log:
@@ -111,6 +128,14 @@ async def main(server: ServerConfig):
                                     "WARNING", metric, e
                                 ),
                             )
+
+                    await heartbeat.send_heartbeat()
+                    if heartbeat.is_stale():
+                        db.log_event(
+                            "WARNING",
+                            "HEARTBEAT",
+                            TimeoutError("Heartbeat is stale"),
+                        )
 
                     await asyncio.sleep(settings.polling_interval_seconds)
 
