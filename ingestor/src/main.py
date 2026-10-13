@@ -8,7 +8,7 @@ from asyncio.timeouts import Timeout
 from functools import partial
 
 from lib.heartbeat import HeartbeatHandler
-from lib.logging import config_logging
+from lib.logging import config_logging, set_log_context
 from lib.monitor import OPCUAMonitor
 from lib.opc_handlers import safe_handle
 from lib.opcua_client import OPCUAClient
@@ -37,7 +37,7 @@ from src.subscribe import (
     subscribe_tag_channels,
 )
 
-config_logging()
+config_logging(json_console=True)
 logger = logging.getLogger(__name__)
 
 COLLECTORS = [
@@ -51,6 +51,7 @@ COLLECTORS = [
 
 
 async def main(server: ServerConfig):
+    set_log_context(server_name=server.name, database=server.db_name, host_name=None)
     logger.info(f"[{server.name}] Initiating IDL Central Collector...")
 
     server_channels_config = get_server_channels(server, settings.metrics_config)
@@ -85,6 +86,7 @@ async def main(server: ServerConfig):
     retry_count = 0
     while True:
         try:
+            set_log_context(host_name=None)
             logger.info(f"[{server.name}] Connecting to {server.url}...")
             client = OPCUAClient(
                 url=server.url,
@@ -100,6 +102,7 @@ async def main(server: ServerConfig):
 
             async with client:
                 host_name = await subscribe_hostname(client, settings.metrics_config)
+                set_log_context(host_name=host_name)
                 db.log_status("active", host_name=host_name)
                 logger.info(f"[{server.name}] Connected — host: {host_name}")
                 retry_count = 0

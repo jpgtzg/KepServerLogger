@@ -19,19 +19,28 @@ logger = logging.getLogger(__name__)
 async def subscribe_cpu(client: OPCUAClient, db: IngestorDatabase, metrics) -> None:
     cpu_usage = await subscribe_scalar(client, metrics.cpu.prefix, CPUUsage)
     db.insert_cpu_usage(cpu_usage)
-    logger.info("[CPU] Logged CPU usage")
+    logger.info("[CPU] Logged CPU usage", extra={
+        "event": "telemetry.cpu", "data": cpu_usage.model_dump(mode="json"),
+        "units": {"usage": "percent"},
+    })
 
 
 async def subscribe_ram(client: OPCUAClient, db: IngestorDatabase, metrics) -> None:
     ram_usage = await subscribe_scalar(client, metrics.ram.prefix, RAMUsage)
     db.insert_ram_usage(ram_usage)
-    logger.info("[RAM] Logged RAM usage")
+    logger.info("[RAM] Logged RAM usage", extra={
+        "event": "telemetry.ram", "data": ram_usage.model_dump(mode="json"),
+        "units": {"total_kb": "KiB", "free_kb": "KiB"},
+    })
 
 
 async def subscribe_storage(client: OPCUAClient, db: IngestorDatabase, metrics) -> None:
     storage_usage = await subscribe_scalar(client, metrics.storage.prefix, StorageUsage)
     db.insert_storage_usage(storage_usage=storage_usage)
-    logger.info("[STORAGE] Logged STORAGE usage")
+    logger.info("[STORAGE] Logged STORAGE usage", extra={
+        "event": "telemetry.storage", "data": storage_usage.model_dump(mode="json"),
+        "units": {"free_gb": "GiB", "used_gb": "GiB", "total_gb": "GiB"},
+    })
 
 
 async def subscribe_network(client: OPCUAClient, db: IngestorDatabase, metrics) -> None:
