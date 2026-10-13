@@ -1,7 +1,7 @@
 ﻿Tag Name,Address,Data Type,Respect Data Type,Client Access,Scan Rate,Scaling,Raw Low,Raw High,Scaled Low,Scaled High,Scaled Data Type,Clamp Low,Clamp High,Eng Units,Description,Negate Value
 "host_name","S0102",String,1,R/W,100,,,,,,,,,,"",
-"heartbeat.collector_send","S0103",Long,1,R/W,100,,,,,,,,,,"",
-"heartbeat.collector_receive","S0104",Long,1,R/W,100,,,,,,,,,,"",
+"Heartbeat.collector_send","S0103",Long,1,R/W,100,,,,,,,,,,"",
+"Heartbeat.collector_receive","S0104",Long,1,R/W,100,,,,,,,,,,"",
 "CPU.timestamp","S0000",String,1,R/W,100,,,,,,,,,,"",
 "CPU.usage","S0001",String,1,R/W,100,,,,,,,,,,"",
 "Events.batch","S0046",String,1,R/W,100,,,,,,,,,,"",
