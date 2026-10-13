@@ -88,19 +88,27 @@ async def _run_session() -> None:
             await heartbeat.start()
 
             while True:
-                for metric_type, tag, function in PUBLISHERS:
-                    if metric_type in settings.metrics_to_log:
-                        await safe_handle(
-                            tag,
-                            monitor,
-                            function(client, settings.metrics_config),
-                        )
-
-                await safe_handle(
-                    "HOSTNAME",
-                    monitor,
-                    publish_hostname(client, settings.metrics_config),
+                handlers = [
+                    safe_handle(
+                        tag,
+                        monitor,
+                        function(client, settings.metrics_config),
+                    )
+                    for metric_type, tag, function in PUBLISHERS
+                    if metric_type in settings.metrics_to_log
+                ]
+                handlers.append(
+                    safe_handle(
+                        "HOSTNAME",
+                        monitor,
+                        publish_hostname(client, settings.metrics_config),
+                    )
                 )
+
+                results = await asyncio.gather(*handlers, return_exceptions=True)
+                for result in results:
+                    if isinstance(result, BaseException):
+                        raise result
 
                 heartbeat.is_stale()
 
