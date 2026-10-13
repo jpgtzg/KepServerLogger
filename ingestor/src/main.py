@@ -8,7 +8,7 @@ from asyncio.timeouts import Timeout
 from functools import partial
 
 from lib.heartbeat import HeartbeatHandler
-from lib.logging import config_logging
+from lib.logging import config_logging, current_server
 from lib.monitor import OPCUAMonitor
 from lib.opc_handlers import safe_handle
 from lib.opcua_client import OPCUAClient
@@ -51,6 +51,7 @@ COLLECTORS = [
 
 
 async def main(server: ServerConfig):
+    current_server.set(server.name)
     logger.info(f"[{server.name}] Initiating IDL Central Collector...")
 
     server_channels_config = get_server_channels(server, settings.metrics_config)

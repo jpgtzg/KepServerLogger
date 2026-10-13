@@ -1,6 +1,25 @@
 import logging
 import os
+from contextvars import ContextVar
 from logging.handlers import TimedRotatingFileHandler
+
+# Name of the server the current task is working for. Each asyncio task has its
+# own copy, so concurrent per-server tasks don't overwrite each other.
+current_server: ContextVar[str | None] = ContextVar("current_server", default=None)
+
+
+class ServerPrefixFilter(logging.Filter):
+    """Prefixes log messages with the server the current task belongs to."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        server = current_server.get()
+        if server:
+            message = record.getMessage()
+            prefix = f"[{server}]"
+            if not message.startswith(prefix):
+                record.msg = f"{prefix} {message}"
+                record.args = None
+        return True
 
 
 def config_logging(log_dir: str = "logs", app_level: int = logging.INFO):
@@ -24,6 +43,8 @@ def config_logging(log_dir: str = "logs", app_level: int = logging.INFO):
     formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
     file_handler.setFormatter(formatter)
     console_handler.setFormatter(formatter)
+    for handler in (file_handler, console_handler):
+        handler.addFilter(ServerPrefixFilter())
 
     logging.basicConfig(
         level=app_level,
