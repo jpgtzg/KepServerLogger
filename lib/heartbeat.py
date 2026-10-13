@@ -22,6 +22,10 @@ class HeartbeatHandler:
     ):
         self.client = client
         self.max_heartbeat = max_heartbeat
+        # The paths are named from the collector's point of view, so the echoing
+        # side listens on the collector's send path and answers on its receive path.
+        if echo:
+            send_path, receive_path = receive_path, send_path
         self.send_path = send_path
         self.receive_path = receive_path
         self.max_rtt = max_rtt
