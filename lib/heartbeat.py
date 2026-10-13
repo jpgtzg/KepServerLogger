@@ -1,4 +1,6 @@
+import asyncio
 import time
+from collections.abc import Callable
 from logging import getLogger
 
 from asyncua import Node
@@ -117,3 +119,26 @@ class HeartbeatHandler:
             self._increasing = True
 
         self._heartbeat += 1 if self._increasing else -1
+
+    async def run(
+        self,
+        interval: float,
+        on_stale: Callable[[], object] | None = None,
+    ) -> None:
+        """
+        Sends a heartbeat every `interval` seconds until cancelled, independent of
+        the metric loop. `on_stale` is called once each time the echo goes stale.
+        """
+        was_stale = False
+        while True:
+            try:
+                await self.send_heartbeat()
+            except Exception:
+                logger.exception("[HEARTBEAT] Failed to send heartbeat")
+
+            stale = self.is_stale()
+            if stale and not was_stale and on_stale is not None:
+                on_stale()
+            was_stale = stale
+
+            await asyncio.sleep(interval)

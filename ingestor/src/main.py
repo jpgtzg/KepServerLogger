@@ -19,6 +19,7 @@ from lib.utils import (
     AGENT_HEARTBEAT_SEND_PATH,
     COLLECTOR_HEARTBEAT_RECEIVE_PATH,
     COLLECTOR_HEARTBEAT_SEND_PATH,
+    HEARTBEAT_INTERVAL_SECONDS,
     MAX_HEARTBEAT_NUMBER,
     OPCUA_REQUEST_TIMEOUT_SECONDS,
     RECONNECT_DELAY,
@@ -131,27 +132,30 @@ async def main(server: ServerConfig):
                 )
                 await agent_heartbeat.start()
 
-                while True:
-                    for metric_type, metric, function in collectors:
-                        if metric_type in settings.metrics_to_log:
-                            await safe_handle(
-                                metric,
-                                monitor,
-                                function(client, db, settings.metrics_config),
-                                on_error_hook=lambda e, metric=metric: db.log_event(
-                                    "WARNING", metric, e
-                                ),
-                            )
+                heartbeat_task = asyncio.create_task(
+                    collector_heartbeat.run(
+                        HEARTBEAT_INTERVAL_SECONDS,
+                        on_stale=lambda: db.log_event(
+                            "WARNING", "HEARTBEAT", TimeoutError("Heartbeat is stale")
+                        ),
+                    )
+                )
+                try:
+                    while True:
+                        for metric_type, metric, function in collectors:
+                            if metric_type in settings.metrics_to_log:
+                                await safe_handle(
+                                    metric,
+                                    monitor,
+                                    function(client, db, settings.metrics_config),
+                                    on_error_hook=lambda e, metric=metric: db.log_event(
+                                        "WARNING", metric, e
+                                    ),
+                                )
 
-                    await collector_heartbeat.send_heartbeat()
-                    if collector_heartbeat.is_stale():
-                        db.log_event(
-                            "WARNING",
-                            "HEARTBEAT",
-                            TimeoutError("Heartbeat is stale"),
-                        )
-
-                    await asyncio.sleep(settings.polling_interval_seconds)
+                        await asyncio.sleep(settings.polling_interval_seconds)
+                finally:
+                    heartbeat_task.cancel()
 
         except (KeyboardInterrupt, asyncio.CancelledError):
             db.log_status("inactive", reason="shutdown")
