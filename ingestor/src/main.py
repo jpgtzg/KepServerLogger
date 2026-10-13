@@ -15,6 +15,8 @@ from lib.opcua_client import OPCUAClient
 from lib.servers import ServerConfig, load_servers_configs
 from lib.settings import MetricType
 from lib.utils import (
+    AGENT_HEARTBEAT_RECEIVE_PATH,
+    AGENT_HEARTBEAT_SEND_PATH,
     COLLECTOR_HEARTBEAT_RECEIVE_PATH,
     COLLECTOR_HEARTBEAT_SEND_PATH,
     MAX_HEARTBEAT_NUMBER,
@@ -107,7 +109,7 @@ async def main(server: ServerConfig):
 
                 monitor = OPCUAMonitor()
 
-                heartbeat = HeartbeatHandler(
+                collector_heartbeat = HeartbeatHandler(
                     client=client,
                     max_heartbeat=MAX_HEARTBEAT_NUMBER,
                     echo=False,
@@ -116,7 +118,18 @@ async def main(server: ServerConfig):
                     max_rtt=settings.polling_interval_seconds * 2,
                     stale_after=settings.polling_interval_seconds * 5,
                 )
-                await heartbeat.start()
+                await collector_heartbeat.start()
+
+                agent_heartbeat = HeartbeatHandler(
+                    client=client,
+                    max_heartbeat=MAX_HEARTBEAT_NUMBER,
+                    echo=True,
+                    send_path=AGENT_HEARTBEAT_SEND_PATH,
+                    receive_path=AGENT_HEARTBEAT_RECEIVE_PATH,
+                    max_rtt=settings.polling_interval_seconds * 2,
+                    stale_after=settings.polling_interval_seconds * 5,
+                )
+                await agent_heartbeat.start()
 
                 while True:
                     for metric_type, metric, function in collectors:
@@ -130,8 +143,8 @@ async def main(server: ServerConfig):
                                 ),
                             )
 
-                    await heartbeat.send_heartbeat()
-                    if heartbeat.is_stale():
+                    await collector_heartbeat.send_heartbeat()
+                    if collector_heartbeat.is_stale():
                         db.log_event(
                             "WARNING",
                             "HEARTBEAT",

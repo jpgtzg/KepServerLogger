@@ -15,6 +15,8 @@ _EXCLUDE_TAGS = ["_Write", "_WRITE"]
 
 COLLECTOR_HEARTBEAT_SEND_PATH = "ns=2;s=IDL.Metrics.Heartbeat.collector_send"
 COLLECTOR_HEARTBEAT_RECEIVE_PATH = "ns=2;s=IDL.Metrics.Heartbeat.collector_receive"
+AGENT_HEARTBEAT_SEND_PATH = "ns=2;s=IDL.Metrics.Heartbeat.agent_send"
+AGENT_HEARTBEAT_RECEIVE_PATH = "ns=2;s=IDL.Metrics.Heartbeat.agent_receive"
 
 
 def utcnow() -> datetime:

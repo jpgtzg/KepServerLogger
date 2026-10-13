@@ -10,6 +10,8 @@ from lib.opc_handlers import safe_handle
 from lib.opcua_client import OPCUAClient
 from lib.settings import MetricType
 from lib.utils import (
+    AGENT_HEARTBEAT_RECEIVE_PATH,
+    AGENT_HEARTBEAT_SEND_PATH,
     COLLECTOR_HEARTBEAT_RECEIVE_PATH,
     COLLECTOR_HEARTBEAT_SEND_PATH,
     MAX_HEARTBEAT_NUMBER,
@@ -76,7 +78,7 @@ async def _run_session() -> None:
             logger.info("OPC UA client connected, starting main loop")
             monitor = OPCUAMonitor()
 
-            heartbeat = HeartbeatHandler(
+            collector_heartbeat = HeartbeatHandler(
                 client=client,
                 max_heartbeat=MAX_HEARTBEAT_NUMBER,
                 echo=True,
@@ -85,7 +87,18 @@ async def _run_session() -> None:
                 max_rtt=settings.polling_interval_seconds * 2,
                 stale_after=settings.polling_interval_seconds * 5,
             )
-            await heartbeat.start()
+            await collector_heartbeat.start()
+
+            agent_heartbeat = HeartbeatHandler(
+                client=client,
+                max_heartbeat=MAX_HEARTBEAT_NUMBER,
+                echo=False,
+                send_path=AGENT_HEARTBEAT_SEND_PATH,
+                receive_path=AGENT_HEARTBEAT_RECEIVE_PATH,
+                max_rtt=settings.polling_interval_seconds * 2,
+                stale_after=settings.polling_interval_seconds * 5,
+            )
+            await agent_heartbeat.start()
 
             while True:
                 handlers = [
@@ -110,7 +123,11 @@ async def _run_session() -> None:
                     if isinstance(result, BaseException):
                         raise result
 
-                heartbeat.is_stale()
+                collector_heartbeat.is_stale()
+
+                await agent_heartbeat.send_heartbeat()
+                if agent_heartbeat.is_stale():
+                    logger.warning("[HEARTBEAT] Agent heartbeat is stale")
 
                 await asyncio.sleep(settings.polling_interval_seconds)
     except ConnectionError as e:

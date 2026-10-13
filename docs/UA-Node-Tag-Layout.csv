@@ -2,6 +2,8 @@
 "host_name","S0102",String,1,R/W,100,,,,,,,,,,"",
 "Heartbeat.collector_send","K0103",Long,1,R/W,100,,,,,,,,,,"",
 "Heartbeat.collector_receive","K0105",Long,1,R/W,100,,,,,,,,,,"",
+"Heartbeat.agent_send","K0107",Long,1,R/W,100,,,,,,,,,,"",
+"Heartbeat.agent_receive","K0109",Long,1,R/W,100,,,,,,,,,,"",
 "CPU.timestamp","S0000",String,1,R/W,100,,,,,,,,,,"",
 "CPU.usage","S0001",String,1,R/W,100,,,,,,,,,,"",
 "Events.batch","S0046",String,1,R/W,100,,,,,,,,,,"",
