@@ -102,7 +102,3 @@ class KepEvent(OPCUAModel):
     source: str
     message: str
     hash: str
-
-
-class Heartbeat(OPCUAModel):
-    value: int

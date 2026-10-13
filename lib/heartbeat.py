@@ -3,8 +3,6 @@ from logging import getLogger
 
 from asyncua import Node
 
-from lib.models import Heartbeat
-from lib.opc_handlers import publish_scalar
 from lib.opcua_client import OPCUAClient
 from lib.utils import utcnow
 
@@ -32,7 +30,7 @@ class HeartbeatHandler:
         self.echo = echo
 
         self._increasing = True
-        self._heartbeat = Heartbeat(timestamp=utcnow(), value=0)
+        self._heartbeat = 0
 
         self._sub = None
 
@@ -102,21 +100,16 @@ class HeartbeatHandler:
         self,
     ):
         self._update_heartbeat()
-        self._sent_at_map[self._heartbeat.value] = time.monotonic()
-        await publish_scalar(
-            client=self.client,
-            data=self._heartbeat,
-            prefix=self.send_path,
-            logging_str=f"[HEARTBEAT] Publishing heartbeat value: {self._heartbeat}",
-        )
+        self._sent_at_map[self._heartbeat] = time.monotonic()
+        logger.info(f"[HEARTBEAT] Publishing heartbeat value={self._heartbeat}")
+        node = self.client.get_node(self.send_path)
+        variant_type = await node.read_data_type_as_variant_type()
+        await self.client.write_value(node, self._heartbeat, variant_type)
 
     def _update_heartbeat(self):
-        self._heartbeat.timestamp = utcnow()
-        if self._heartbeat.value == self.max_heartbeat and self._increasing:
+        if self._heartbeat == self.max_heartbeat and self._increasing:
             self._increasing = False
-        elif self._heartbeat.value == 0 and not self._increasing:
+        elif self._heartbeat == 0 and not self._increasing:
             self._increasing = True
 
-        self._heartbeat.value = (
-            self._heartbeat.value + 1 if self._increasing else self._heartbeat.value - 1
-        )
+        self._heartbeat += 1 if self._increasing else -1

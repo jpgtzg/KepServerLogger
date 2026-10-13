@@ -13,8 +13,8 @@ MAX_HEARTBEAT_NUMBER = 255
 
 _EXCLUDE_TAGS = ["_Write", "_WRITE"]
 
-COLLECTOR_HEARTBEAT_SEND_PATH = "ns=2;s=IDL.Metrics.collector_heartbeat_send"
-COLLECTOR_HEARTBEAT_RECEIVE_PATH = "ns=2;s=IDL.Metrics.collector_heartbeat_receive"
+COLLECTOR_HEARTBEAT_SEND_PATH = "ns=2;s=IDL.Metrics.heartbeat.collector_send"
+COLLECTOR_HEARTBEAT_RECEIVE_PATH = "ns=2;s=IDL.Metrics.heartbeat.collector_receive"
 
 
 def utcnow() -> datetime:
