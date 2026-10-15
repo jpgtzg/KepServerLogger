@@ -41,8 +41,11 @@ class IngestorDatabase(ProjectDatabase):
                     tag                 TEXT NOT NULL,
                     value               TEXT,
                     status_code         TEXT,
-                    source_timestamp    TIMESTAMPTZ
+                    source_timestamp    TIMESTAMPTZ,
+                    logger_timestamp    TIMESTAMPTZ
                 );
+
+                ALTER TABLE tags ADD COLUMN IF NOT EXISTS logger_timestamp TIMESTAMPTZ;
 
                 CREATE TABLE IF NOT EXISTS events (
                     hash        TEXT NOT NULL,
@@ -143,8 +146,8 @@ class IngestorDatabase(ProjectDatabase):
         with self.transaction():
             self.execute_many(
                 """
-                INSERT INTO tags (tag, value, status_code, source_timestamp, server_timestamp)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO tags (tag, value, status_code, source_timestamp, server_timestamp, logger_timestamp)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 """,
                 [
                     (
@@ -153,6 +156,7 @@ class IngestorDatabase(ProjectDatabase):
                         r.status_code,
                         r.source_timestamp,
                         r.server_timestamp,
+                        r.logger_timestamp,
                     )
                     for r in rows
                 ],
@@ -175,7 +179,8 @@ class IngestorDatabase(ProjectDatabase):
                     if status_code is not None
                     else "Unknown",
                     source_timestamp=data_value.SourceTimestamp,
-                    server_timestamp=timestamp,
+                    server_timestamp=data_value.ServerTimestamp,
+                    logger_timestamp=timestamp,
                 )
             )
         return rows

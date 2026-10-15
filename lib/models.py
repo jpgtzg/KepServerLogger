@@ -51,7 +51,8 @@ class TagData(BaseModel):
     value: str
     status_code: str
     source_timestamp: datetime | None
-    server_timestamp: datetime
+    server_timestamp: datetime | None
+    logger_timestamp: datetime
 
 
 class CPUUsage(OPCUAModel):
