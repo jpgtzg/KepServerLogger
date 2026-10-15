@@ -100,7 +100,14 @@ class OPCUAClient(Client):
             raise RuntimeError("Client not ready, call setup() first")
 
         nodes = [self.get_node(tag) for tag in tags]
-        values = await self.read_attributes(nodes, ua.AttributeIds.Value)
+        params = ua.ReadParameters()
+        params.TimestampsToReturn = ua.TimestampsToReturn.Both
+        for node in nodes:
+            rv = ua.ReadValueId()
+            rv.NodeId = node.nodeid
+            rv.AttributeId = ua.AttributeIds.Value
+            params.NodesToRead.append(rv)
+        values = await self.uaclient.read(params)
         timestamp = utcnow()
 
         tag_values = [
