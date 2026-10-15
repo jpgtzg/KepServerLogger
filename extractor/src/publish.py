@@ -5,6 +5,7 @@ Publishing functions for various metrics.
 When adding new metrics, add a new function here and update the PUBLISHERS list in main.py.
 """
 
+import asyncio
 import logging
 
 from lib.opc_handlers import publish_batch, publish_scalar
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 async def publish_cpu(client: OPCUAClient, metrics) -> None:
-    data = get_total_cpu_usage()
+    data = await asyncio.to_thread(get_total_cpu_usage)
     await publish_scalar(
         client,
         data,
@@ -34,7 +35,7 @@ async def publish_cpu(client: OPCUAClient, metrics) -> None:
 
 
 async def publish_ram(client: OPCUAClient, metrics) -> None:
-    data = get_memory_info()
+    data = await asyncio.to_thread(get_memory_info)
     await publish_scalar(
         client,
         data,
@@ -44,7 +45,7 @@ async def publish_ram(client: OPCUAClient, metrics) -> None:
 
 
 async def publish_storage(client: OPCUAClient, metrics) -> None:
-    data = get_storage()
+    data = await asyncio.to_thread(get_storage)
     await publish_scalar(
         client,
         data,
@@ -60,7 +61,9 @@ async def publish_services(client: OPCUAClient, metrics) -> None:
         )
         return
 
-    service_info = [get_service_info(name) for name in metrics.services.names]
+    service_info = await asyncio.gather(
+        *(asyncio.to_thread(get_service_info, name) for name in metrics.services.names)
+    )
     await publish_batch(
         client,
         service_info,
@@ -70,7 +73,7 @@ async def publish_services(client: OPCUAClient, metrics) -> None:
 
 
 async def publish_network(client: OPCUAClient, metrics) -> None:
-    interfaces = get_network_interfaces()
+    interfaces = await asyncio.to_thread(get_network_interfaces)
     await publish_batch(
         client,
         interfaces,
@@ -80,7 +83,7 @@ async def publish_network(client: OPCUAClient, metrics) -> None:
 
 
 async def publish_kepserver_events(client: OPCUAClient, metrics) -> None:
-    events = get_kepserver_events()
+    events = await asyncio.to_thread(get_kepserver_events)
     if events:
         await publish_batch(
             client,

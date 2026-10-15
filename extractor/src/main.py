@@ -10,8 +10,11 @@ from lib.opc_handlers import safe_handle
 from lib.opcua_client import OPCUAClient
 from lib.settings import MetricType
 from lib.utils import (
+    AGENT_HEARTBEAT_RECEIVE_PATH,
+    AGENT_HEARTBEAT_SEND_PATH,
     COLLECTOR_HEARTBEAT_RECEIVE_PATH,
     COLLECTOR_HEARTBEAT_SEND_PATH,
+    HEARTBEAT_INTERVAL_SECONDS,
     MAX_HEARTBEAT_NUMBER,
     OPCUA_REQUEST_TIMEOUT_SECONDS,
     RECONNECT_DELAY,
@@ -76,7 +79,7 @@ async def _run_session() -> None:
             logger.info("OPC UA client connected, starting main loop")
             monitor = OPCUAMonitor()
 
-            heartbeat = HeartbeatHandler(
+            collector_heartbeat = HeartbeatHandler(
                 client=client,
                 max_heartbeat=MAX_HEARTBEAT_NUMBER,
                 echo=True,
@@ -85,26 +88,54 @@ async def _run_session() -> None:
                 max_rtt=settings.polling_interval_seconds * 2,
                 stale_after=settings.polling_interval_seconds * 5,
             )
-            await heartbeat.start()
+            await collector_heartbeat.start()
 
-            while True:
-                for metric_type, tag, function in PUBLISHERS:
-                    if metric_type in settings.metrics_to_log:
-                        await safe_handle(
+            agent_heartbeat = HeartbeatHandler(
+                client=client,
+                max_heartbeat=MAX_HEARTBEAT_NUMBER,
+                echo=False,
+                send_path=AGENT_HEARTBEAT_SEND_PATH,
+                receive_path=AGENT_HEARTBEAT_RECEIVE_PATH,
+                max_rtt=settings.polling_interval_seconds * 2,
+                stale_after=settings.polling_interval_seconds * 5,
+            )
+            await agent_heartbeat.start()
+
+            heartbeat_task = asyncio.create_task(
+                agent_heartbeat.run(
+                    HEARTBEAT_INTERVAL_SECONDS,
+                    on_stale=lambda: logger.warning(
+                        "[HEARTBEAT] Agent heartbeat is stale"
+                    ),
+                )
+            )
+            try:
+                while True:
+                    handlers = [
+                        safe_handle(
                             tag,
                             monitor,
                             function(client, settings.metrics_config),
                         )
+                        for metric_type, tag, function in PUBLISHERS
+                        if metric_type in settings.metrics_to_log
+                    ]
+                    handlers.append(
+                        safe_handle(
+                            "HOSTNAME",
+                            monitor,
+                            publish_hostname(client, settings.metrics_config),
+                        )
+                    )
 
-                await safe_handle(
-                    "HOSTNAME",
-                    monitor,
-                    publish_hostname(client, settings.metrics_config),
-                )
+                    results = await asyncio.gather(*handlers, return_exceptions=True)
+                    for result in results:
+                        if isinstance(result, BaseException):
+                            raise result
 
-                heartbeat.is_stale()
-
-                await asyncio.sleep(settings.polling_interval_seconds)
+                    await asyncio.sleep(settings.polling_interval_seconds)
+            finally:
+                heartbeat_task.cancel()
     except ConnectionError as e:
         logger.warning(
             f"Connection lost ({type(e).__name__}: {e}), reconnecting in {RECONNECT_DELAY}s..."
