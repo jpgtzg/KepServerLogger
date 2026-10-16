@@ -167,7 +167,7 @@ Validate:
 
 ```bash
 kubectl -n idl exec timescaledb-0 -- psql -U postgres -d <DB_NAME> -c "\dt"
-kubectl -n idl exec timescaledb-0 -- psql -U postgres -d <DB_NAME> -c "SELECT COUNT(*), MIN(server_timestamp), MAX(server_timestamp) FROM tags;"
+kubectl -n idl exec timescaledb-0 -- psql -U postgres -d <DB_NAME> -c "SELECT COUNT(*), MIN(logger_timestamp), MAX(logger_timestamp) FROM tags;"
 ```
 
 Important: if the K3S ingestor already wrote data before this restore, those K3S-only writes are lost unless exported and reconciled first — this is why it stays scaled to 0 until now.

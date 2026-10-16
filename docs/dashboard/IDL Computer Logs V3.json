@@ -295,7 +295,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\r\n  source_timestamp AS \"time\",\r\n  tag,\r\n  CASE WHEN value = 'None' THEN NULL ELSE CAST(value AS DOUBLE PRECISION) END AS \"Value\"\r\nFROM tags\r\nWHERE $__timeFilter(server_timestamp)\r\n  AND tag = '${tag}'\r\nORDER BY 1;",
+          "rawSql": "SELECT\r\n  source_timestamp AS \"time\",\r\n  tag,\r\n  CASE WHEN value = 'None' THEN NULL ELSE CAST(value AS DOUBLE PRECISION) END AS \"Value\"\r\nFROM tags\r\nWHERE $__timeFilter(logger_timestamp)\r\n  AND tag = '${tag}'\r\nORDER BY 1;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -344,7 +344,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 6,
         "x": 0,
         "y": 9
       },
@@ -377,7 +377,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\r\n  CAST(value AS DOUBLE PRECISION) AS \"Current Value\"\r\nFROM tags\r\nWHERE tag = '${tag}'\r\nORDER BY server_timestamp DESC\r\nLIMIT 1;",
+          "rawSql": "SELECT\r\n  CAST(value AS DOUBLE PRECISION) AS \"Current Value\"\r\nFROM tags\r\nWHERE tag = '${tag}'\r\nORDER BY logger_timestamp DESC\r\nLIMIT 1;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -400,120 +400,6 @@
       ],
       "title": "Current Tag value",
       "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "inspect": true
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "level"
-            },
-            "properties": [
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "ERROR": {
-                        "color": "dark-red",
-                        "index": 0
-                      },
-                      "WARNING": {
-                        "color": "dark-yellow",
-                        "index": 1
-                      }
-                    }
-                  }
-                ]
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 9
-      },
-      "id": 14,
-      "options": {
-        "showHeader": true,
-        "cellHeight": "sm",
-        "footer": {
-          "show": false,
-          "reducer": [
-            "sum"
-          ],
-          "countRows": false,
-          "fields": ""
-        }
-      },
-      "pluginVersion": "12.4.1",
-      "targets": [
-        {
-          "dataset": "kepserver_pcn",
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "format": "table",
-          "rawQuery": true,
-          "rawSql": "SELECT timestamp, level, component, message\r\nFROM ingestor_logs \r\nWHERE $__timeFilter(timestamp)\r\nORDER BY timestamp DESC\r\nLIMIT 100;",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          }
-        }
-      ],
-      "title": "Ingestor Logs",
-      "type": "table"
     },
     {
       "datasource": {
@@ -580,9 +466,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 17
+        "w": 6,
+        "x": 6,
+        "y": 9
       },
       "id": 11,
       "options": {
@@ -612,7 +498,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\r\n  server_timestamp AS \"time\",\r\n  status_code AS \"Status\"\r\nFROM tags\r\nWHERE $__timeFilter(server_timestamp)\r\n  AND tag = '${tag}'\r\nORDER BY 1 ASC;",
+          "rawSql": "SELECT\r\n  logger_timestamp AS \"time\",\r\n  status_code AS \"Status\"\r\nFROM tags\r\nWHERE $__timeFilter(logger_timestamp)\r\n  AND tag = '${tag}'\r\nORDER BY 1 ASC;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -643,42 +529,17 @@
       },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
           "custom": {
-            "axisPlacement": "auto",
-            "fillOpacity": 70,
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
             },
-            "insertNulls": false,
-            "lineWidth": 0,
-            "spanNulls": true
+            "footer": {
+              "reducers": []
+            },
+            "inspect": true
           },
-          "mappings": [
-            {
-              "options": {
-                "inactive": {
-                  "color": "dark-red",
-                  "index": 0
-                }
-              },
-              "type": "value"
-            },
-            {
-              "options": {
-                "pattern": ".*",
-                "result": {
-                  "color": "green",
-                  "index": 1
-                }
-              },
-              "type": "regex"
-            }
-          ],
+          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -693,23 +554,32 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "reason"
+              "options": "level"
             },
             "properties": [
               {
                 "id": "mappings",
                 "value": [
                   {
-                    "type": "regex",
                     "options": {
-                      "pattern": ".*",
-                      "result": {
-                        "color": "dark-orange",
+                      "ERROR": {
+                        "color": "dark-red",
                         "index": 0
+                      },
+                      "WARNING": {
+                        "color": "dark-yellow",
+                        "index": 1
                       }
-                    }
+                    },
+                    "type": "value"
                   }
                 ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
               }
             ]
           }
@@ -719,28 +589,31 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 17
+        "y": 9
       },
-      "id": 12,
+      "id": 14,
       "options": {
-        "alignValue": "left",
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
         },
-        "mergeValues": true,
-        "rowHeight": 0.9,
-        "showValue": "auto",
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": false,
+            "displayName": "timestamp"
+          }
+        ]
       },
       "pluginVersion": "12.4.1",
       "targets": [
         {
+          "dataset": "kepserver_pcn",
           "datasource": {
             "type": "grafana-postgresql-datasource",
             "uid": "${datasource}"
@@ -748,7 +621,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\r\n  a.timestamp AS \"time\",\r\n  CASE WHEN a.event = 'active' THEN a.host_name ELSE 'inactive' END AS \"Status\",\r\n  COALESCE(a.reason, l.message) AS reason\r\nFROM active_log a\r\nLEFT JOIN ingestor_logs l ON l.id = a.error_id\r\nWHERE $__timeFilter(a.timestamp)\r\n\r\nUNION\r\n\r\nSELECT\r\n  GREATEST(a.timestamp, $__timeFrom()) AS \"time\",\r\n  CASE WHEN a.event = 'active' THEN a.host_name ELSE 'inactive' END AS \"Status\",\r\n  COALESCE(a.reason, l.message) AS reason\r\nFROM active_log a\r\nLEFT JOIN ingestor_logs l ON l.id = a.error_id\r\nWHERE a.timestamp = (\r\n  SELECT MAX(timestamp) FROM active_log WHERE timestamp <= $__timeTo()\r\n)\r\n\r\nORDER BY 1;",
+          "rawSql": "SELECT timestamp, level, component, message\r\nFROM ingestor_logs \r\nWHERE $__timeFilter(timestamp)\r\nORDER BY timestamp DESC\r\nLIMIT 100;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -769,8 +642,8 @@
           }
         }
       ],
-      "title": "Logger Connection Status",
-      "type": "state-timeline"
+      "title": "Ingestor Logs",
+      "type": "table"
     },
     {
       "datasource": {
@@ -829,7 +702,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 25
+        "y": 17
       },
       "id": 8,
       "options": {
@@ -903,6 +776,259 @@
         }
       ],
       "type": "state-timeline"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "fillOpacity": 70,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineWidth": 0,
+            "spanNulls": true
+          },
+          "mappings": [
+            {
+              "options": {
+                "inactive": {
+                  "color": "dark-red",
+                  "index": 0
+                }
+              },
+              "type": "value"
+            },
+            {
+              "options": {
+                "pattern": ".*",
+                "result": {
+                  "color": "green",
+                  "index": 1
+                }
+              },
+              "type": "regex"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "reason"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "pattern": ".*",
+                      "result": {
+                        "color": "dark-orange",
+                        "index": 0
+                      }
+                    },
+                    "type": "regex"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 17
+      },
+      "id": 12,
+      "options": {
+        "alignValue": "left",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "mergeValues": true,
+        "rowHeight": 0.9,
+        "showValue": "auto",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\r\n  a.timestamp AS \"time\",\r\n  CASE WHEN a.event = 'active' THEN a.host_name ELSE 'inactive' END AS \"Status\",\r\n  COALESCE(a.reason, l.message) AS reason\r\nFROM active_log a\r\nLEFT JOIN ingestor_logs l ON l.id = a.error_id\r\nWHERE $__timeFilter(a.timestamp)\r\n\r\nUNION\r\n\r\nSELECT\r\n  GREATEST(a.timestamp, $__timeFrom()) AS \"time\",\r\n  CASE WHEN a.event = 'active' THEN a.host_name ELSE 'inactive' END AS \"Status\",\r\n  COALESCE(a.reason, l.message) AS reason\r\nFROM active_log a\r\nLEFT JOIN ingestor_logs l ON l.id = a.error_id\r\nWHERE a.timestamp = (\r\n  SELECT MAX(timestamp) FROM active_log WHERE timestamp <= $__timeTo()\r\n)\r\n\r\nORDER BY 1;",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Logger Connection Status",
+      "type": "state-timeline"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 25
+      },
+      "id": 1,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.1",
+      "targets": [
+        {
+          "dataset": "kepserverlogger",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\r\n  timestamp AS \"time\",\r\n  usage AS \"CPU %\"\r\nFROM cpu_usage\r\nWHERE $__timeFilter(timestamp)\r\nORDER BY 1;",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "CPU Usage",
+      "type": "timeseries"
     },
     {
       "datasource": {
@@ -1020,7 +1146,7 @@
             "barAlignment": 0,
             "barWidthFactor": 0.6,
             "drawStyle": "line",
-            "fillOpacity": 0,
+            "fillOpacity": 40,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -1039,7 +1165,7 @@
             "spanNulls": false,
             "stacking": {
               "group": "A",
-              "mode": "none"
+              "mode": "percent"
             },
             "thresholdsStyle": {
               "mode": "off"
@@ -1061,7 +1187,38 @@
           },
           "unit": "percent"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Used %"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Free %"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -1069,7 +1226,7 @@
         "x": 0,
         "y": 33
       },
-      "id": 1,
+      "id": 2,
       "options": {
         "legend": {
           "calcs": [],
@@ -1094,7 +1251,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\r\n  timestamp AS \"time\",\r\n  usage AS \"CPU %\"\r\nFROM cpu_usage\r\nWHERE $__timeFilter(timestamp)\r\nORDER BY 1;",
+          "rawSql": "SELECT\r\n  timestamp AS \"time\",\r\n  ROUND((total_kb - free_kb) * 100.0 / total_kb, 1) AS \"Used %\",\r\n  ROUND(free_kb * 100.0 / total_kb, 1) AS \"Free %\"\r\nFROM ram_usage\r\nWHERE $__timeFilter(timestamp)\r\nORDER BY 1;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -1115,7 +1272,7 @@
           }
         }
       ],
-      "title": "CPU Usage",
+      "title": "RAM Usage",
       "type": "timeseries"
     },
     {
@@ -1246,154 +1403,6 @@
             "barAlignment": 0,
             "barWidthFactor": 0.6,
             "drawStyle": "line",
-            "fillOpacity": 40,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "percent"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Used %"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-red",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Free %"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 41
-      },
-      "id": 2,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.4.1",
-      "targets": [
-        {
-          "dataset": "kepserverlogger",
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "format": "table",
-          "rawQuery": true,
-          "rawSql": "SELECT\r\n  timestamp AS \"time\",\r\n  ROUND((total_kb - free_kb) * 100.0 / total_kb, 1) AS \"Used %\",\r\n  ROUND(free_kb * 100.0 / total_kb, 1) AS \"Free %\"\r\nFROM ram_usage\r\nWHERE $__timeFilter(timestamp)\r\nORDER BY 1;",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          }
-        }
-      ],
-      "title": "RAM Usage",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
             "hideFrom": {
@@ -1501,8 +1510,8 @@
     "list": [
       {
         "current": {
-          "text": "kubernetes-kepserver-pcn-secondary-postgres",
-          "value": "afuz0v30h064ga"
+          "text": "kubernetes-kepserver-pcn-postgres",
+          "value": "efrb5fopkc2kgb"
         },
         "includeAll": false,
         "label": "Server",
@@ -1515,8 +1524,8 @@
       },
       {
         "current": {
-          "text": "OPT_W_FM1_COMM_FLAG",
-          "value": "OPT_W_FM1_COMM_FLAG"
+          "text": "K2_HbOpW",
+          "value": "K2_HbOpW"
         },
         "datasource": {
           "type": "grafana-postgresql-datasource",
@@ -1567,6 +1576,6 @@
   "timezone": "browser",
   "title": "Kep Computer Logs V3",
   "uid": "adnlvhn",
-  "version": 12,
+  "version": 17,
   "weekStart": ""
 }
