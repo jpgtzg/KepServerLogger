@@ -4,13 +4,10 @@ Ingestor for retrieving data from the OPC UA server and ingesting it into the da
 
 import asyncio
 import logging
-from asyncio.timeouts import Timeout
-from functools import partial
 
-from lib.heartbeat import HeartbeatHandler
+from lib.heartbeat import SystemHeartbeatHandler
 from lib.logging import config_logging, current_server
 from lib.monitor import OPCUAMonitor
-from lib.opc_handlers import safe_handle
 from lib.opcua_client import OPCUAClient
 from lib.servers import ServerConfig, load_servers_configs
 from lib.settings import MetricType
@@ -24,57 +21,22 @@ from lib.utils import (
     OPCUA_REQUEST_TIMEOUT_SECONDS,
     RECONNECT_DELAY,
     get_channel_tags,
-    get_server_channels,
 )
 
 from src.db import IngestorDatabase
+from src.jobs import build_jobs, run_jobs
 from src.state import config, settings
-from src.subscribe import (
-    subscribe_cpu,
-    subscribe_hostname,
-    subscribe_kepserver_events,
-    subscribe_network,
-    subscribe_ram,
-    subscribe_services,
-    subscribe_storage,
-    subscribe_tag_channels,
-)
+from src.subscribe import subscribe_hostname
 
 config_logging()
 logger = logging.getLogger(__name__)
-
-COLLECTORS = [
-    (MetricType.CPU, "CPU", subscribe_cpu),
-    (MetricType.RAM, "RAM", subscribe_ram),
-    (MetricType.STORAGE, "STORAGE", subscribe_storage),
-    (MetricType.NETWORK, "NETWORK", subscribe_network),
-    (MetricType.SERVICES, "SERVICES", subscribe_services),
-    (MetricType.KEPSERVER_EVENTS, "KEPSERVER_EVENTS", subscribe_kepserver_events),
-]
 
 
 async def main(server: ServerConfig):
     current_server.set(server.name)
     logger.info(f"[{server.name}] Initiating IDL Central Collector...")
 
-    server_channels_config = get_server_channels(server, settings.metrics_config)
     channel_tags = get_channel_tags(server, settings)
-
-    collectors = list(COLLECTORS)
-
-    if server_channels_config is not None:
-        collectors.insert(
-            0,
-            (
-                MetricType.TAG_CHANNELS,
-                "TAG_CHANNELS",
-                partial(
-                    subscribe_tag_channels,
-                    server_name=server.name,
-                    channel_tags=channel_tags,
-                ),
-            ),
-        )
 
     db = IngestorDatabase(
         host=config.db_host,
@@ -85,6 +47,8 @@ async def main(server: ServerConfig):
         retention_days=settings.log_retention_days,
     )
     db.initialize()
+
+    jobs = build_jobs(server, db, channel_tags)
 
     retry_count = 0
     while True:
@@ -110,7 +74,7 @@ async def main(server: ServerConfig):
 
                 monitor = OPCUAMonitor()
 
-                collector_heartbeat = HeartbeatHandler(
+                collector_heartbeat = SystemHeartbeatHandler(
                     client=client,
                     max_heartbeat=MAX_HEARTBEAT_NUMBER,
                     echo=False,
@@ -121,7 +85,7 @@ async def main(server: ServerConfig):
                 )
                 await collector_heartbeat.start()
 
-                agent_heartbeat = HeartbeatHandler(
+                agent_heartbeat = SystemHeartbeatHandler(
                     client=client,
                     max_heartbeat=MAX_HEARTBEAT_NUMBER,
                     echo=True,
@@ -136,24 +100,14 @@ async def main(server: ServerConfig):
                     collector_heartbeat.run(
                         HEARTBEAT_INTERVAL_SECONDS,
                         on_stale=lambda: db.log_event(
-                            "WARNING", "HEARTBEAT", TimeoutError("Heartbeat is stale")
+                            "WARNING",
+                            "SYSTEM-HEARTBEAT",
+                            TimeoutError("Heartbeat is stale"),
                         ),
                     )
                 )
                 try:
-                    while True:
-                        for metric_type, metric, function in collectors:
-                            if metric_type in settings.metrics_to_log:
-                                await safe_handle(
-                                    metric,
-                                    monitor,
-                                    function(client, db, settings.metrics_config),
-                                    on_error_hook=lambda e, metric=metric: db.log_event(
-                                        "WARNING", metric, e
-                                    ),
-                                )
-
-                        await asyncio.sleep(settings.polling_interval_seconds)
+                    await run_jobs(jobs, client, monitor, db, server.name)
                 finally:
                     heartbeat_task.cancel()
 

@@ -8,6 +8,11 @@ TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 RECONNECT_DELAY = 5
 MAX_CONSECUTIVE_METRIC_FAILURES = 3
 OPCUA_REQUEST_TIMEOUT_SECONDS = 30
+# Tag reads give up much sooner than the session-wide request timeout so one
+# dead tag can't hold a whole channel for 30s.
+TAG_READ_TIMEOUT_SECONDS = 5
+# A tag that timed out is skipped, then retried on its own after this long.
+TAG_QUARANTINE_RETRY_SECONDS = 60
 
 MAX_HEARTBEAT_NUMBER = 255
 HEARTBEAT_INTERVAL_SECONDS = 5
