@@ -1,0 +1,1067 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Comparación de bits de ida por asset. Episodios de discrepancia observada; no mide transmisión.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "RM1",
+      "type": "link",
+      "url": "/d/balcones-hb-trace?var-asset=RM1"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "RM2",
+      "type": "link",
+      "url": "/d/balcones-hb-trace?var-asset=RM2"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "K1",
+      "type": "link",
+      "url": "/d/balcones-hb-trace?var-asset=K1"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "K2",
+      "type": "link",
+      "url": "/d/balcones-hb-trace?var-asset=K2"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "FM1",
+      "type": "link",
+      "url": "/d/balcones-hb-trace?var-asset=FM1"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "FM2",
+      "type": "link",
+      "url": "/d/balcones-hb-trace?var-asset=FM2"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "FM3",
+      "type": "link",
+      "url": "/d/balcones-hb-trace?var-asset=FM3"
+    }
+  ],
+  "panels": [
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "efrb5fopkc2kgb"
+      },
+      "description": "Estados observados por el logger; interpolación escalonada, válida hasta la siguiente lectura o un máximo de 60 s. El timestamp fuente no se usa para medir transmisión. La captura reciente fue de 20–29 s.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "HB",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "pointSize": 3,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "always",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 0,
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "noValue": "Sin datos",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "RX"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#5794F2",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "FLS/ECS"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#FADE2A",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "PLC"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#73BF69",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.1",
+      "targets": [
+        {
+          "dataset": "kepserver_pcn",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "efrb5fopkc2kgb"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "WITH bounds AS (\n SELECT $__timeFrom()::timestamptz AS lo, $__timeTo()::timestamptz AS hi\n), mapping(asset,rx,fls,plc) AS (VALUES\n('RM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_RM1_COMM_FLAG','OPT_W_RM1_COMM_FLAG','PAC2.RM1.Heartbeats.OPT_W_RM1_COMM_FLAG'),\n('RM2','ns=2;s=OPT_RX.Optibat.Heartbeats.RM2_HbOpW','RM2_HbOpW','PAC22.RM2.Heartbeats.RM2_HbOpW'),\n('K1','ns=2;s=OPT_RX.Optibat.Heartbeats.K1_HbOpW','K1_HbOpW','PAC2.K1.Heartbeats.K1_HbOpW'),\n('K2','ns=2;s=OPT_RX.Optibat.Heartbeats.K2_HbOpW','K2_HbOpW','PAC23A.K2.Heartbeats.K2_HbOpW'),\n('FM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_FM1_COMM_FLAG','OPT_W_FM1_COMM_FLAG','PAC4.FM1.Heartbeats.OPT_W_FM1_COMM_FLAG'),\n('FM2','ns=2;s=OPT_RX.Optibat.Heartbeats.FM2_HbOpW','FM2_HbOpW','PAC4.FM2.Heartbeats.FM2_HbOpW'),\n('FM3','ns=2;s=OPT_RX.Optibat.Heartbeats.FM3_HbOpW','FM3_HbOpW','PAC24.FM3.Heartbeats.FM3_HbOpW')), nodes AS (\n SELECT n.* FROM mapping m CROSS JOIN LATERAL\n (VALUES ('RX',rx),('FLS/ECS',fls),('PLC',plc)) n(node,tag)\n WHERE asset=${asset:sqlstring}\n), raw AS (\n SELECT n.node,t.logger_timestamp AS ts,\n CASE WHEN t.status_code NOT LIKE 'Good%' OR t.status_code IS NULL THEN NULL\n      WHEN lower(trim(t.value))='true' THEN 1\n      WHEN lower(trim(t.value))='false' THEN 0\n      WHEN trim(t.value) ~ '^[+]?0([.]0+)?$' THEN 0\n      WHEN trim(t.value) ~ '^[+]?1([.]0+)?$' THEN 1\n      ELSE NULL END AS val\n FROM tags t JOIN nodes n ON t.tag=n.tag CROSS JOIN bounds b\n WHERE t.logger_timestamp >= b.lo-interval '60 seconds' AND t.logger_timestamp <= b.hi\n), samples AS (\n SELECT node,ts,CASE WHEN count(val)=count(*) AND count(DISTINCT val)=1\n THEN min(val) END AS val FROM raw GROUP BY node,ts\n), ordered AS (\n SELECT *, lead(ts) OVER (PARTITION BY node ORDER BY ts) AS next_ts FROM samples\n), intervals AS (\n SELECT node,val,greatest(ts,b.lo) AS a,\n least(coalesce(next_ts,b.hi),ts+interval '60 seconds',b.hi) AS z\n FROM ordered CROSS JOIN bounds b\n WHERE ts < b.hi\n)\nSELECT time,value AS \"RX\" FROM (\n SELECT a AS time,node AS metric,val::double precision AS value FROM intervals WHERE z>a\n UNION ALL\n SELECT CASE WHEN z=b.hi THEN z ELSE z-interval '1 microsecond' END,node,val::double precision\n FROM intervals i CROSS JOIN bounds b\n WHERE z>a AND (z=b.hi OR NOT EXISTS (SELECT 1 FROM samples s WHERE s.node=i.node AND s.ts=i.z))\n UNION ALL\n SELECT z,node,NULL::double precision FROM intervals i CROSS JOIN bounds b\n WHERE z>a AND z<b.hi AND NOT EXISTS (SELECT 1 FROM samples s WHERE s.node=i.node AND s.ts=i.z)\n) series WHERE metric='RX' ORDER BY time;",
+          "refId": "A"
+        },
+        {
+          "dataset": "kepserver_pcn",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "efrb5fopkc2kgb"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "WITH bounds AS (\n SELECT $__timeFrom()::timestamptz AS lo, $__timeTo()::timestamptz AS hi\n), mapping(asset,rx,fls,plc) AS (VALUES\n('RM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_RM1_COMM_FLAG','OPT_W_RM1_COMM_FLAG','PAC2.RM1.Heartbeats.OPT_W_RM1_COMM_FLAG'),\n('RM2','ns=2;s=OPT_RX.Optibat.Heartbeats.RM2_HbOpW','RM2_HbOpW','PAC22.RM2.Heartbeats.RM2_HbOpW'),\n('K1','ns=2;s=OPT_RX.Optibat.Heartbeats.K1_HbOpW','K1_HbOpW','PAC2.K1.Heartbeats.K1_HbOpW'),\n('K2','ns=2;s=OPT_RX.Optibat.Heartbeats.K2_HbOpW','K2_HbOpW','PAC23A.K2.Heartbeats.K2_HbOpW'),\n('FM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_FM1_COMM_FLAG','OPT_W_FM1_COMM_FLAG','PAC4.FM1.Heartbeats.OPT_W_FM1_COMM_FLAG'),\n('FM2','ns=2;s=OPT_RX.Optibat.Heartbeats.FM2_HbOpW','FM2_HbOpW','PAC4.FM2.Heartbeats.FM2_HbOpW'),\n('FM3','ns=2;s=OPT_RX.Optibat.Heartbeats.FM3_HbOpW','FM3_HbOpW','PAC24.FM3.Heartbeats.FM3_HbOpW')), nodes AS (\n SELECT n.* FROM mapping m CROSS JOIN LATERAL\n (VALUES ('RX',rx),('FLS/ECS',fls),('PLC',plc)) n(node,tag)\n WHERE asset=${asset:sqlstring}\n), raw AS (\n SELECT n.node,t.logger_timestamp AS ts,\n CASE WHEN t.status_code NOT LIKE 'Good%' OR t.status_code IS NULL THEN NULL\n      WHEN lower(trim(t.value))='true' THEN 1\n      WHEN lower(trim(t.value))='false' THEN 0\n      WHEN trim(t.value) ~ '^[+]?0([.]0+)?$' THEN 0\n      WHEN trim(t.value) ~ '^[+]?1([.]0+)?$' THEN 1\n      ELSE NULL END AS val\n FROM tags t JOIN nodes n ON t.tag=n.tag CROSS JOIN bounds b\n WHERE t.logger_timestamp >= b.lo-interval '60 seconds' AND t.logger_timestamp <= b.hi\n), samples AS (\n SELECT node,ts,CASE WHEN count(val)=count(*) AND count(DISTINCT val)=1\n THEN min(val) END AS val FROM raw GROUP BY node,ts\n), ordered AS (\n SELECT *, lead(ts) OVER (PARTITION BY node ORDER BY ts) AS next_ts FROM samples\n), intervals AS (\n SELECT node,val,greatest(ts,b.lo) AS a,\n least(coalesce(next_ts,b.hi),ts+interval '60 seconds',b.hi) AS z\n FROM ordered CROSS JOIN bounds b\n WHERE ts < b.hi\n)\nSELECT time,value AS \"FLS/ECS\" FROM (\n SELECT a AS time,node AS metric,val::double precision AS value FROM intervals WHERE z>a\n UNION ALL\n SELECT CASE WHEN z=b.hi THEN z ELSE z-interval '1 microsecond' END,node,val::double precision\n FROM intervals i CROSS JOIN bounds b\n WHERE z>a AND (z=b.hi OR NOT EXISTS (SELECT 1 FROM samples s WHERE s.node=i.node AND s.ts=i.z))\n UNION ALL\n SELECT z,node,NULL::double precision FROM intervals i CROSS JOIN bounds b\n WHERE z>a AND z<b.hi AND NOT EXISTS (SELECT 1 FROM samples s WHERE s.node=i.node AND s.ts=i.z)\n) series WHERE metric='FLS/ECS' ORDER BY time;",
+          "refId": "B"
+        },
+        {
+          "dataset": "kepserver_pcn",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "efrb5fopkc2kgb"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "WITH bounds AS (\n SELECT $__timeFrom()::timestamptz AS lo, $__timeTo()::timestamptz AS hi\n), mapping(asset,rx,fls,plc) AS (VALUES\n('RM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_RM1_COMM_FLAG','OPT_W_RM1_COMM_FLAG','PAC2.RM1.Heartbeats.OPT_W_RM1_COMM_FLAG'),\n('RM2','ns=2;s=OPT_RX.Optibat.Heartbeats.RM2_HbOpW','RM2_HbOpW','PAC22.RM2.Heartbeats.RM2_HbOpW'),\n('K1','ns=2;s=OPT_RX.Optibat.Heartbeats.K1_HbOpW','K1_HbOpW','PAC2.K1.Heartbeats.K1_HbOpW'),\n('K2','ns=2;s=OPT_RX.Optibat.Heartbeats.K2_HbOpW','K2_HbOpW','PAC23A.K2.Heartbeats.K2_HbOpW'),\n('FM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_FM1_COMM_FLAG','OPT_W_FM1_COMM_FLAG','PAC4.FM1.Heartbeats.OPT_W_FM1_COMM_FLAG'),\n('FM2','ns=2;s=OPT_RX.Optibat.Heartbeats.FM2_HbOpW','FM2_HbOpW','PAC4.FM2.Heartbeats.FM2_HbOpW'),\n('FM3','ns=2;s=OPT_RX.Optibat.Heartbeats.FM3_HbOpW','FM3_HbOpW','PAC24.FM3.Heartbeats.FM3_HbOpW')), nodes AS (\n SELECT n.* FROM mapping m CROSS JOIN LATERAL\n (VALUES ('RX',rx),('FLS/ECS',fls),('PLC',plc)) n(node,tag)\n WHERE asset=${asset:sqlstring}\n), raw AS (\n SELECT n.node,t.logger_timestamp AS ts,\n CASE WHEN t.status_code NOT LIKE 'Good%' OR t.status_code IS NULL THEN NULL\n      WHEN lower(trim(t.value))='true' THEN 1\n      WHEN lower(trim(t.value))='false' THEN 0\n      WHEN trim(t.value) ~ '^[+]?0([.]0+)?$' THEN 0\n      WHEN trim(t.value) ~ '^[+]?1([.]0+)?$' THEN 1\n      ELSE NULL END AS val\n FROM tags t JOIN nodes n ON t.tag=n.tag CROSS JOIN bounds b\n WHERE t.logger_timestamp >= b.lo-interval '60 seconds' AND t.logger_timestamp <= b.hi\n), samples AS (\n SELECT node,ts,CASE WHEN count(val)=count(*) AND count(DISTINCT val)=1\n THEN min(val) END AS val FROM raw GROUP BY node,ts\n), ordered AS (\n SELECT *, lead(ts) OVER (PARTITION BY node ORDER BY ts) AS next_ts FROM samples\n), intervals AS (\n SELECT node,val,greatest(ts,b.lo) AS a,\n least(coalesce(next_ts,b.hi),ts+interval '60 seconds',b.hi) AS z\n FROM ordered CROSS JOIN bounds b\n WHERE ts < b.hi\n)\nSELECT time,value AS \"PLC\" FROM (\n SELECT a AS time,node AS metric,val::double precision AS value FROM intervals WHERE z>a\n UNION ALL\n SELECT CASE WHEN z=b.hi THEN z ELSE z-interval '1 microsecond' END,node,val::double precision\n FROM intervals i CROSS JOIN bounds b\n WHERE z>a AND (z=b.hi OR NOT EXISTS (SELECT 1 FROM samples s WHERE s.node=i.node AND s.ts=i.z))\n UNION ALL\n SELECT z,node,NULL::double precision FROM intervals i CROSS JOIN bounds b\n WHERE z>a AND z<b.hi AND NOT EXISTS (SELECT 1 FROM samples s WHERE s.node=i.node AND s.ts=i.z)\n) series WHERE metric='PLC' ORDER BY time;",
+          "refId": "C"
+        }
+      ],
+      "title": "Heartbeats · ${asset}",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "efrb5fopkc2kgb"
+      },
+      "description": "Un episodio une intervalos consecutivos con ambos bits válidos y distintos. Se corta ante igualdad, mala calidad, falta de lectura durante 60 s o límite del periodo. Los episodios parciales muestran solo la duración observada; consulta la tabla de detalle.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMax": 90,
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "bars",
+            "fillOpacity": 100,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 0,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "noValue": "Sin episodios observados",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 60
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Hasta 60 s"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#5794F2",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Mayor a 60 s"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#F2495C",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 16,
+        "x": 0,
+        "y": 9
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.1",
+      "targets": [
+        {
+          "dataset": "kepserver_pcn",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "efrb5fopkc2kgb"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "WITH bounds AS (\n SELECT $__timeFrom()::timestamptz AS lo, $__timeTo()::timestamptz AS hi\n), mapping(asset,rx,fls,plc) AS (VALUES\n('RM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_RM1_COMM_FLAG','OPT_W_RM1_COMM_FLAG','PAC2.RM1.Heartbeats.OPT_W_RM1_COMM_FLAG'),\n('RM2','ns=2;s=OPT_RX.Optibat.Heartbeats.RM2_HbOpW','RM2_HbOpW','PAC22.RM2.Heartbeats.RM2_HbOpW'),\n('K1','ns=2;s=OPT_RX.Optibat.Heartbeats.K1_HbOpW','K1_HbOpW','PAC2.K1.Heartbeats.K1_HbOpW'),\n('K2','ns=2;s=OPT_RX.Optibat.Heartbeats.K2_HbOpW','K2_HbOpW','PAC23A.K2.Heartbeats.K2_HbOpW'),\n('FM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_FM1_COMM_FLAG','OPT_W_FM1_COMM_FLAG','PAC4.FM1.Heartbeats.OPT_W_FM1_COMM_FLAG'),\n('FM2','ns=2;s=OPT_RX.Optibat.Heartbeats.FM2_HbOpW','FM2_HbOpW','PAC4.FM2.Heartbeats.FM2_HbOpW'),\n('FM3','ns=2;s=OPT_RX.Optibat.Heartbeats.FM3_HbOpW','FM3_HbOpW','PAC24.FM3.Heartbeats.FM3_HbOpW')), nodes AS (\n SELECT n.* FROM mapping m CROSS JOIN LATERAL\n (VALUES ('RX',rx),('FLS/ECS',fls),('PLC',plc)) n(node,tag)\n WHERE asset=${asset:sqlstring}\n), raw AS (\n SELECT n.node,t.logger_timestamp AS ts,\n CASE WHEN t.status_code NOT LIKE 'Good%' OR t.status_code IS NULL THEN NULL\n      WHEN lower(trim(t.value))='true' THEN 1\n      WHEN lower(trim(t.value))='false' THEN 0\n      WHEN trim(t.value) ~ '^[+]?0([.]0+)?$' THEN 0\n      WHEN trim(t.value) ~ '^[+]?1([.]0+)?$' THEN 1\n      ELSE NULL END AS val\n FROM tags t JOIN nodes n ON t.tag=n.tag CROSS JOIN bounds b\n WHERE t.logger_timestamp >= b.lo-interval '60 seconds' AND t.logger_timestamp <= b.hi\n), samples AS (\n SELECT node,ts,CASE WHEN count(val)=count(*) AND count(DISTINCT val)=1\n THEN min(val) END AS val FROM raw GROUP BY node,ts\n), ordered AS (\n SELECT *, lead(ts) OVER (PARTITION BY node ORDER BY ts) AS next_ts FROM samples\n), intervals AS (\n SELECT node,val,greatest(ts,b.lo) AS a,\n least(coalesce(next_ts,b.hi),ts+interval '60 seconds',b.hi) AS z\n FROM ordered CROSS JOIN bounds b\n WHERE ts < b.hi\n)\n, routes(route,src,dst) AS (VALUES\n ('RX → FLS/ECS','RX','FLS/ECS'),('FLS/ECS → PLC','FLS/ECS','PLC')\n), spans AS (\n SELECT r.route,greatest(s.a,d.a) AS a,least(s.z,d.z) AS z,s.val<>d.val AS mismatch\n FROM routes r JOIN intervals s ON s.node=r.src JOIN intervals d ON d.node=r.dst\n AND s.a<d.z AND d.a<s.z\n WHERE s.z>s.a AND d.z>d.a AND s.val IS NOT NULL AND d.val IS NOT NULL\n), neighbors AS (\n SELECT *,lag(z) OVER w AS prev_z,lag(mismatch) OVER w AS prev_mismatch,\n lead(a) OVER w AS next_a,lead(mismatch) OVER w AS next_mismatch\n FROM spans WINDOW w AS (PARTITION BY route ORDER BY a)\n), grouped AS (\n SELECT *,sum(CASE WHEN mismatch AND prev_mismatch AND prev_z=a THEN 0 ELSE 1 END)\n OVER (PARTITION BY route ORDER BY a) AS episode\n FROM neighbors\n), events AS (\n SELECT route,episode,min(a) AS started_at,max(z) AS ended_at,\n extract(epoch FROM max(z)-min(a))::double precision AS duration_s,\n coalesce(bool_or(prev_z=a AND prev_mismatch=false),false) AS start_confirmed,\n coalesce(bool_or(next_a=z AND next_mismatch=false),false) AS end_confirmed\n FROM grouped WHERE mismatch GROUP BY route,episode\n), coverage AS (\n SELECT r.route,coalesce(sum(extract(epoch FROM s.z-s.a)),0)::double precision AS known_s,\n extract(epoch FROM b.hi-b.lo)::double precision AS window_s\n FROM routes r CROSS JOIN bounds b LEFT JOIN spans s ON s.route=r.route\n GROUP BY r.route,b.hi,b.lo\n)\nSELECT started_at AS time, CASE WHEN duration_s<=60 THEN duration_s END AS \"Hasta 60 s\", CASE WHEN duration_s>60 THEN duration_s END AS \"Mayor a 60 s\" FROM events WHERE route='RX → FLS/ECS' ORDER BY started_at;",
+          "refId": "A"
+        }
+      ],
+      "title": "Discrepancia · RX → FLS/ECS",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "efrb5fopkc2kgb"
+      },
+      "description": "Un episodio une intervalos consecutivos con ambos bits válidos y distintos. Se corta ante igualdad, mala calidad, falta de lectura durante 60 s o límite del periodo. Los episodios parciales muestran solo la duración observada; consulta la tabla de detalle. Sin datos comparables: sin datos, no cero.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#F2495C",
+            "mode": "fixed"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "noValue": "Sin datos",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 16,
+        "y": 9
+      },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.4.1",
+      "targets": [
+        {
+          "dataset": "kepserver_pcn",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "efrb5fopkc2kgb"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH bounds AS (\n SELECT $__timeFrom()::timestamptz AS lo, $__timeTo()::timestamptz AS hi\n), mapping(asset,rx,fls,plc) AS (VALUES\n('RM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_RM1_COMM_FLAG','OPT_W_RM1_COMM_FLAG','PAC2.RM1.Heartbeats.OPT_W_RM1_COMM_FLAG'),\n('RM2','ns=2;s=OPT_RX.Optibat.Heartbeats.RM2_HbOpW','RM2_HbOpW','PAC22.RM2.Heartbeats.RM2_HbOpW'),\n('K1','ns=2;s=OPT_RX.Optibat.Heartbeats.K1_HbOpW','K1_HbOpW','PAC2.K1.Heartbeats.K1_HbOpW'),\n('K2','ns=2;s=OPT_RX.Optibat.Heartbeats.K2_HbOpW','K2_HbOpW','PAC23A.K2.Heartbeats.K2_HbOpW'),\n('FM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_FM1_COMM_FLAG','OPT_W_FM1_COMM_FLAG','PAC4.FM1.Heartbeats.OPT_W_FM1_COMM_FLAG'),\n('FM2','ns=2;s=OPT_RX.Optibat.Heartbeats.FM2_HbOpW','FM2_HbOpW','PAC4.FM2.Heartbeats.FM2_HbOpW'),\n('FM3','ns=2;s=OPT_RX.Optibat.Heartbeats.FM3_HbOpW','FM3_HbOpW','PAC24.FM3.Heartbeats.FM3_HbOpW')), nodes AS (\n SELECT n.* FROM mapping m CROSS JOIN LATERAL\n (VALUES ('RX',rx),('FLS/ECS',fls),('PLC',plc)) n(node,tag)\n WHERE asset=${asset:sqlstring}\n), raw AS (\n SELECT n.node,t.logger_timestamp AS ts,\n CASE WHEN t.status_code NOT LIKE 'Good%' OR t.status_code IS NULL THEN NULL\n      WHEN lower(trim(t.value))='true' THEN 1\n      WHEN lower(trim(t.value))='false' THEN 0\n      WHEN trim(t.value) ~ '^[+]?0([.]0+)?$' THEN 0\n      WHEN trim(t.value) ~ '^[+]?1([.]0+)?$' THEN 1\n      ELSE NULL END AS val\n FROM tags t JOIN nodes n ON t.tag=n.tag CROSS JOIN bounds b\n WHERE t.logger_timestamp >= b.lo-interval '60 seconds' AND t.logger_timestamp <= b.hi\n), samples AS (\n SELECT node,ts,CASE WHEN count(val)=count(*) AND count(DISTINCT val)=1\n THEN min(val) END AS val FROM raw GROUP BY node,ts\n), ordered AS (\n SELECT *, lead(ts) OVER (PARTITION BY node ORDER BY ts) AS next_ts FROM samples\n), intervals AS (\n SELECT node,val,greatest(ts,b.lo) AS a,\n least(coalesce(next_ts,b.hi),ts+interval '60 seconds',b.hi) AS z\n FROM ordered CROSS JOIN bounds b\n WHERE ts < b.hi\n)\n, routes(route,src,dst) AS (VALUES\n ('RX → FLS/ECS','RX','FLS/ECS'),('FLS/ECS → PLC','FLS/ECS','PLC')\n), spans AS (\n SELECT r.route,greatest(s.a,d.a) AS a,least(s.z,d.z) AS z,s.val<>d.val AS mismatch\n FROM routes r JOIN intervals s ON s.node=r.src JOIN intervals d ON d.node=r.dst\n AND s.a<d.z AND d.a<s.z\n WHERE s.z>s.a AND d.z>d.a AND s.val IS NOT NULL AND d.val IS NOT NULL\n), neighbors AS (\n SELECT *,lag(z) OVER w AS prev_z,lag(mismatch) OVER w AS prev_mismatch,\n lead(a) OVER w AS next_a,lead(mismatch) OVER w AS next_mismatch\n FROM spans WINDOW w AS (PARTITION BY route ORDER BY a)\n), grouped AS (\n SELECT *,sum(CASE WHEN mismatch AND prev_mismatch AND prev_z=a THEN 0 ELSE 1 END)\n OVER (PARTITION BY route ORDER BY a) AS episode\n FROM neighbors\n), events AS (\n SELECT route,episode,min(a) AS started_at,max(z) AS ended_at,\n extract(epoch FROM max(z)-min(a))::double precision AS duration_s,\n coalesce(bool_or(prev_z=a AND prev_mismatch=false),false) AS start_confirmed,\n coalesce(bool_or(next_a=z AND next_mismatch=false),false) AS end_confirmed\n FROM grouped WHERE mismatch GROUP BY route,episode\n), coverage AS (\n SELECT r.route,coalesce(sum(extract(epoch FROM s.z-s.a)),0)::double precision AS known_s,\n extract(epoch FROM b.hi-b.lo)::double precision AS window_s\n FROM routes r CROSS JOIN bounds b LEFT JOIN spans s ON s.route=r.route\n GROUP BY r.route,b.hi,b.lo\n)\nSELECT CASE WHEN known_s>0 THEN (SELECT count(*) FROM events WHERE route='RX → FLS/ECS' AND duration_s>60) END AS value FROM coverage WHERE route='RX → FLS/ECS';",
+          "refId": "A"
+        }
+      ],
+      "title": "Episodios >60 s",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "efrb5fopkc2kgb"
+      },
+      "description": "Promedio de todos los episodios de discrepancia observados, sin filtro de duración. Incluye episodios parciales; sin episodios elegibles muestra —. No es latencia de transmisión.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#5794F2",
+            "mode": "fixed"
+          },
+          "decimals": 1,
+          "mappings": [],
+          "noValue": "—",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 20,
+        "y": 9
+      },
+      "id": 5,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.4.1",
+      "targets": [
+        {
+          "dataset": "kepserver_pcn",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "efrb5fopkc2kgb"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH bounds AS (\n SELECT $__timeFrom()::timestamptz AS lo, $__timeTo()::timestamptz AS hi\n), mapping(asset,rx,fls,plc) AS (VALUES\n('RM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_RM1_COMM_FLAG','OPT_W_RM1_COMM_FLAG','PAC2.RM1.Heartbeats.OPT_W_RM1_COMM_FLAG'),\n('RM2','ns=2;s=OPT_RX.Optibat.Heartbeats.RM2_HbOpW','RM2_HbOpW','PAC22.RM2.Heartbeats.RM2_HbOpW'),\n('K1','ns=2;s=OPT_RX.Optibat.Heartbeats.K1_HbOpW','K1_HbOpW','PAC2.K1.Heartbeats.K1_HbOpW'),\n('K2','ns=2;s=OPT_RX.Optibat.Heartbeats.K2_HbOpW','K2_HbOpW','PAC23A.K2.Heartbeats.K2_HbOpW'),\n('FM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_FM1_COMM_FLAG','OPT_W_FM1_COMM_FLAG','PAC4.FM1.Heartbeats.OPT_W_FM1_COMM_FLAG'),\n('FM2','ns=2;s=OPT_RX.Optibat.Heartbeats.FM2_HbOpW','FM2_HbOpW','PAC4.FM2.Heartbeats.FM2_HbOpW'),\n('FM3','ns=2;s=OPT_RX.Optibat.Heartbeats.FM3_HbOpW','FM3_HbOpW','PAC24.FM3.Heartbeats.FM3_HbOpW')), nodes AS (\n SELECT n.* FROM mapping m CROSS JOIN LATERAL\n (VALUES ('RX',rx),('FLS/ECS',fls),('PLC',plc)) n(node,tag)\n WHERE asset=${asset:sqlstring}\n), raw AS (\n SELECT n.node,t.logger_timestamp AS ts,\n CASE WHEN t.status_code NOT LIKE 'Good%' OR t.status_code IS NULL THEN NULL\n      WHEN lower(trim(t.value))='true' THEN 1\n      WHEN lower(trim(t.value))='false' THEN 0\n      WHEN trim(t.value) ~ '^[+]?0([.]0+)?$' THEN 0\n      WHEN trim(t.value) ~ '^[+]?1([.]0+)?$' THEN 1\n      ELSE NULL END AS val\n FROM tags t JOIN nodes n ON t.tag=n.tag CROSS JOIN bounds b\n WHERE t.logger_timestamp >= b.lo-interval '60 seconds' AND t.logger_timestamp <= b.hi\n), samples AS (\n SELECT node,ts,CASE WHEN count(val)=count(*) AND count(DISTINCT val)=1\n THEN min(val) END AS val FROM raw GROUP BY node,ts\n), ordered AS (\n SELECT *, lead(ts) OVER (PARTITION BY node ORDER BY ts) AS next_ts FROM samples\n), intervals AS (\n SELECT node,val,greatest(ts,b.lo) AS a,\n least(coalesce(next_ts,b.hi),ts+interval '60 seconds',b.hi) AS z\n FROM ordered CROSS JOIN bounds b\n WHERE ts < b.hi\n)\n, routes(route,src,dst) AS (VALUES\n ('RX → FLS/ECS','RX','FLS/ECS'),('FLS/ECS → PLC','FLS/ECS','PLC')\n), spans AS (\n SELECT r.route,greatest(s.a,d.a) AS a,least(s.z,d.z) AS z,s.val<>d.val AS mismatch\n FROM routes r JOIN intervals s ON s.node=r.src JOIN intervals d ON d.node=r.dst\n AND s.a<d.z AND d.a<s.z\n WHERE s.z>s.a AND d.z>d.a AND s.val IS NOT NULL AND d.val IS NOT NULL\n), neighbors AS (\n SELECT *,lag(z) OVER w AS prev_z,lag(mismatch) OVER w AS prev_mismatch,\n lead(a) OVER w AS next_a,lead(mismatch) OVER w AS next_mismatch\n FROM spans WINDOW w AS (PARTITION BY route ORDER BY a)\n), grouped AS (\n SELECT *,sum(CASE WHEN mismatch AND prev_mismatch AND prev_z=a THEN 0 ELSE 1 END)\n OVER (PARTITION BY route ORDER BY a) AS episode\n FROM neighbors\n), events AS (\n SELECT route,episode,min(a) AS started_at,max(z) AS ended_at,\n extract(epoch FROM max(z)-min(a))::double precision AS duration_s,\n coalesce(bool_or(prev_z=a AND prev_mismatch=false),false) AS start_confirmed,\n coalesce(bool_or(next_a=z AND next_mismatch=false),false) AS end_confirmed\n FROM grouped WHERE mismatch GROUP BY route,episode\n), coverage AS (\n SELECT r.route,coalesce(sum(extract(epoch FROM s.z-s.a)),0)::double precision AS known_s,\n extract(epoch FROM b.hi-b.lo)::double precision AS window_s\n FROM routes r CROSS JOIN bounds b LEFT JOIN spans s ON s.route=r.route\n GROUP BY r.route,b.hi,b.lo\n)\nSELECT avg(duration_s) AS value FROM events WHERE route='RX → FLS/ECS';",
+          "refId": "A"
+        }
+      ],
+      "title": "Duración promedio general",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "efrb5fopkc2kgb"
+      },
+      "description": "Un episodio une intervalos consecutivos con ambos bits válidos y distintos. Se corta ante igualdad, mala calidad, falta de lectura durante 60 s o límite del periodo. Los episodios parciales muestran solo la duración observada; consulta la tabla de detalle.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMax": 90,
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "bars",
+            "fillOpacity": 100,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 0,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "noValue": "Sin episodios observados",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 60
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Hasta 60 s"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#FADE2A",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Mayor a 60 s"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#F2495C",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 16,
+        "x": 0,
+        "y": 15
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.1",
+      "targets": [
+        {
+          "dataset": "kepserver_pcn",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "efrb5fopkc2kgb"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "WITH bounds AS (\n SELECT $__timeFrom()::timestamptz AS lo, $__timeTo()::timestamptz AS hi\n), mapping(asset,rx,fls,plc) AS (VALUES\n('RM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_RM1_COMM_FLAG','OPT_W_RM1_COMM_FLAG','PAC2.RM1.Heartbeats.OPT_W_RM1_COMM_FLAG'),\n('RM2','ns=2;s=OPT_RX.Optibat.Heartbeats.RM2_HbOpW','RM2_HbOpW','PAC22.RM2.Heartbeats.RM2_HbOpW'),\n('K1','ns=2;s=OPT_RX.Optibat.Heartbeats.K1_HbOpW','K1_HbOpW','PAC2.K1.Heartbeats.K1_HbOpW'),\n('K2','ns=2;s=OPT_RX.Optibat.Heartbeats.K2_HbOpW','K2_HbOpW','PAC23A.K2.Heartbeats.K2_HbOpW'),\n('FM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_FM1_COMM_FLAG','OPT_W_FM1_COMM_FLAG','PAC4.FM1.Heartbeats.OPT_W_FM1_COMM_FLAG'),\n('FM2','ns=2;s=OPT_RX.Optibat.Heartbeats.FM2_HbOpW','FM2_HbOpW','PAC4.FM2.Heartbeats.FM2_HbOpW'),\n('FM3','ns=2;s=OPT_RX.Optibat.Heartbeats.FM3_HbOpW','FM3_HbOpW','PAC24.FM3.Heartbeats.FM3_HbOpW')), nodes AS (\n SELECT n.* FROM mapping m CROSS JOIN LATERAL\n (VALUES ('RX',rx),('FLS/ECS',fls),('PLC',plc)) n(node,tag)\n WHERE asset=${asset:sqlstring}\n), raw AS (\n SELECT n.node,t.logger_timestamp AS ts,\n CASE WHEN t.status_code NOT LIKE 'Good%' OR t.status_code IS NULL THEN NULL\n      WHEN lower(trim(t.value))='true' THEN 1\n      WHEN lower(trim(t.value))='false' THEN 0\n      WHEN trim(t.value) ~ '^[+]?0([.]0+)?$' THEN 0\n      WHEN trim(t.value) ~ '^[+]?1([.]0+)?$' THEN 1\n      ELSE NULL END AS val\n FROM tags t JOIN nodes n ON t.tag=n.tag CROSS JOIN bounds b\n WHERE t.logger_timestamp >= b.lo-interval '60 seconds' AND t.logger_timestamp <= b.hi\n), samples AS (\n SELECT node,ts,CASE WHEN count(val)=count(*) AND count(DISTINCT val)=1\n THEN min(val) END AS val FROM raw GROUP BY node,ts\n), ordered AS (\n SELECT *, lead(ts) OVER (PARTITION BY node ORDER BY ts) AS next_ts FROM samples\n), intervals AS (\n SELECT node,val,greatest(ts,b.lo) AS a,\n least(coalesce(next_ts,b.hi),ts+interval '60 seconds',b.hi) AS z\n FROM ordered CROSS JOIN bounds b\n WHERE ts < b.hi\n)\n, routes(route,src,dst) AS (VALUES\n ('RX → FLS/ECS','RX','FLS/ECS'),('FLS/ECS → PLC','FLS/ECS','PLC')\n), spans AS (\n SELECT r.route,greatest(s.a,d.a) AS a,least(s.z,d.z) AS z,s.val<>d.val AS mismatch\n FROM routes r JOIN intervals s ON s.node=r.src JOIN intervals d ON d.node=r.dst\n AND s.a<d.z AND d.a<s.z\n WHERE s.z>s.a AND d.z>d.a AND s.val IS NOT NULL AND d.val IS NOT NULL\n), neighbors AS (\n SELECT *,lag(z) OVER w AS prev_z,lag(mismatch) OVER w AS prev_mismatch,\n lead(a) OVER w AS next_a,lead(mismatch) OVER w AS next_mismatch\n FROM spans WINDOW w AS (PARTITION BY route ORDER BY a)\n), grouped AS (\n SELECT *,sum(CASE WHEN mismatch AND prev_mismatch AND prev_z=a THEN 0 ELSE 1 END)\n OVER (PARTITION BY route ORDER BY a) AS episode\n FROM neighbors\n), events AS (\n SELECT route,episode,min(a) AS started_at,max(z) AS ended_at,\n extract(epoch FROM max(z)-min(a))::double precision AS duration_s,\n coalesce(bool_or(prev_z=a AND prev_mismatch=false),false) AS start_confirmed,\n coalesce(bool_or(next_a=z AND next_mismatch=false),false) AS end_confirmed\n FROM grouped WHERE mismatch GROUP BY route,episode\n), coverage AS (\n SELECT r.route,coalesce(sum(extract(epoch FROM s.z-s.a)),0)::double precision AS known_s,\n extract(epoch FROM b.hi-b.lo)::double precision AS window_s\n FROM routes r CROSS JOIN bounds b LEFT JOIN spans s ON s.route=r.route\n GROUP BY r.route,b.hi,b.lo\n)\nSELECT started_at AS time, CASE WHEN duration_s<=60 THEN duration_s END AS \"Hasta 60 s\", CASE WHEN duration_s>60 THEN duration_s END AS \"Mayor a 60 s\" FROM events WHERE route='FLS/ECS → PLC' ORDER BY started_at;",
+          "refId": "A"
+        }
+      ],
+      "title": "Discrepancia · FLS/ECS → PLC",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "efrb5fopkc2kgb"
+      },
+      "description": "Un episodio une intervalos consecutivos con ambos bits válidos y distintos. Se corta ante igualdad, mala calidad, falta de lectura durante 60 s o límite del periodo. Los episodios parciales muestran solo la duración observada; consulta la tabla de detalle. Sin datos comparables: sin datos, no cero.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#F2495C",
+            "mode": "fixed"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "noValue": "Sin datos",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 16,
+        "y": 15
+      },
+      "id": 7,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.4.1",
+      "targets": [
+        {
+          "dataset": "kepserver_pcn",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "efrb5fopkc2kgb"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH bounds AS (\n SELECT $__timeFrom()::timestamptz AS lo, $__timeTo()::timestamptz AS hi\n), mapping(asset,rx,fls,plc) AS (VALUES\n('RM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_RM1_COMM_FLAG','OPT_W_RM1_COMM_FLAG','PAC2.RM1.Heartbeats.OPT_W_RM1_COMM_FLAG'),\n('RM2','ns=2;s=OPT_RX.Optibat.Heartbeats.RM2_HbOpW','RM2_HbOpW','PAC22.RM2.Heartbeats.RM2_HbOpW'),\n('K1','ns=2;s=OPT_RX.Optibat.Heartbeats.K1_HbOpW','K1_HbOpW','PAC2.K1.Heartbeats.K1_HbOpW'),\n('K2','ns=2;s=OPT_RX.Optibat.Heartbeats.K2_HbOpW','K2_HbOpW','PAC23A.K2.Heartbeats.K2_HbOpW'),\n('FM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_FM1_COMM_FLAG','OPT_W_FM1_COMM_FLAG','PAC4.FM1.Heartbeats.OPT_W_FM1_COMM_FLAG'),\n('FM2','ns=2;s=OPT_RX.Optibat.Heartbeats.FM2_HbOpW','FM2_HbOpW','PAC4.FM2.Heartbeats.FM2_HbOpW'),\n('FM3','ns=2;s=OPT_RX.Optibat.Heartbeats.FM3_HbOpW','FM3_HbOpW','PAC24.FM3.Heartbeats.FM3_HbOpW')), nodes AS (\n SELECT n.* FROM mapping m CROSS JOIN LATERAL\n (VALUES ('RX',rx),('FLS/ECS',fls),('PLC',plc)) n(node,tag)\n WHERE asset=${asset:sqlstring}\n), raw AS (\n SELECT n.node,t.logger_timestamp AS ts,\n CASE WHEN t.status_code NOT LIKE 'Good%' OR t.status_code IS NULL THEN NULL\n      WHEN lower(trim(t.value))='true' THEN 1\n      WHEN lower(trim(t.value))='false' THEN 0\n      WHEN trim(t.value) ~ '^[+]?0([.]0+)?$' THEN 0\n      WHEN trim(t.value) ~ '^[+]?1([.]0+)?$' THEN 1\n      ELSE NULL END AS val\n FROM tags t JOIN nodes n ON t.tag=n.tag CROSS JOIN bounds b\n WHERE t.logger_timestamp >= b.lo-interval '60 seconds' AND t.logger_timestamp <= b.hi\n), samples AS (\n SELECT node,ts,CASE WHEN count(val)=count(*) AND count(DISTINCT val)=1\n THEN min(val) END AS val FROM raw GROUP BY node,ts\n), ordered AS (\n SELECT *, lead(ts) OVER (PARTITION BY node ORDER BY ts) AS next_ts FROM samples\n), intervals AS (\n SELECT node,val,greatest(ts,b.lo) AS a,\n least(coalesce(next_ts,b.hi),ts+interval '60 seconds',b.hi) AS z\n FROM ordered CROSS JOIN bounds b\n WHERE ts < b.hi\n)\n, routes(route,src,dst) AS (VALUES\n ('RX → FLS/ECS','RX','FLS/ECS'),('FLS/ECS → PLC','FLS/ECS','PLC')\n), spans AS (\n SELECT r.route,greatest(s.a,d.a) AS a,least(s.z,d.z) AS z,s.val<>d.val AS mismatch\n FROM routes r JOIN intervals s ON s.node=r.src JOIN intervals d ON d.node=r.dst\n AND s.a<d.z AND d.a<s.z\n WHERE s.z>s.a AND d.z>d.a AND s.val IS NOT NULL AND d.val IS NOT NULL\n), neighbors AS (\n SELECT *,lag(z) OVER w AS prev_z,lag(mismatch) OVER w AS prev_mismatch,\n lead(a) OVER w AS next_a,lead(mismatch) OVER w AS next_mismatch\n FROM spans WINDOW w AS (PARTITION BY route ORDER BY a)\n), grouped AS (\n SELECT *,sum(CASE WHEN mismatch AND prev_mismatch AND prev_z=a THEN 0 ELSE 1 END)\n OVER (PARTITION BY route ORDER BY a) AS episode\n FROM neighbors\n), events AS (\n SELECT route,episode,min(a) AS started_at,max(z) AS ended_at,\n extract(epoch FROM max(z)-min(a))::double precision AS duration_s,\n coalesce(bool_or(prev_z=a AND prev_mismatch=false),false) AS start_confirmed,\n coalesce(bool_or(next_a=z AND next_mismatch=false),false) AS end_confirmed\n FROM grouped WHERE mismatch GROUP BY route,episode\n), coverage AS (\n SELECT r.route,coalesce(sum(extract(epoch FROM s.z-s.a)),0)::double precision AS known_s,\n extract(epoch FROM b.hi-b.lo)::double precision AS window_s\n FROM routes r CROSS JOIN bounds b LEFT JOIN spans s ON s.route=r.route\n GROUP BY r.route,b.hi,b.lo\n)\nSELECT CASE WHEN known_s>0 THEN (SELECT count(*) FROM events WHERE route='FLS/ECS → PLC' AND duration_s>60) END AS value FROM coverage WHERE route='FLS/ECS → PLC';",
+          "refId": "A"
+        }
+      ],
+      "title": "Episodios >60 s",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "efrb5fopkc2kgb"
+      },
+      "description": "Promedio de todos los episodios de discrepancia observados, sin filtro de duración. Incluye episodios parciales; sin episodios elegibles muestra —. No es latencia de transmisión.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#FADE2A",
+            "mode": "fixed"
+          },
+          "decimals": 1,
+          "mappings": [],
+          "noValue": "—",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 20,
+        "y": 15
+      },
+      "id": 8,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.4.1",
+      "targets": [
+        {
+          "dataset": "kepserver_pcn",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "efrb5fopkc2kgb"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH bounds AS (\n SELECT $__timeFrom()::timestamptz AS lo, $__timeTo()::timestamptz AS hi\n), mapping(asset,rx,fls,plc) AS (VALUES\n('RM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_RM1_COMM_FLAG','OPT_W_RM1_COMM_FLAG','PAC2.RM1.Heartbeats.OPT_W_RM1_COMM_FLAG'),\n('RM2','ns=2;s=OPT_RX.Optibat.Heartbeats.RM2_HbOpW','RM2_HbOpW','PAC22.RM2.Heartbeats.RM2_HbOpW'),\n('K1','ns=2;s=OPT_RX.Optibat.Heartbeats.K1_HbOpW','K1_HbOpW','PAC2.K1.Heartbeats.K1_HbOpW'),\n('K2','ns=2;s=OPT_RX.Optibat.Heartbeats.K2_HbOpW','K2_HbOpW','PAC23A.K2.Heartbeats.K2_HbOpW'),\n('FM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_FM1_COMM_FLAG','OPT_W_FM1_COMM_FLAG','PAC4.FM1.Heartbeats.OPT_W_FM1_COMM_FLAG'),\n('FM2','ns=2;s=OPT_RX.Optibat.Heartbeats.FM2_HbOpW','FM2_HbOpW','PAC4.FM2.Heartbeats.FM2_HbOpW'),\n('FM3','ns=2;s=OPT_RX.Optibat.Heartbeats.FM3_HbOpW','FM3_HbOpW','PAC24.FM3.Heartbeats.FM3_HbOpW')), nodes AS (\n SELECT n.* FROM mapping m CROSS JOIN LATERAL\n (VALUES ('RX',rx),('FLS/ECS',fls),('PLC',plc)) n(node,tag)\n WHERE asset=${asset:sqlstring}\n), raw AS (\n SELECT n.node,t.logger_timestamp AS ts,\n CASE WHEN t.status_code NOT LIKE 'Good%' OR t.status_code IS NULL THEN NULL\n      WHEN lower(trim(t.value))='true' THEN 1\n      WHEN lower(trim(t.value))='false' THEN 0\n      WHEN trim(t.value) ~ '^[+]?0([.]0+)?$' THEN 0\n      WHEN trim(t.value) ~ '^[+]?1([.]0+)?$' THEN 1\n      ELSE NULL END AS val\n FROM tags t JOIN nodes n ON t.tag=n.tag CROSS JOIN bounds b\n WHERE t.logger_timestamp >= b.lo-interval '60 seconds' AND t.logger_timestamp <= b.hi\n), samples AS (\n SELECT node,ts,CASE WHEN count(val)=count(*) AND count(DISTINCT val)=1\n THEN min(val) END AS val FROM raw GROUP BY node,ts\n), ordered AS (\n SELECT *, lead(ts) OVER (PARTITION BY node ORDER BY ts) AS next_ts FROM samples\n), intervals AS (\n SELECT node,val,greatest(ts,b.lo) AS a,\n least(coalesce(next_ts,b.hi),ts+interval '60 seconds',b.hi) AS z\n FROM ordered CROSS JOIN bounds b\n WHERE ts < b.hi\n)\n, routes(route,src,dst) AS (VALUES\n ('RX → FLS/ECS','RX','FLS/ECS'),('FLS/ECS → PLC','FLS/ECS','PLC')\n), spans AS (\n SELECT r.route,greatest(s.a,d.a) AS a,least(s.z,d.z) AS z,s.val<>d.val AS mismatch\n FROM routes r JOIN intervals s ON s.node=r.src JOIN intervals d ON d.node=r.dst\n AND s.a<d.z AND d.a<s.z\n WHERE s.z>s.a AND d.z>d.a AND s.val IS NOT NULL AND d.val IS NOT NULL\n), neighbors AS (\n SELECT *,lag(z) OVER w AS prev_z,lag(mismatch) OVER w AS prev_mismatch,\n lead(a) OVER w AS next_a,lead(mismatch) OVER w AS next_mismatch\n FROM spans WINDOW w AS (PARTITION BY route ORDER BY a)\n), grouped AS (\n SELECT *,sum(CASE WHEN mismatch AND prev_mismatch AND prev_z=a THEN 0 ELSE 1 END)\n OVER (PARTITION BY route ORDER BY a) AS episode\n FROM neighbors\n), events AS (\n SELECT route,episode,min(a) AS started_at,max(z) AS ended_at,\n extract(epoch FROM max(z)-min(a))::double precision AS duration_s,\n coalesce(bool_or(prev_z=a AND prev_mismatch=false),false) AS start_confirmed,\n coalesce(bool_or(next_a=z AND next_mismatch=false),false) AS end_confirmed\n FROM grouped WHERE mismatch GROUP BY route,episode\n), coverage AS (\n SELECT r.route,coalesce(sum(extract(epoch FROM s.z-s.a)),0)::double precision AS known_s,\n extract(epoch FROM b.hi-b.lo)::double precision AS window_s\n FROM routes r CROSS JOIN bounds b LEFT JOIN spans s ON s.route=r.route\n GROUP BY r.route,b.hi,b.lo\n)\nSELECT avg(duration_s) AS value FROM events WHERE route='FLS/ECS → PLC';",
+          "refId": "A"
+        }
+      ],
+      "title": "Duración promedio general",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "efrb5fopkc2kgb"
+      },
+      "description": "Porcentaje del periodo con ambos bits válidos y recientes. Sin información incluye mala calidad, valores no binarios y muestras vencidas. Los huecos separan episodios.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "noValue": "—",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 21
+      },
+      "id": 9,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true
+      },
+      "pluginVersion": "12.4.1",
+      "targets": [
+        {
+          "dataset": "kepserver_pcn",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "efrb5fopkc2kgb"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH bounds AS (\n SELECT $__timeFrom()::timestamptz AS lo, $__timeTo()::timestamptz AS hi\n), mapping(asset,rx,fls,plc) AS (VALUES\n('RM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_RM1_COMM_FLAG','OPT_W_RM1_COMM_FLAG','PAC2.RM1.Heartbeats.OPT_W_RM1_COMM_FLAG'),\n('RM2','ns=2;s=OPT_RX.Optibat.Heartbeats.RM2_HbOpW','RM2_HbOpW','PAC22.RM2.Heartbeats.RM2_HbOpW'),\n('K1','ns=2;s=OPT_RX.Optibat.Heartbeats.K1_HbOpW','K1_HbOpW','PAC2.K1.Heartbeats.K1_HbOpW'),\n('K2','ns=2;s=OPT_RX.Optibat.Heartbeats.K2_HbOpW','K2_HbOpW','PAC23A.K2.Heartbeats.K2_HbOpW'),\n('FM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_FM1_COMM_FLAG','OPT_W_FM1_COMM_FLAG','PAC4.FM1.Heartbeats.OPT_W_FM1_COMM_FLAG'),\n('FM2','ns=2;s=OPT_RX.Optibat.Heartbeats.FM2_HbOpW','FM2_HbOpW','PAC4.FM2.Heartbeats.FM2_HbOpW'),\n('FM3','ns=2;s=OPT_RX.Optibat.Heartbeats.FM3_HbOpW','FM3_HbOpW','PAC24.FM3.Heartbeats.FM3_HbOpW')), nodes AS (\n SELECT n.* FROM mapping m CROSS JOIN LATERAL\n (VALUES ('RX',rx),('FLS/ECS',fls),('PLC',plc)) n(node,tag)\n WHERE asset=${asset:sqlstring}\n), raw AS (\n SELECT n.node,t.logger_timestamp AS ts,\n CASE WHEN t.status_code NOT LIKE 'Good%' OR t.status_code IS NULL THEN NULL\n      WHEN lower(trim(t.value))='true' THEN 1\n      WHEN lower(trim(t.value))='false' THEN 0\n      WHEN trim(t.value) ~ '^[+]?0([.]0+)?$' THEN 0\n      WHEN trim(t.value) ~ '^[+]?1([.]0+)?$' THEN 1\n      ELSE NULL END AS val\n FROM tags t JOIN nodes n ON t.tag=n.tag CROSS JOIN bounds b\n WHERE t.logger_timestamp >= b.lo-interval '60 seconds' AND t.logger_timestamp <= b.hi\n), samples AS (\n SELECT node,ts,CASE WHEN count(val)=count(*) AND count(DISTINCT val)=1\n THEN min(val) END AS val FROM raw GROUP BY node,ts\n), ordered AS (\n SELECT *, lead(ts) OVER (PARTITION BY node ORDER BY ts) AS next_ts FROM samples\n), intervals AS (\n SELECT node,val,greatest(ts,b.lo) AS a,\n least(coalesce(next_ts,b.hi),ts+interval '60 seconds',b.hi) AS z\n FROM ordered CROSS JOIN bounds b\n WHERE ts < b.hi\n)\n, routes(route,src,dst) AS (VALUES\n ('RX → FLS/ECS','RX','FLS/ECS'),('FLS/ECS → PLC','FLS/ECS','PLC')\n), spans AS (\n SELECT r.route,greatest(s.a,d.a) AS a,least(s.z,d.z) AS z,s.val<>d.val AS mismatch\n FROM routes r JOIN intervals s ON s.node=r.src JOIN intervals d ON d.node=r.dst\n AND s.a<d.z AND d.a<s.z\n WHERE s.z>s.a AND d.z>d.a AND s.val IS NOT NULL AND d.val IS NOT NULL\n), neighbors AS (\n SELECT *,lag(z) OVER w AS prev_z,lag(mismatch) OVER w AS prev_mismatch,\n lead(a) OVER w AS next_a,lead(mismatch) OVER w AS next_mismatch\n FROM spans WINDOW w AS (PARTITION BY route ORDER BY a)\n), grouped AS (\n SELECT *,sum(CASE WHEN mismatch AND prev_mismatch AND prev_z=a THEN 0 ELSE 1 END)\n OVER (PARTITION BY route ORDER BY a) AS episode\n FROM neighbors\n), events AS (\n SELECT route,episode,min(a) AS started_at,max(z) AS ended_at,\n extract(epoch FROM max(z)-min(a))::double precision AS duration_s,\n coalesce(bool_or(prev_z=a AND prev_mismatch=false),false) AS start_confirmed,\n coalesce(bool_or(next_a=z AND next_mismatch=false),false) AS end_confirmed\n FROM grouped WHERE mismatch GROUP BY route,episode\n), coverage AS (\n SELECT r.route,coalesce(sum(extract(epoch FROM s.z-s.a)),0)::double precision AS known_s,\n extract(epoch FROM b.hi-b.lo)::double precision AS window_s\n FROM routes r CROSS JOIN bounds b LEFT JOIN spans s ON s.route=r.route\n GROUP BY r.route,b.hi,b.lo\n)\n\nSELECT route AS \"Tramo\",round((100*known_s/nullif(window_s,0))::numeric,1) AS \"Cobertura (%)\",\n round(known_s::numeric,1) AS \"Comparables (s)\",round((window_s-known_s)::numeric,1) AS \"Sin información (s)\"\n FROM coverage ORDER BY route;",
+          "refId": "A"
+        }
+      ],
+      "title": "Cobertura de comparación · ${asset}",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "efrb5fopkc2kgb"
+      },
+      "description": "Cada fila cuenta una sola secuencia continua de discrepancia observada. Completo requiere igualdad inmediatamente antes y después. Parcial no representa duración total.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "noValue": "—",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 25
+      },
+      "id": 10,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true
+      },
+      "pluginVersion": "12.4.1",
+      "targets": [
+        {
+          "dataset": "kepserver_pcn",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "efrb5fopkc2kgb"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH bounds AS (\n SELECT $__timeFrom()::timestamptz AS lo, $__timeTo()::timestamptz AS hi\n), mapping(asset,rx,fls,plc) AS (VALUES\n('RM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_RM1_COMM_FLAG','OPT_W_RM1_COMM_FLAG','PAC2.RM1.Heartbeats.OPT_W_RM1_COMM_FLAG'),\n('RM2','ns=2;s=OPT_RX.Optibat.Heartbeats.RM2_HbOpW','RM2_HbOpW','PAC22.RM2.Heartbeats.RM2_HbOpW'),\n('K1','ns=2;s=OPT_RX.Optibat.Heartbeats.K1_HbOpW','K1_HbOpW','PAC2.K1.Heartbeats.K1_HbOpW'),\n('K2','ns=2;s=OPT_RX.Optibat.Heartbeats.K2_HbOpW','K2_HbOpW','PAC23A.K2.Heartbeats.K2_HbOpW'),\n('FM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_FM1_COMM_FLAG','OPT_W_FM1_COMM_FLAG','PAC4.FM1.Heartbeats.OPT_W_FM1_COMM_FLAG'),\n('FM2','ns=2;s=OPT_RX.Optibat.Heartbeats.FM2_HbOpW','FM2_HbOpW','PAC4.FM2.Heartbeats.FM2_HbOpW'),\n('FM3','ns=2;s=OPT_RX.Optibat.Heartbeats.FM3_HbOpW','FM3_HbOpW','PAC24.FM3.Heartbeats.FM3_HbOpW')), nodes AS (\n SELECT n.* FROM mapping m CROSS JOIN LATERAL\n (VALUES ('RX',rx),('FLS/ECS',fls),('PLC',plc)) n(node,tag)\n WHERE asset=${asset:sqlstring}\n), raw AS (\n SELECT n.node,t.logger_timestamp AS ts,\n CASE WHEN t.status_code NOT LIKE 'Good%' OR t.status_code IS NULL THEN NULL\n      WHEN lower(trim(t.value))='true' THEN 1\n      WHEN lower(trim(t.value))='false' THEN 0\n      WHEN trim(t.value) ~ '^[+]?0([.]0+)?$' THEN 0\n      WHEN trim(t.value) ~ '^[+]?1([.]0+)?$' THEN 1\n      ELSE NULL END AS val\n FROM tags t JOIN nodes n ON t.tag=n.tag CROSS JOIN bounds b\n WHERE t.logger_timestamp >= b.lo-interval '60 seconds' AND t.logger_timestamp <= b.hi\n), samples AS (\n SELECT node,ts,CASE WHEN count(val)=count(*) AND count(DISTINCT val)=1\n THEN min(val) END AS val FROM raw GROUP BY node,ts\n), ordered AS (\n SELECT *, lead(ts) OVER (PARTITION BY node ORDER BY ts) AS next_ts FROM samples\n), intervals AS (\n SELECT node,val,greatest(ts,b.lo) AS a,\n least(coalesce(next_ts,b.hi),ts+interval '60 seconds',b.hi) AS z\n FROM ordered CROSS JOIN bounds b\n WHERE ts < b.hi\n)\n, routes(route,src,dst) AS (VALUES\n ('RX → FLS/ECS','RX','FLS/ECS'),('FLS/ECS → PLC','FLS/ECS','PLC')\n), spans AS (\n SELECT r.route,greatest(s.a,d.a) AS a,least(s.z,d.z) AS z,s.val<>d.val AS mismatch\n FROM routes r JOIN intervals s ON s.node=r.src JOIN intervals d ON d.node=r.dst\n AND s.a<d.z AND d.a<s.z\n WHERE s.z>s.a AND d.z>d.a AND s.val IS NOT NULL AND d.val IS NOT NULL\n), neighbors AS (\n SELECT *,lag(z) OVER w AS prev_z,lag(mismatch) OVER w AS prev_mismatch,\n lead(a) OVER w AS next_a,lead(mismatch) OVER w AS next_mismatch\n FROM spans WINDOW w AS (PARTITION BY route ORDER BY a)\n), grouped AS (\n SELECT *,sum(CASE WHEN mismatch AND prev_mismatch AND prev_z=a THEN 0 ELSE 1 END)\n OVER (PARTITION BY route ORDER BY a) AS episode\n FROM neighbors\n), events AS (\n SELECT route,episode,min(a) AS started_at,max(z) AS ended_at,\n extract(epoch FROM max(z)-min(a))::double precision AS duration_s,\n coalesce(bool_or(prev_z=a AND prev_mismatch=false),false) AS start_confirmed,\n coalesce(bool_or(next_a=z AND next_mismatch=false),false) AS end_confirmed\n FROM grouped WHERE mismatch GROUP BY route,episode\n), coverage AS (\n SELECT r.route,coalesce(sum(extract(epoch FROM s.z-s.a)),0)::double precision AS known_s,\n extract(epoch FROM b.hi-b.lo)::double precision AS window_s\n FROM routes r CROSS JOIN bounds b LEFT JOIN spans s ON s.route=r.route\n GROUP BY r.route,b.hi,b.lo\n)\n\n SELECT route AS \"Tramo\",started_at AS \"Inicio observado\",ended_at AS \"Fin observado\",\n duration_s AS \"Duración (s)\",duration_s>60 AS \"Supera 60 s\",\n CASE WHEN start_confirmed AND end_confirmed THEN 'Completo'\n WHEN ended_at=b.hi THEN 'Hasta fin de ventana; posible episodio en curso'\n ELSE 'Parcial: límite de ventana o pérdida de información' END AS \"Estado\"\n FROM events CROSS JOIN bounds b ORDER BY started_at DESC,route;",
+          "refId": "A"
+        }
+      ],
+      "title": "Detalle de episodios · ${asset}",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "efrb5fopkc2kgb"
+      },
+      "description": "Lista siempre los tres tags. Timestamp fuente es diagnóstico: RX/PLC y FLS no tienen la misma semántica.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "noValue": "Sin muestras",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 32
+      },
+      "id": 11,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true
+      },
+      "pluginVersion": "12.4.1",
+      "targets": [
+        {
+          "dataset": "kepserver_pcn",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "efrb5fopkc2kgb"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH bounds AS (\n SELECT $__timeFrom()::timestamptz AS lo, $__timeTo()::timestamptz AS hi\n), mapping(asset,rx,fls,plc) AS (VALUES\n('RM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_RM1_COMM_FLAG','OPT_W_RM1_COMM_FLAG','PAC2.RM1.Heartbeats.OPT_W_RM1_COMM_FLAG'),\n('RM2','ns=2;s=OPT_RX.Optibat.Heartbeats.RM2_HbOpW','RM2_HbOpW','PAC22.RM2.Heartbeats.RM2_HbOpW'),\n('K1','ns=2;s=OPT_RX.Optibat.Heartbeats.K1_HbOpW','K1_HbOpW','PAC2.K1.Heartbeats.K1_HbOpW'),\n('K2','ns=2;s=OPT_RX.Optibat.Heartbeats.K2_HbOpW','K2_HbOpW','PAC23A.K2.Heartbeats.K2_HbOpW'),\n('FM1','ns=2;s=OPT_RX.Optibat.Heartbeats.OPT_W_FM1_COMM_FLAG','OPT_W_FM1_COMM_FLAG','PAC4.FM1.Heartbeats.OPT_W_FM1_COMM_FLAG'),\n('FM2','ns=2;s=OPT_RX.Optibat.Heartbeats.FM2_HbOpW','FM2_HbOpW','PAC4.FM2.Heartbeats.FM2_HbOpW'),\n('FM3','ns=2;s=OPT_RX.Optibat.Heartbeats.FM3_HbOpW','FM3_HbOpW','PAC24.FM3.Heartbeats.FM3_HbOpW')), nodes AS (\n SELECT n.* FROM mapping m CROSS JOIN LATERAL\n (VALUES ('RX',rx),('FLS/ECS',fls),('PLC',plc)) n(node,tag)\n WHERE asset=${asset:sqlstring}\n), raw AS (\n SELECT n.node,t.logger_timestamp AS ts,\n CASE WHEN t.status_code NOT LIKE 'Good%' OR t.status_code IS NULL THEN NULL\n      WHEN lower(trim(t.value))='true' THEN 1\n      WHEN lower(trim(t.value))='false' THEN 0\n      WHEN trim(t.value) ~ '^[+]?0([.]0+)?$' THEN 0\n      WHEN trim(t.value) ~ '^[+]?1([.]0+)?$' THEN 1\n      ELSE NULL END AS val\n FROM tags t JOIN nodes n ON t.tag=n.tag CROSS JOIN bounds b\n WHERE t.logger_timestamp >= b.lo-interval '60 seconds' AND t.logger_timestamp <= b.hi\n), samples AS (\n SELECT node,ts,CASE WHEN count(val)=count(*) AND count(DISTINCT val)=1\n THEN min(val) END AS val FROM raw GROUP BY node,ts\n), ordered AS (\n SELECT *, lead(ts) OVER (PARTITION BY node ORDER BY ts) AS next_ts FROM samples\n), intervals AS (\n SELECT node,val,greatest(ts,b.lo) AS a,\n least(coalesce(next_ts,b.hi),ts+interval '60 seconds',b.hi) AS z\n FROM ordered CROSS JOIN bounds b\n WHERE ts < b.hi\n)\n\n SELECT n.node AS \"Nodo\",n.tag AS \"Tag\",t.value AS \"Valor\",t.status_code AS \"Calidad\",\n t.logger_timestamp AS \"Lectura del logger\",t.source_timestamp AS \"Timestamp fuente\",\n round(extract(epoch FROM b.hi-t.logger_timestamp)::numeric,1) AS \"Edad al fin del periodo (s)\"\n FROM nodes n CROSS JOIN bounds b LEFT JOIN LATERAL (\n SELECT value,status_code,logger_timestamp,source_timestamp FROM tags\n WHERE tag=n.tag AND logger_timestamp BETWEEN b.lo AND b.hi\n ORDER BY logger_timestamp DESC LIMIT 1\n ) t ON true ORDER BY n.node;",
+          "refId": "A"
+        }
+      ],
+      "title": "Últimas lecturas · ${asset}",
+      "type": "table"
+    }
+  ],
+  "preload": false,
+  "refresh": "10s",
+  "schemaVersion": 42,
+  "tags": [
+    "balcones",
+    "heartbeats",
+    "OT"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "text": "FM3",
+          "value": "FM3"
+        },
+        "includeAll": false,
+        "label": "Asset",
+        "name": "asset",
+        "options": [],
+        "query": "RM1,RM2,K1,K2,FM1,FM2,FM3",
+        "type": "custom",
+        "valuesFormat": "csv"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Balcones · Heartbeats y discrepancias OT",
+  "uid": "balcones-hb-trace",
+  "version": 10,
+  "weekStart": ""
+}

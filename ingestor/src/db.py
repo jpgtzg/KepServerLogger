@@ -37,15 +37,13 @@ class IngestorDatabase(ProjectDatabase):
                 CREATE EXTENSION IF NOT EXISTS timescaledb;
 
                 CREATE TABLE IF NOT EXISTS tags (
-                    server_timestamp    TIMESTAMPTZ NOT NULL,
+                    logger_timestamp    TIMESTAMPTZ NOT NULL,
                     tag                 TEXT NOT NULL,
                     value               TEXT,
                     status_code         TEXT,
                     source_timestamp    TIMESTAMPTZ,
-                    logger_timestamp    TIMESTAMPTZ
+                    server_timestamp    TIMESTAMPTZ
                 );
-
-                ALTER TABLE tags ADD COLUMN IF NOT EXISTS logger_timestamp TIMESTAMPTZ;
 
                 CREATE TABLE IF NOT EXISTS events (
                     hash        TEXT NOT NULL,
@@ -112,7 +110,7 @@ class IngestorDatabase(ProjectDatabase):
                 """
             ],
             indexes=[
-                "CREATE INDEX IF NOT EXISTS idx_tags_tag_timestamp ON tags (tag, server_timestamp DESC);",
+                "CREATE INDEX IF NOT EXISTS idx_tags_tag_timestamp ON tags (tag, logger_timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_cpu_timestamp ON cpu_usage (timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_network_timestamp ON network_usage (timestamp DESC, interface);",
                 "CREATE INDEX IF NOT EXISTS idx_ram_timestamp ON ram_usage (timestamp DESC);",
@@ -125,7 +123,7 @@ class IngestorDatabase(ProjectDatabase):
                 "CREATE INDEX IF NOT EXISTS idx_ingestor_logs_id ON ingestor_logs (id);",
             ],
             hypertables=[
-                ("tags", "server_timestamp"),
+                ("tags", "logger_timestamp"),
                 ("cpu_usage", "timestamp"),
                 ("network_usage", "timestamp"),
                 ("ram_usage", "timestamp"),

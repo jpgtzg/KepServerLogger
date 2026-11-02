@@ -11,7 +11,7 @@ from lib.utils import utcnow
 logger = getLogger(__name__)
 
 
-class HeartbeatHandler:
+class SystemHeartbeatHandler:
     def __init__(
         self,
         client: OPCUAClient,
@@ -67,10 +67,10 @@ class HeartbeatHandler:
                 delta = val - self._last_received_value
                 if abs(delta) != 1:
                     logger.warning(
-                        f"[HEARTBEAT] Unexpected jump: {self._last_received_value} -> {val}"
+                        f"[SYSTEM-HEARTBEAT] Unexpected jump: {self._last_received_value} -> {val}"
                     )
             logger.info(
-                "[HEARTBEAT] Received value %s on (%.3fs since last beat)",
+                "[SYSTEM-HEARTBEAT] Received value %s on (%.3fs since last beat)",
                 val,
                 time_diff.total_seconds() if time_diff else -1,
             )
@@ -82,13 +82,13 @@ class HeartbeatHandler:
                 rtt = time.monotonic() - sent_at
                 if rtt > self.max_rtt:
                     logger.warning(
-                        f"[HEARTBEAT] Slow echo on {self.receive_path}: value {val} took {rtt:.3f}s (max {self.max_rtt:.3f}s)",
+                        f"[SYSTEM-HEARTBEAT] Slow echo on {self.receive_path}: value {val} took {rtt:.3f}s (max {self.max_rtt:.3f}s)",
                     )
                 else:
-                    logger.info("[HEARTBEAT] RTT for value %s: %.3fs", val, rtt)
+                    logger.info("[SYSTEM-HEARTBEAT] RTT for value %s: %.3fs", val, rtt)
             else:
                 logger.warning(
-                    f"[HEARTBEAT] Received value {val} on {self.receive_path} is not one we sent",
+                    f"[SYSTEM-HEARTBEAT] Received value {val} on {self.receive_path} is not one we sent",
                 )
 
     async def echo_value(self, val) -> None:
@@ -107,7 +107,7 @@ class HeartbeatHandler:
     ):
         self._update_heartbeat()
         self._sent_at_map[self._heartbeat] = time.monotonic()
-        logger.info(f"[HEARTBEAT] Publishing heartbeat value={self._heartbeat}")
+        logger.info(f"[SYSTEM-HEARTBEAT] Publishing heartbeat value={self._heartbeat}")
         node = self.client.get_node(self.send_path)
         variant_type = await node.read_data_type_as_variant_type()
         await self.client.write_value(node, self._heartbeat, variant_type)
@@ -134,7 +134,7 @@ class HeartbeatHandler:
             try:
                 await self.send_heartbeat()
             except Exception:
-                logger.exception("[HEARTBEAT] Failed to send heartbeat")
+                logger.exception("[SYSTEM-HEARTBEAT] Failed to send heartbeat")
 
             stale = self.is_stale()
             if stale and not was_stale and on_stale is not None:

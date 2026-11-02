@@ -228,7 +228,7 @@ Each KepServer instance writes to its own database (named by `db_name` in `serve
 
 | Table | Hypertable key | Description |
 |---|---|---|
-| `tags` | `server_timestamp` | All process tag values (raw passthrough) |
+| `tags` | `logger_timestamp` | All process tag values (raw passthrough) |
 | `cpu_usage` | `timestamp` | CPU usage percentage |
 | `ram_usage` | `timestamp` | Total and free RAM in KB |
 | `storage_usage` | `timestamp` | Total, used, and free disk space in GB (`C:\`) |

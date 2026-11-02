@@ -40,6 +40,28 @@ class JsonLoggingTests(unittest.TestCase):
         self.assertIsNone(record["data"]["invalid"])
         self.assertTrue(record["timestamp"].endswith("+00:00"))
 
+    def test_child_jobs_inherit_server_context(self):
+        async def job():
+            await asyncio.sleep(0)
+            self.logger.info("metric", extra={"event": "telemetry.cpu"})
+
+        async def server(name):
+            set_log_context(server_name=name, host_name=name + "-host")
+            tasks = [asyncio.create_task(job()) for _ in range(2)]
+            set_log_context(host_name=None)
+            await asyncio.gather(*tasks)
+
+        async def run():
+            await asyncio.gather(server("a"), server("b"))
+
+        asyncio.run(run())
+        records = [json.loads(line) for line in self.stream.getvalue().splitlines()]
+        self.assertEqual(len(records), 4)
+        self.assertEqual({r["server_name"] for r in records}, {"a", "b"})
+        for record in records:
+            self.assertEqual(record["host_name"], record["server_name"] + "-host")
+            self.assertEqual(record["event"], "telemetry.cpu")
+
     def test_async_servers_do_not_share_context(self):
         async def emit(name):
             set_log_context(server_name=name, host_name=name + "-host")

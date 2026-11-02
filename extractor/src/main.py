@@ -3,7 +3,7 @@ import logging
 import os
 import time
 
-from lib.heartbeat import HeartbeatHandler
+from lib.heartbeat import SystemHeartbeatHandler
 from lib.logging import config_logging
 from lib.monitor import OPCUAMonitor
 from lib.opc_handlers import safe_handle
@@ -79,7 +79,7 @@ async def _run_session() -> None:
             logger.info("OPC UA client connected, starting main loop")
             monitor = OPCUAMonitor()
 
-            collector_heartbeat = HeartbeatHandler(
+            collector_heartbeat = SystemHeartbeatHandler(
                 client=client,
                 max_heartbeat=MAX_HEARTBEAT_NUMBER,
                 echo=True,
@@ -90,7 +90,7 @@ async def _run_session() -> None:
             )
             await collector_heartbeat.start()
 
-            agent_heartbeat = HeartbeatHandler(
+            agent_heartbeat = SystemHeartbeatHandler(
                 client=client,
                 max_heartbeat=MAX_HEARTBEAT_NUMBER,
                 echo=False,
@@ -105,7 +105,7 @@ async def _run_session() -> None:
                 agent_heartbeat.run(
                     HEARTBEAT_INTERVAL_SECONDS,
                     on_stale=lambda: logger.warning(
-                        "[HEARTBEAT] Agent heartbeat is stale"
+                        "[SYSTEM-HEARTBEAT] Agent heartbeat is stale"
                     ),
                 )
             )
