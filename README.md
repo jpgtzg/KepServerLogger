@@ -66,9 +66,9 @@ Each server runs as an independent asyncio coroutine. A failure or reconnect on 
 
 ## Two Classes of Data
 
-**System metrics** — produced by the extractor and published to each KepServer's `IDL` channel (Simulator driver). The extractor writes structured data to pre-configured UA nodes each loop iteration. The ingestor reads those same nodes and deserialises them into typed models before writing to dedicated database tables.
+**System metrics** — produced by the extractor and published to each KepServer's `IDL` channel (Simulator driver). The extractor writes one JSON sample per metric to a pre-configured UA node each polling interval. The ingestor subscribes to those nodes, so KepServer pushes every new sample; it deserialises each one into a typed model and writes it to a dedicated database table.
 
-**Process tags (PLC/Link tags)** — these live natively in KepServer. The extractor has no involvement. The ingestor reads them directly from their OPC UA address and stores them as raw `(tag, value, status_code, timestamp)` rows in the `tags` table. These tags are used in the field and are not modified by this system.
+**Process tags (PLC/Link tags)** — these live natively in KepServer. The extractor has no involvement. The ingestor subscribes to them at their OPC UA address and stores a raw `(tag, value, status_code, timestamp)` row in the `tags` table each time a value changes. These tags are used in the field and are not modified by this system.
 
 ---
 
@@ -85,15 +85,15 @@ A Python application compiled to a Windows `.exe`. Runs on each KepServer machin
 
 | Metric | UA node pattern | DB table |
 |---|---|---|
-| CPU usage | `IDL.Metrics.CPU.<field>` | `cpu_usage` |
-| RAM usage | `IDL.Metrics.RAM.<field>` | `ram_usage` |
-| Storage usage | `IDL.Metrics.Storage.<field>` | `storage_usage` |
+| CPU usage | `IDL.Metrics.CPU.batch` | `cpu_usage` |
+| RAM usage | `IDL.Metrics.RAM.batch` | `ram_usage` |
+| Storage usage | `IDL.Metrics.Storage.batch` | `storage_usage` |
 | Network I/O | `IDL.Metrics.Network.batch` | `network_usage` |
-| Windows services | `IDL.Metrics.Services.<name>` | `services` |
+| Windows services | `IDL.Metrics.Services.batch` | `services` |
 | KepServer events | `IDL.Metrics.Events.batch` | `events` |
 | Hostname | `IDL.Metrics.host_name` | `active_log` |
 
-Batch nodes (`*.batch`) carry a JSON-encoded array. Per-field nodes carry scalar string values.
+Every metric node (`*.batch`) carries a JSON-encoded array of samples, written in one call so a sample is always complete. A scalar metric (CPU, RAM, storage) is an array of one. The node names, models and tables are defined once, in `lib/metrics.py`. The hostname is a plain string node.
 
 The extractor targets Windows only and is intended to run as a Windows service (e.g. via NSSM).
 
@@ -108,7 +108,7 @@ KepServerEX is the message broker between the extractor and the ingestor at each
 
 All communication uses OPC UA with `Basic256Sha256 SignAndEncrypt`. Both extractor and ingestor authenticate with username/password and present a client certificate that must be trusted in KepServer's certificate store.
 
-`docs/UA-Node-Tag-Layout.csv` is a ready-made KepServerEX Simulator driver import for the `IDL` channel — it defines the string tags (`CPU.usage`, `RAM.free_kb`, `Network.batch`, etc.) at the addresses (`S0000`, `S0001`, ...) that the extractor writes to and the ingestor reads from. Import it directly into a new `IDL` channel/device rather than creating the tags by hand. The node names/addresses can technically be changed as long as `settings.json → metrics_config` prefixes are updated to match, but it's much easier to keep the provided layout as-is across every site than to keep a custom layout in sync.
+`docs/UA-Node-Tag-Layout.csv` is a ready-made KepServerEX Simulator driver import for the `IDL` channel — it defines the string tags (`CPU.batch`, `RAM.batch`, `Storage.batch`, `Network.batch`, etc.) at the addresses (`S0000`, `S0001`, ...) that the extractor writes to and the ingestor reads from. Import it directly into a new `IDL` channel/device rather than creating the tags by hand. The node names/addresses can technically be changed as long as `settings.json → node_prefix` is updated to match, but it's much easier to keep the provided layout as-is across every site than to keep a custom layout in sync.
 
 ---
 
@@ -117,6 +117,7 @@ All communication uses OPC UA with `Basic256Sha256 SignAndEncrypt`. Both extract
 A Python asyncio application running in Docker on the central Linux machine. It connects to all KepServer instances concurrently and independently:
 
 - Each connection runs in its own coroutine (`main(server)`).
+- Nothing is polled. Each enabled metric and each tag channel is an OPC UA data-change subscription (`lib/subscription.py`). The notification callback only puts the value on a queue (`ingestor/src/ingest.py`); a consumer decodes it and writes all new rows once a second, in a worker thread so receiving is never blocked by the database. A failed write keeps the rows and retries; it never reconnects the OPC UA session.
 - Each server writes to its own dedicated TimescaleDB database (configured via `db_name` in `servers.json`).
 - On startup the ingestor reads the hostname published by the extractor and logs an `active` event to `active_log`. This records which physical machine answered the connection — useful in manually-clustered environments where a failover means the same IP is served by a different host.
 - If a connection drops, the ingestor logs an `inactive` event (linked to the `ingestor_logs` row that caused it, see below), waits with exponential backoff (5 → 10 → 20 → 40 → 60s), and retries. The other servers are unaffected.
@@ -133,9 +134,9 @@ Configuration is split across three files to separate concerns. `.env` is **not 
 | `servers.json` | Ingestor only | OPC UA URL, credentials, certs, DB name, CSV tag file — one entry per KepServer instance |
 | `.env` (extractor) | Per extractor machine | KepServer connection URL/credentials, client cert/key paths, application name |
 | `.env` (ingestor) | Ingestor only | DB host/port/user/password, application name |
-| `settings.json` | Shared behaviour | Polling interval, retention days, which metrics to log, OPC UA node prefixes |
+| `settings.json` | Shared behaviour | Polling interval, retention days, node prefix, which metrics to log |
 
-`settings.json` should be kept the same on every extractor and on the ingestor, since it defines the shared node namespace both sides agree on. Strictly, only the OPC UA node-address fields (`metrics_config.*.prefix`, `tag_channels`) and `metrics_to_log` need to match exactly — `metrics_config.services.names` is read only by the extractor and can legitimately differ per machine (e.g. different installed services). It's still easiest to keep one copy of the file everywhere and only vary that field when a machine genuinely needs it. `tag_channels` is keyed per server (by the `name` in `servers.json`), so a single shared `settings.json` can hold distinct channels/prefixes for each server without conflicting.
+`settings.json` should be kept the same on every extractor and on the ingestor, since it defines the shared node namespace both sides agree on. Strictly, only `node_prefix` and `metrics` need to match exactly. Each side reads only its own keys and ignores the rest: `services` is read only by the extractor and can differ per machine (e.g. different installed services), and `log_retention_days` is read only by the ingestor.
 
 `servers.json` and both `.env` files are gitignored. See `docs/servers.example.json`, `docs/settings.extractor.example.json`, `docs/settings.ingestor.example.json`, `docs/extractor.env.example`, and `docs/ingestor.env.example` for templates. Protect all of them with `chmod 600`.
 
@@ -155,10 +156,15 @@ Declares the list of KepServer instances the ingestor connects to:
         "key_path": "certs/plant_a_client_key.pem",
         "csv_filename": "tags/plant_a_tags.csv",
         "csv_tag_column_name": "Tag Name",
-        "csv_tag_separator": ","
+        "csv_tag_separator": ",",
+        "tag_channels": {
+            "plc_tags": "ns=2;s=Kepserver_OPC_DA.FLS.Tags"
+        }
     }
 ]
 ```
+
+`tag_channels` maps each channel (the `Type` in the tag CSV) to its node prefix. A server without `tag_channels` logs no tags.
 
 `cert_path`, `key_path`, and `csv_filename` are resolved relative to the ingestor's working directory (`/app/ingestor` inside the container), not relative to `servers.json` itself. Under Docker Compose, put each server's tag CSV in a `tags/` directory next to `docker-compose.yml` (bind-mounted to `/app/ingestor/tags`) and reference it as `tags/<file>.csv`, as in the example above.
 
@@ -195,13 +201,21 @@ DB_PASSWORD=your-db-password
 
 ### settings.json
 
-Controls which metrics are active and where their OPC UA nodes live. See `docs/settings.extractor.example.json` (deploy next to `extractor.exe`) and `docs/settings.ingestor.example.json` (deploy on the ingestor) for the full structure — the two are identical except that `metrics_config.services.names` is only meaningful on the extractor's copy.
+Controls which metrics are active and where their OPC UA nodes live. See `docs/settings.extractor.example.json` (deploy next to `extractor.exe`) and `docs/settings.ingestor.example.json` (deploy on the ingestor).
+
+| Key | Read by | Meaning |
+|---|---|---|
+| `polling_interval_seconds` | both | How often the extractor publishes; the ingestor derives its subscription sampling from it |
+| `node_prefix` | both | Prefix of every metric node (`<node_prefix>.<Name>.batch`, `<node_prefix>.host_name`) |
+| `metrics` | both | Metrics to publish / store: `cpu`, `ram`, `storage`, `network`, `services`, `events` |
+| `services` | extractor | Windows services to report |
+| `log_retention_days` | ingestor | Retention policy of every table |
 
 ---
 
 ## Tag Configuration
 
-Process tags are declared in a CSV file per server (path set by `csv_filename` in `servers.json`). The `Type` column links each tag to a channel prefix defined in `settings.json → metrics_config.tag_channels`, under that server's own entry (keyed by the server's `name` in `servers.json`) — channels and prefixes are never shared across servers.
+Process tags are declared in a CSV file per server (path set by `csv_filename` in `servers.json`). The `Type` column links each tag to a channel prefix defined in that server's `tag_channels` in `servers.json` — channels and prefixes are never shared across servers.
 
 ```
 Tag name,Description,Type
@@ -214,11 +228,11 @@ Only two columns are read by the ingestor; any other columns (description, addre
 | Column | Purpose |
 |---|---|
 | Tag name column (name set by `csv_tag_column_name` in `servers.json`) | Tag name as it appears in the OPC UA node (`.BAL` suffix is stripped automatically) |
-| `Type` | Channel name — must match a key under this server's entry in `settings.json → metrics_config.tag_channels.<server-name>` |
+| `Type` | Channel name — must match a key of this server's `tag_channels` in `servers.json` |
 
 Tags containing `_Write` or `_WRITE` are automatically excluded (write-back tags, not for logging).
 
-Adding a new tag source: add rows with a new `Type` value and one entry under that server's map in `tag_channels` in `settings.json`. No code changes required. Adding a new server: add its entry to `servers.json` and a matching top-level entry (keyed by the same `name`) in `tag_channels`.
+Adding a new tag source: add rows with a new `Type` value and one entry in that server's `tag_channels` in `servers.json`. No code changes required. Adding a new server: add its entry, with its `tag_channels`, to `servers.json`.
 
 ---
 
@@ -350,15 +364,15 @@ The connection-status panel also queries the most recent event at or before the 
 | `extractor.exe` | Built by `build.ps1` |
 | `idl-certgen.exe` | Generates the OPC UA client certificate |
 | `.env` | Credentials and KepServer connection settings |
-| `settings.json` | Node prefixes and `metrics_to_log` must match the ingestor's copy; `services.names` may differ per machine |
+| `settings.json` | `node_prefix` and `metrics` must match the ingestor's copy; `services` may differ per machine |
 
 **Central Linux machine (Ingestor):**
 
 | File | Notes |
 |---|---|
 | `.env` | DB credentials and global app config |
-| `servers.json` | List of KepServer instances (`chmod 600`) |
-| `settings.json` | Node prefixes and `metrics_to_log` must match every extractor's copy |
+| `servers.json` | List of KepServer instances and their `tag_channels` (`chmod 600`) |
+| `settings.json` | `node_prefix` and `metrics` must match every extractor's copy |
 | `docker-compose.yml` | Service definitions |
 | `ingestor.tar.gz` | Built by `build_ingestor.sh` |
 | `timescaledb.tar.gz` | Only needed without registry access |
@@ -467,36 +481,31 @@ If a certificate isn't trusted (or is otherwise rejected during the secure-chann
 
 - The `IDL` channel in KepServer uses the **Simulator** driver, which allows defining UA nodes without a physical device.
 - KepServer tag names do not allow dots. Dots in service names are replaced with underscores.
-- `settings.json` must be kept in sync between all extractors and the ingestor for the node-address fields (`metrics_config.*.prefix`, `tag_channels`) and `metrics_to_log` — these define the shared OPC UA node namespace. `metrics_config.services.names` is extractor-only and can differ per machine.
-- Adding a new KepServer instance: add an entry to `servers.json`, deploy its cert to the ingestor machine, add a matching per-server entry (same `name`) to `metrics_config.tag_channels` in `settings.json` if tag logging is enabled, and restart the ingestor. No other code changes required — the ingestor creates the target database (and enables the `timescaledb` extension) on first connect if it doesn't already exist, as long as `DB_USER` has `CREATEDB` privileges.
+- `settings.json` must be kept in sync between all extractors and the ingestor for `node_prefix` and `metrics` — these define the shared OPC UA node namespace. `services` is extractor-only and can differ per machine.
+- Adding a new KepServer instance: add an entry to `servers.json`, deploy its cert to the ingestor machine, give it `tag_channels` in `servers.json` if tag logging is enabled, and restart the ingestor. No other code changes required — the ingestor creates the target database (and enables the `timescaledb` extension) on first connect if it doesn't already exist, as long as `DB_USER` has `CREATEDB` privileges.
 - The ingestor retries dropped connections with exponential backoff (5 → 10 → 20 → 40 → 60s). Each reconnect attempt is independent per server. Connection history is recorded in `active_log`, joinable to `ingestor_logs` via `error_id` for the underlying cause.
 - The extractor and ingestor each read their own `.env` into a dedicated Pydantic settings model (`ExtractorConfig` / `IngestorConfig` in `lib/config.py`) — they have no fields in common, so don't copy one machine's `.env` to the other.
 
 ### Adding a New Metric
 
-Every metric follows the same pattern on both sides: a value in `settings.json`, one function that does the work, and one line in a table. Nothing else in the main loops needs to change. The steps below use a metric called `disk_io` as an example.
+A metric is described once, in `lib/metrics.py`; both sides build everything else from that entry. The steps below use a metric called `disk_io` as an example.
 
 **1. Shared (`lib/`)**
 
-- `lib/models.py`: add a model that extends `OPCUAModel`. Its fields become the OPC UA node names (`<prefix>.<field>`), and `timestamp` comes from the base class.
-- `lib/settings.py`: add the metric to the `MetricType` enum and a matching optional field on `MetricsConfig`. **The enum value must equal the `MetricsConfig` field name** (for example `DISK_IO = "disk_io"` and `disk_io: Optional[PrefixConfig] = None`), because `Settings` uses the value to check that every enabled metric has a config entry.
-- `settings.json` (and `docs/settings.*.example.json`): add `"disk_io"` to `metrics_to_log` and a `metrics_config.disk_io.prefix` entry. Keep it identical on the extractor and the ingestor, since the prefix is the shared node address.
-- KepServer: create the tags the metric needs under that prefix, and add them to `docs/UA-Node-Tag-Layout.csv`.
-  - A scalar metric needs one tag per model field, for example `Metrics.DiskIO.timestamp` and `Metrics.DiskIO.read_kb`.
-  - A list of items (batch) needs a single string tag named `<prefix>.batch`.
+- `lib/models.py`: add a model that extends `OPCUAModel`. `timestamp` comes from the base class.
+- `lib/metrics.py`: add `Metric("disk_io", "DiskIO", DiskIO, "disk_io")` to `METRICS`. The name is the key used in `settings.json`; the node name gives the node `<node_prefix>.DiskIO.batch`. Use `columns={...}` if a model field has a different column name, `idempotent=True` if the database ignores repeated rows, and `config=SubscriptionConfig(...)` to change the subscription's sampling or queue size.
+- `settings.json` (and `docs/settings.*.example.json`): add `"disk_io"` to `metrics`. Keep it identical on the extractor and the ingestor.
+- KepServer: create one string tag, `<node_prefix>.DiskIO.batch`, and add it to `docs/UA-Node-Tag-Layout.csv`. Every metric, scalar or not, is one string tag holding a JSON array.
 
 **2. Extractor (`extractor/src/`)**
 
-- `metrics/disk_io.py`: add a getter that collects the data and returns the model, or a list of models for a batch. Export it from `metrics/__init__.py`.
-- `publish.py`: add `publish_disk_io(client, metrics)`. It calls the getter, then `publish_scalar(client, data, metrics.disk_io.prefix, "<log message>")` for one model, or `publish_batch(...)` for a list.
-- `main.py`: add `(MetricType.DISK_IO, "DISK_IO", publish_disk_io)` to the `PUBLISHERS` list. The loop calls each entry through `safe_handle` if its type is in `metrics_to_log`.
+- `metrics/disk_io.py`: add a getter that returns the model (or a list of models). Export it from `metrics/__init__.py`.
+- `publish.py`: add `"disk_io": _one(get_disk_io)` (or `_many(...)` for a list) to `GETTERS`.
 
 **3. Ingestor (`ingestor/src/`)**
 
-- `db.py`: create the table and its index in `initialize()`, add it to the `hypertables` list (this drives retention), and add an `insert_disk_io(...)` method.
-- `subscribe.py`: add `subscribe_disk_io(client, db, metrics)`. It calls `subscribe_scalar(client, metrics.disk_io.prefix, DiskIO)` (or `subscribe_batch(...)`), inserts the result through `db`, and logs the outcome.
-- `main.py`: add `(MetricType.DISK_IO, "DISK_IO", subscribe_disk_io)` to the `COLLECTORS` list.
+- `db.py`: create the table and its index in `initialize()` and add it to the `hypertables` list (this drives retention). Nothing else: the subscription, decoding and insert are generic.
 
-**Error handling is automatic.** Both loops wrap each entry in `safe_handle` (`lib/opc_handlers.py`). A failing metric is logged and skipped, it does not stop the others, and after `MAX_CONSECUTIVE_METRIC_FAILURES` failures in a row (3, in `lib/utils.py`) it forces a reconnect. The ingestor also records each failure in `ingestor_logs`. Functions should raise on failure instead of catching their own exceptions. A `ConnectionError` is always re-raised so the session reconnects.
+**Error handling.** The extractor wraps each publish in `safe_handle` (`lib/monitor.py`): a failing metric is logged and skipped, and after `MAX_CONSECUTIVE_METRIC_FAILURES` failures in a row (3, in `lib/utils.py`) it forces a reconnect. In the ingestor, the notification callback only enqueues; a value that cannot be decoded is logged and dropped without affecting anything else. A subscription the server ends forces a reconnect; one that goes silent is only logged (`SUBSCRIPTION` in `ingestor_logs`), since the heartbeat is what proves the connection is alive. A failed database write keeps the rows and retries every second.
 
-**Not covered by this pattern.** The hostname (published every cycle by the extractor and read once on connect by the ingestor) and tag channels (per-server, added to `collectors` in the ingestor's `main()`) are special cases and have their own code paths.
+**Not covered by this pattern.** The hostname (a plain string node, published every cycle by the extractor and read once on connect by the ingestor) and tag channels (per server, from `tag_channels` in `servers.json`) have their own code paths.

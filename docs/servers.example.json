@@ -9,7 +9,11 @@
         "key_path": "certs/plant_a_client_key.pem",
         "csv_filename": "tags/plant_a_tags.csv",
         "csv_tag_column_name": "Tag Name",
-        "csv_tag_separator": ","
+        "csv_tag_separator": ",",
+        "tag_channels": {
+            "plc_tags": "ns=2;s=Kepserver_OPC_DA.FLS.Tags",
+            "link_tags": "ns=2;s=Kepserver_Link.Tags"
+        }
     },
     {
         "name": "plant-b",
@@ -21,6 +25,9 @@
         "key_path": "certs/plant_b_client_key.pem",
         "csv_filename": "tags/plant_b_tags.csv",
         "csv_tag_column_name": "Tag Name",
-        "csv_tag_separator": ","
+        "csv_tag_separator": ",",
+        "tag_channels": {
+            "plc_tags": "ns=2;s=Kepserver_OPC_DA.FLS.Tags"
+        }
     }
 ]
