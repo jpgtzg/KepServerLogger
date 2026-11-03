@@ -6,7 +6,7 @@ from logging import getLogger
 from asyncua import Node
 
 from lib.opcua_client import OPCUAClient
-from lib.utils import utcnow
+from lib.utils import HEARTBEAT_INTERVAL_SECONDS, utcnow
 
 logger = getLogger(__name__)
 
@@ -24,8 +24,8 @@ class SystemHeartbeatHandler:
     ):
         self.client = client
         self.max_heartbeat = max_heartbeat
-        # The paths are named from the collector's point of view, so the echoing
-        # side listens on the collector's send path and answers on its receive path.
+        # The paths are named from the heartbeat owners's point of view, so the echoing
+        # side listens on the ownser's send path and answers on its receive path.
         if echo:
             send_path, receive_path = receive_path, send_path
         self.send_path = send_path
@@ -45,15 +45,27 @@ class SystemHeartbeatHandler:
 
         self._sent_at_map: dict[int, float] = {}
 
-    async def start(self) -> None:
+        self.running_task = None
+
+    async def start(
+        self,
+        on_stale: Callable[[], object] | None = None,
+    ) -> None:
         self._sub = await self.client.create_subscription(500, self)
         node = self.client.get_node(self.receive_path)
         await self._sub.subscribe_data_change(node)
+
+        if not self.echo:
+            self.running_task = asyncio.create_task(
+                self.run(HEARTBEAT_INTERVAL_SECONDS, on_stale=on_stale),
+            )
 
     async def stop(self) -> None:
         if self._sub is not None:
             await self._sub.delete()
             self._sub = None
+            if self.running_task is not None:
+                self.running_task.cancel()
 
     async def datachange_notification(self, node: Node, val, data):
         if self.echo:
@@ -127,18 +139,15 @@ class SystemHeartbeatHandler:
     ) -> None:
         """
         Sends a heartbeat every `interval` seconds until cancelled, independent of
-        the metric loop. `on_stale` is called once each time the echo goes stale.
+        the metric loop. `on_stale` is called on every beat while the echo is stale.
         """
-        was_stale = False
         while True:
             try:
                 await self.send_heartbeat()
             except Exception:
                 logger.exception("[SYSTEM-HEARTBEAT] Failed to send heartbeat")
 
-            stale = self.is_stale()
-            if stale and not was_stale and on_stale is not None:
+            if self.is_stale() and on_stale is not None:
                 on_stale()
-            was_stale = stale
 
             await asyncio.sleep(interval)

@@ -14,7 +14,6 @@ from lib.utils import (
     AGENT_HEARTBEAT_SEND_PATH,
     COLLECTOR_HEARTBEAT_RECEIVE_PATH,
     COLLECTOR_HEARTBEAT_SEND_PATH,
-    HEARTBEAT_INTERVAL_SECONDS,
     MAX_HEARTBEAT_NUMBER,
     OPCUA_REQUEST_TIMEOUT_SECONDS,
     RECONNECT_DELAY,
@@ -99,43 +98,33 @@ async def _run_session() -> None:
                 max_rtt=settings.polling_interval_seconds * 2,
                 stale_after=settings.polling_interval_seconds * 5,
             )
-            await agent_heartbeat.start()
+            await agent_heartbeat.start(
+                on_stale=logger.warning("[SYSTEM-HEARTBEAT] Heartbeat is stale")
+            )
 
-            heartbeat_task = asyncio.create_task(
-                agent_heartbeat.run(
-                    HEARTBEAT_INTERVAL_SECONDS,
-                    on_stale=lambda: logger.warning(
-                        "[SYSTEM-HEARTBEAT] Agent heartbeat is stale"
-                    ),
+            handlers = [
+                safe_handle(
+                    tag,
+                    monitor,
+                    function(client, settings.metrics_config),
+                )
+                for metric_type, tag, function in PUBLISHERS
+                if metric_type in settings.metrics_to_log
+            ]
+            handlers.append(
+                safe_handle(
+                    "HOSTNAME",
+                    monitor,
+                    publish_hostname(client, settings.metrics_config),
                 )
             )
-            try:
-                while True:
-                    handlers = [
-                        safe_handle(
-                            tag,
-                            monitor,
-                            function(client, settings.metrics_config),
-                        )
-                        for metric_type, tag, function in PUBLISHERS
-                        if metric_type in settings.metrics_to_log
-                    ]
-                    handlers.append(
-                        safe_handle(
-                            "HOSTNAME",
-                            monitor,
-                            publish_hostname(client, settings.metrics_config),
-                        )
-                    )
+            while True:
+                results = await asyncio.gather(*handlers, return_exceptions=True)
+                for result in results:
+                    if isinstance(result, BaseException):
+                        raise result
 
-                    results = await asyncio.gather(*handlers, return_exceptions=True)
-                    for result in results:
-                        if isinstance(result, BaseException):
-                            raise result
-
-                    await asyncio.sleep(settings.polling_interval_seconds)
-            finally:
-                heartbeat_task.cancel()
+                await asyncio.sleep(settings.polling_interval_seconds)
     except ConnectionError as e:
         logger.warning(
             f"Connection lost ({type(e).__name__}: {e}), reconnecting in {RECONNECT_DELAY}s..."
