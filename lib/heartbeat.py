@@ -61,11 +61,20 @@ class SystemHeartbeatHandler:
             )
 
     async def stop(self) -> None:
-        if self._sub is not None:
-            await self._sub.delete()
-            self._sub = None
-            if self.running_task is not None:
-                self.running_task.cancel()
+        # Stop the sender first: on a dead connection deleting the subscription
+        # raises, and the task must not be left running into the next session.
+        if self.running_task is not None:
+            self.running_task.cancel()
+            await asyncio.gather(self.running_task, return_exceptions=True)
+            self.running_task = None
+        sub, self._sub = self._sub, None
+        if sub is not None:
+            try:
+                await sub.delete()
+            except Exception:
+                logger.warning(
+                    "[SYSTEM-HEARTBEAT] Could not delete subscription", exc_info=True
+                )
 
     async def datachange_notification(self, node: Node, val, data):
         if self.echo:

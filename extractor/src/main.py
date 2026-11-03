@@ -45,17 +45,22 @@ PUBLISHERS = [
 
 async def main() -> None:
     logger.info("Starting metrics extractor...")
-
-    try:
-        while True:
+    while True:
+        try:
             await _run_session()
-    except KeyboardInterrupt:
-        logger.info("Stopping logger...")
+        except Exception as e:
+            reasons = e.exceptions if isinstance(e, BaseExceptionGroup) else (e,)
+            logger.warning(
+                "Session ended ("
+                + "; ".join(f"{type(r).__name__}: {r}" for r in reasons)
+                + f"), reconnecting in {RECONNECT_DELAY}s...",
+                exc_info=not all(isinstance(r, ConnectionError) for r in reasons),
+            )
+        await asyncio.sleep(RECONNECT_DELAY)
 
 
 async def _run_session() -> None:
     logger.info(f"Connecting to {config.kepserver_server_url}...")
-
     client = OPCUAClient(
         url=config.kepserver_server_url,
         app_uri=config.app_uri,
@@ -66,19 +71,13 @@ async def _run_session() -> None:
         password=config.kepserver_password,
         timeout=OPCUA_REQUEST_TIMEOUT_SECONDS,
     )
-
     await client.setup()
 
-    logger.info("Initialization complete, starting main loop...")
-    await asyncio.sleep(5)
-
-    start_time = time.time()
+    start_time = time.monotonic()
     try:
         async with client:
             logger.info("OPC UA client connected, starting main loop")
-            monitor = OPCUAMonitor()
-
-            collector_heartbeat = SystemHeartbeatHandler(
+            collector = SystemHeartbeatHandler(
                 client=client,
                 max_heartbeat=MAX_HEARTBEAT_NUMBER,
                 echo=True,
@@ -87,9 +86,7 @@ async def _run_session() -> None:
                 max_rtt=settings.polling_interval_seconds * 2,
                 stale_after=settings.polling_interval_seconds * 5,
             )
-            await collector_heartbeat.start()
-
-            agent_heartbeat = SystemHeartbeatHandler(
+            agent = SystemHeartbeatHandler(
                 client=client,
                 max_heartbeat=MAX_HEARTBEAT_NUMBER,
                 echo=False,
@@ -98,43 +95,47 @@ async def _run_session() -> None:
                 max_rtt=settings.polling_interval_seconds * 2,
                 stale_after=settings.polling_interval_seconds * 5,
             )
-            await agent_heartbeat.start(
-                on_stale=logger.warning("[SYSTEM-HEARTBEAT] Heartbeat is stale")
-            )
-
-            handlers = [
-                safe_handle(
-                    tag,
-                    monitor,
-                    function(client, settings.metrics_config),
-                )
-                for metric_type, tag, function in PUBLISHERS
-                if metric_type in settings.metrics_to_log
-            ]
-            handlers.append(
-                safe_handle(
-                    "HOSTNAME",
-                    monitor,
-                    publish_hostname(client, settings.metrics_config),
+            await collector.start()
+            await agent.start(
+                on_stale=lambda: logger.warning(
+                    "[SYSTEM-HEARTBEAT] Agent heartbeat is stale"
                 )
             )
-            while True:
-                results = await asyncio.gather(*handlers, return_exceptions=True)
-                for result in results:
-                    if isinstance(result, BaseException):
-                        raise result
-
-                await asyncio.sleep(settings.polling_interval_seconds)
-    except ConnectionError as e:
-        logger.warning(
-            f"Connection lost ({type(e).__name__}: {e}), reconnecting in {RECONNECT_DELAY}s..."
-        )
-        await asyncio.sleep(RECONNECT_DELAY)
+            try:
+                await _publish_forever(client)
+            finally:
+                await collector.stop()
+                await agent.stop()
     finally:
-        logger.info(f"Session uptime: {time.time() - start_time:.2f} seconds")
+        logger.info(f"Session uptime: {time.monotonic() - start_time:.2f} seconds")
+
+
+async def _publish_forever(client: OPCUAClient) -> None:
+    """
+    Publishes every enabled metric and the hostname once per cycle, concurrently.
+    A failing metric is logged and skipped; a ConnectionError, or the same metric
+    failing too many cycles in a row, cancels the cycle and ends the session.
+    """
+    monitor = OPCUAMonitor()
+    publishers = [
+        (tag, publish)
+        for metric_type, tag, publish in PUBLISHERS
+        if metric_type in settings.metrics_to_log
+    ] + [("HOSTNAME", publish_hostname)]
+
+    while True:
+        async with asyncio.TaskGroup() as tg:
+            for tag, publish in publishers:
+                tg.create_task(
+                    safe_handle(tag, monitor, publish(client, settings.metrics_config))
+                )
+        await asyncio.sleep(settings.polling_interval_seconds)
 
 
 if __name__ == "__main__":
     if os.name != "nt":
         raise RuntimeError("This extractor currently targets Windows.")
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Stopping extractor...")
