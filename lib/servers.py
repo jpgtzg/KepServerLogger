@@ -24,7 +24,7 @@ class ServerConfig(BaseModel):
     csv_tag_column_name: str
     csv_tag_separator: str
     csv_filename: str
-
+    tag_channels: dict[str, str] = {}
 
 
 def load_servers_configs(path: str = "servers.json") -> list[ServerConfig]:

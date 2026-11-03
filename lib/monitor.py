@@ -1,4 +1,9 @@
+from collections.abc import Awaitable, Callable
+from logging import getLogger
+
 from lib.utils import MAX_CONSECUTIVE_METRIC_FAILURES
+
+logger = getLogger(__name__)
 
 
 class OPCUAMonitor:
@@ -19,3 +24,25 @@ class OPCUAMonitor:
             raise ConnectionError(
                 f"{component} failed {count} times in a row, forcing reconnect"
             )
+
+
+async def safe_handle(
+    metric: str,
+    monitor: OPCUAMonitor,
+    coro: Awaitable[object],
+    on_error_hook: Callable[[Exception], object] | None = None,
+) -> None:
+    """
+    Awaits one unit of work. A failure is logged and counted by the monitor instead
+    of stopping the caller; a ConnectionError always propagates so the session reconnects.
+    """
+    try:
+        await coro
+        monitor.on_success(metric)
+    except ConnectionError:
+        raise
+    except Exception as e:
+        logger.exception(f"[{metric}] failed")
+        if on_error_hook is not None:
+            on_error_hook(e)
+        monitor.on_failure(metric)

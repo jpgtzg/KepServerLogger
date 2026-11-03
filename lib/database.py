@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import threading
 from contextlib import contextmanager
 from logging import getLogger
 from typing import Iterable, Iterator, LiteralString, Sequence
@@ -30,6 +31,7 @@ class ProjectDatabase:
         self._password = password
         self._retention_days = retention_days
         self._conn: psycopg.Connection | None = None
+        self._lock = threading.RLock()
 
     def ensure_database_exists(self) -> None:
         """
@@ -49,7 +51,9 @@ class ProjectDatabase:
                     "SELECT 1 FROM pg_database WHERE datname = %s", (self._db_name,)
                 )
                 if cur.fetchone() is None:
-                    _logger.info(f"Database '{self._db_name}' does not exist, creating it...")
+                    _logger.info(
+                        f"Database '{self._db_name}' does not exist, creating it..."
+                    )
                     cur.execute(
                         SQL("CREATE DATABASE {}").format(Identifier(self._db_name))
                     )
@@ -68,13 +72,16 @@ class ProjectDatabase:
 
     @contextmanager
     def transaction(self) -> Iterator[None]:
-        conn = self.connection
-        try:
-            yield
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
+        # One connection is shared by the event loop and the writer thread, so a
+        # transaction holds the lock from its first statement to its commit.
+        with self._lock:
+            conn = self.connection
+            try:
+                yield
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
 
     @property
     def connection(self) -> psycopg.Connection:
@@ -156,4 +163,3 @@ class ProjectDatabase:
     def _validate_identifier(identifier: str) -> None:
         if not _IDENTIFIER_RE.match(identifier):
             raise ValueError(f"Unsafe SQL identifier: {identifier}")
-

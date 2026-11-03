@@ -1,76 +1,46 @@
 """
-This module contains the settings for the application, read from the settings.json file.
+Settings read from settings.json, shared by the extractor and the ingestor.
+
+Each side loads its own subclass and ignores the other side's keys, so the same
+file layout works for both without placeholders.
 """
 
 import json
-from enum import Enum
 from pathlib import Path
-from typing import Optional
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, field_validator
 
-
-class MetricType(str, Enum):
-    """
-    Options for metrics to log
-    """
-
-    TAG_CHANNELS = "tag_channels"
-    CPU = "cpu"
-    RAM = "ram"
-    STORAGE = "storage"
-    NETWORK = "network"
-    SERVICES = "services"
-    KEPSERVER_EVENTS = "kepserverevents"
-
-
-class PrefixConfig(BaseModel):
-    prefix: str
-
-
-class ServiceConfig(BaseModel):
-    prefix: str
-    names: list[str]
-
-
-class MetricsConfig(BaseModel):
-    """
-    Configuration for all metrics
-    """
-
-    cpu: Optional[PrefixConfig] = None
-    ram: Optional[PrefixConfig] = None
-    storage: Optional[PrefixConfig] = None
-    network: Optional[PrefixConfig] = None
-    services: Optional[ServiceConfig] = None
-    kepserverevents: Optional[PrefixConfig] = None
-    tag_channels: Optional[dict[str, dict[str, str]]] = None
-    host_name: PrefixConfig
+from lib.metrics import METRICS
 
 
 class Settings(BaseModel):
-    """
-    Settings for the application, read from the settings.json file
-    """
-
-    log_retention_days: int
     polling_interval_seconds: int = 1
-    metrics_to_log: list[MetricType]
-    metrics_config: MetricsConfig
+    node_prefix: str = "ns=2;s=IDL.Metrics"
+    metrics: list[str] = list(METRICS)
 
-    @model_validator(mode="after")
-    def check_metric_configs(self) -> "Settings":
-        missing = [
-            m.value
-            for m in self.metrics_to_log
-            if getattr(self.metrics_config, m.value) is None
-        ]
-        if missing:
+    @field_validator("metrics")
+    @classmethod
+    def known_metrics(cls, names: list[str]) -> list[str]:
+        unknown = sorted(set(names) - set(METRICS))
+        if unknown:
             raise ValueError(
-                f"metrics_config entries missing for enabled metrics: {', '.join(missing)}"
+                f"unknown metrics: {', '.join(unknown)} (known: {', '.join(METRICS)})"
             )
-        return self
+        return names
+
+    @property
+    def host_name_node(self) -> str:
+        return f"{self.node_prefix}.host_name"
 
     @classmethod
-    def load(cls, path: str = "settings.json") -> "Settings":
+    def load(cls, path: str = "settings.json"):
         return cls.model_validate(json.loads(Path(path).read_text()))
+
+
+class ExtractorSettings(Settings):
+    # Windows services whose state is reported.
+    services: list[str] = []
+
+
+class IngestorSettings(Settings):
+    log_retention_days: int

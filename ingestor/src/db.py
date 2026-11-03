@@ -9,17 +9,7 @@ import uuid
 from datetime import datetime, timezone
 from logging import getLogger
 
-from asyncua import ua  # pyright: ignore[reportMissingTypeStubs]
 from lib.database import ProjectDatabase
-from lib.models import (
-    CPUUsage,
-    KepEvent,
-    NetworkUsage,
-    RAMUsage,
-    ServiceInfo,
-    StorageUsage,
-    TagData,
-)
 
 logger = getLogger(__name__)
 
@@ -138,129 +128,30 @@ class IngestorDatabase(ProjectDatabase):
             f"Database initialized with {self.retention_days} days retention policy."
         )
 
-    def save_many(self, rows: list[TagData]) -> None:
-        if not rows:
+    def insert_many(self, rows_by_table: dict[str, list[dict[str, object]]]) -> None:
+        """
+        Writes rows to several tables in one transaction. Each table maps to its rows,
+        a dict of column -> value with the same columns throughout. A row the table
+        already has (same primary key) is skipped, which is how the republished
+        event list is deduplicated.
+        """
+        statements = []
+        for table, rows in rows_by_table.items():
+            if not rows:
+                continue
+            columns = list(rows[0])
+            for identifier in (table, *columns):
+                self._validate_identifier(identifier)
+            query = (
+                f"INSERT INTO {table} ({', '.join(columns)}) "
+                f"VALUES ({', '.join(['%s'] * len(columns))}) ON CONFLICT DO NOTHING;"
+            )
+            statements.append((query, [tuple(r[c] for c in columns) for r in rows]))
+        if not statements:
             return
         with self.transaction():
-            self.execute_many(
-                """
-                INSERT INTO tags (tag, value, status_code, source_timestamp, server_timestamp, logger_timestamp)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                """,
-                [
-                    (
-                        r.tag,
-                        r.value,
-                        r.status_code,
-                        r.source_timestamp,
-                        r.server_timestamp,
-                        r.logger_timestamp,
-                    )
-                    for r in rows
-                ],
-            )
-
-    def process_tag_values(
-        self, tag_values: list[tuple[str, ua.DataValue]], timestamp: datetime
-    ) -> list[TagData]:
-        rows: list[TagData] = []
-        for tag_name, data_value in tag_values:
-            if data_value.Value is None:
-                raise ValueError(f"Received None for tag '{tag_name}' at {timestamp}")
-            status_code = data_value.StatusCode
-            raw_value: object = data_value.Value.Value  # pyright: ignore[reportAny]
-            rows.append(
-                TagData(
-                    tag=tag_name,
-                    value=str(raw_value),
-                    status_code=status_code.name
-                    if status_code is not None
-                    else "Unknown",
-                    source_timestamp=data_value.SourceTimestamp,
-                    server_timestamp=data_value.ServerTimestamp,
-                    logger_timestamp=timestamp,
-                )
-            )
-        return rows
-
-    def insert_event(self, event: KepEvent) -> None:
-        with self.transaction():
-            self.execute(
-                """
-                INSERT INTO events (hash, timestamp, event_name, source, message)
-                VALUES (%s, %s, %s, %s, %s)
-                ON CONFLICT (hash, timestamp) DO NOTHING;
-                """,
-                (
-                    event.hash,
-                    event.timestamp,
-                    event.name,
-                    event.source,
-                    event.message,
-                ),
-            )
-
-    def insert_cpu_usage(self, cpu_usage: CPUUsage) -> None:
-        with self.transaction():
-            self.execute(
-                "INSERT INTO cpu_usage (timestamp, usage) VALUES (%s, %s);",
-                (cpu_usage.timestamp, cpu_usage.usage),
-            )
-
-    def insert_ram_usage(self, ram_usage: RAMUsage) -> None:
-        with self.transaction():
-            self.execute(
-                "INSERT INTO ram_usage (timestamp, total_kb, free_kb) VALUES (%s, %s, %s);",
-                (ram_usage.timestamp, ram_usage.total_kb, ram_usage.free_kb),
-            )
-
-    def insert_storage_usage(self, storage_usage: StorageUsage) -> None:
-        with self.transaction():
-            self.execute(
-                "INSERT INTO storage_usage (timestamp, total_gb, used_gb, free_gb) VALUES (%s, %s, %s, %s);",
-                (
-                    storage_usage.timestamp,
-                    storage_usage.total_gb,
-                    storage_usage.used_gb,
-                    storage_usage.free_gb,
-                ),
-            )
-
-    def insert_network_metrics(self, network_usage: NetworkUsage) -> None:
-        with self.transaction():
-            self.execute(
-                """
-                INSERT INTO network_usage (
-                    timestamp, interface, operational_status, network_interface_type, kb_bytes_sent, kb_bytes_received
-                )
-                VALUES (%s, %s, %s, %s, %s, %s);
-                """,
-                (
-                    network_usage.timestamp,
-                    network_usage.interface,
-                    network_usage.operational_status,
-                    network_usage.network_interface_type,
-                    network_usage.kb_bytes_sent,
-                    network_usage.kb_bytes_received,
-                ),
-            )
-
-    def insert_service_info(self, service_info: ServiceInfo) -> None:
-        with self.transaction():
-            self.execute(
-                """
-                INSERT INTO services (timestamp, name, status, service_type, machine_name, process_ids)
-                VALUES (%s, %s, %s, %s, %s, %s);
-                """,
-                (
-                    service_info.timestamp,
-                    service_info.name,
-                    service_info.status,
-                    service_info.service_type,
-                    service_info.machine_name,
-                    ",".join(str(pid) for pid in service_info.process_ids),
-                ),
-            )
+            for query, params in statements:
+                self.execute_many(query, params)
 
     def log_status(
         self,

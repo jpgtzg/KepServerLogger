@@ -2,15 +2,12 @@
 Generic OPC UA client class, inherits from asyncua.Client and adds security and authentication.
 """
 
-from datetime import datetime
 from logging import getLogger
 
 from asyncua import Client, ua
 from asyncua.client.ua_client import UASocketProtocol
 from asyncua.common.node import Node
 from asyncua.crypto.security_policies import SecurityPolicyBasic256Sha256
-
-from lib.utils import utcnow
 
 logger = getLogger(__name__)
 
@@ -90,35 +87,6 @@ class OPCUAClient(Client):
 
         self._ready = True
         logger.info("OPC UA client setup complete")
-
-    async def read_batch(
-        self,
-        tags: list[str],
-        prefix: str,
-    ) -> tuple[list[tuple[str, ua.DataValue]], datetime]:
-        if not self._ready:
-            raise RuntimeError("Client not ready, call setup() first")
-
-        nodes = [self.get_node(tag) for tag in tags]
-        params = ua.ReadParameters()
-        params.TimestampsToReturn = ua.TimestampsToReturn.Both
-        for node in nodes:
-            rv = ua.ReadValueId()
-            rv.NodeId = node.nodeid
-            rv.AttributeId = ua.AttributeIds.Value
-            params.NodesToRead.append(rv)
-        values = await self.uaclient.read(params)
-        timestamp = utcnow()
-
-        tag_values = [
-            (
-                node.nodeid.to_string().removeprefix(prefix + "."),
-                value,
-            )
-            for node, value in zip(nodes, values)
-        ]
-
-        return tag_values, timestamp
 
     async def write_value(
         self, node: Node, value: float | str | bool, data_type: ua.VariantType

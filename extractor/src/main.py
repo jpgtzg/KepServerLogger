@@ -5,10 +5,9 @@ import time
 
 from lib.heartbeat import SystemHeartbeatHandler
 from lib.logging import config_logging
-from lib.monitor import OPCUAMonitor
-from lib.opc_handlers import safe_handle
+from lib.metrics import METRICS
+from lib.monitor import OPCUAMonitor, safe_handle
 from lib.opcua_client import OPCUAClient
-from lib.settings import MetricType
 from lib.utils import (
     AGENT_HEARTBEAT_RECEIVE_PATH,
     AGENT_HEARTBEAT_SEND_PATH,
@@ -19,28 +18,11 @@ from lib.utils import (
     RECONNECT_DELAY,
 )
 
-from src.publish import (
-    publish_cpu,
-    publish_hostname,
-    publish_kepserver_events,
-    publish_network,
-    publish_ram,
-    publish_services,
-    publish_storage,
-)
+from src.publish import publish_hostname, publish_metric
 from src.state import config, settings
 
 config_logging()
 logger = logging.getLogger(__name__)
-
-PUBLISHERS = [
-    (MetricType.CPU, "CPU", publish_cpu),
-    (MetricType.RAM, "RAM", publish_ram),
-    (MetricType.STORAGE, "STORAGE", publish_storage),
-    (MetricType.NETWORK, "NETWORK", publish_network),
-    (MetricType.SERVICES, "SERVICES", publish_services),
-    (MetricType.KEPSERVER_EVENTS, "KEPSERVER_EVENTS", publish_kepserver_events),
-]
 
 
 async def main() -> None:
@@ -95,13 +77,13 @@ async def _run_session() -> None:
                 max_rtt=settings.polling_interval_seconds * 2,
                 stale_after=settings.polling_interval_seconds * 5,
             )
-            await collector.start()
-            await agent.start(
-                on_stale=lambda: logger.warning(
-                    "[SYSTEM-HEARTBEAT] Agent heartbeat is stale"
-                )
-            )
             try:
+                await collector.start()
+                await agent.start(
+                    on_stale=lambda: logger.warning(
+                        "[SYSTEM-HEARTBEAT] Agent heartbeat is stale"
+                    )
+                )
                 await _publish_forever(client)
             finally:
                 await collector.stop()
@@ -117,18 +99,21 @@ async def _publish_forever(client: OPCUAClient) -> None:
     failing too many cycles in a row, cancels the cycle and ends the session.
     """
     monitor = OPCUAMonitor()
-    publishers = [
-        (tag, publish)
-        for metric_type, tag, publish in PUBLISHERS
-        if metric_type in settings.metrics_to_log
-    ] + [("HOSTNAME", publish_hostname)]
+    enabled = [METRICS[name] for name in settings.metrics]
 
     while True:
         async with asyncio.TaskGroup() as tg:
-            for tag, publish in publishers:
+            for metric in enabled:
                 tg.create_task(
-                    safe_handle(tag, monitor, publish(client, settings.metrics_config))
+                    safe_handle(
+                        metric.name.upper(),
+                        monitor,
+                        publish_metric(client, metric, settings),
+                    )
                 )
+            tg.create_task(
+                safe_handle("HOSTNAME", monitor, publish_hostname(client, settings))
+            )
         await asyncio.sleep(settings.polling_interval_seconds)
 
 

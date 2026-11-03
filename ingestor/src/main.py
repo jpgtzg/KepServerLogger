@@ -7,26 +7,25 @@ import logging
 
 from lib.heartbeat import SystemHeartbeatHandler
 from lib.logging import config_logging, current_server
-from lib.monitor import OPCUAMonitor
+from lib.metrics import METRICS
 from lib.opcua_client import OPCUAClient
 from lib.servers import ServerConfig, load_servers_configs
-from lib.settings import MetricType
+from lib.subscription import NodeSubscription, SubscriptionConfig
 from lib.utils import (
     AGENT_HEARTBEAT_RECEIVE_PATH,
     AGENT_HEARTBEAT_SEND_PATH,
     COLLECTOR_HEARTBEAT_RECEIVE_PATH,
     COLLECTOR_HEARTBEAT_SEND_PATH,
-    HEARTBEAT_INTERVAL_SECONDS,
     MAX_HEARTBEAT_NUMBER,
     OPCUA_REQUEST_TIMEOUT_SECONDS,
     RECONNECT_DELAY,
-    get_channel_tags,
 )
 
+from src.channels import get_channel_tags
 from src.db import IngestorDatabase
-from src.jobs import build_jobs, run_jobs
+from src.ingest import Ingest
+from src.jobs import monitor_subscriptions
 from src.state import config, settings
-from src.subscribe import subscribe_hostname
 
 config_logging()
 logger = logging.getLogger(__name__)
@@ -36,7 +35,7 @@ async def main(server: ServerConfig):
     current_server.set(server.name)
     logger.info(f"[{server.name}] Initiating IDL Central Collector...")
 
-    channel_tags = get_channel_tags(server, settings)
+    channel_tags = get_channel_tags(server)
 
     db = IngestorDatabase(
         host=config.db_host,
@@ -47,84 +46,123 @@ async def main(server: ServerConfig):
         retention_days=settings.log_retention_days,
     )
     db.initialize()
+    ingest = Ingest(db, f"[{server.name}]")
 
-    jobs = build_jobs(server, db, channel_tags)
+    try:
+        while True:
+            try:
+                await _run_session(server, db, ingest, channel_tags)
+            except asyncio.CancelledError:
+                db.log_status("inactive", reason="shutdown")
+                logger.info(f"[{server.name}] Shutting down.")
+                raise
+            except Exception as e:
+                reasons = e.exceptions if isinstance(e, BaseExceptionGroup) else (e,)
+                error_id = db.log_event("ERROR", "RECONNECT", reasons[0])
+                db.log_status("inactive", error_id=error_id)
+                logger.exception(
+                    f"[{server.name}] Connection lost ("
+                    + "; ".join(f"{type(r).__name__}: {r}" for r in reasons)
+                    + f"). Retrying in {RECONNECT_DELAY}s..."
+                )
+                await asyncio.sleep(RECONNECT_DELAY)
+    finally:
+        db.close()
 
-    retry_count = 0
-    while True:
+
+def _build_subscriptions(
+    client: OPCUAClient,
+    server: ServerConfig,
+    ingest: Ingest,
+    channel_tags: dict[str, dict[str, str]],
+) -> list[NodeSubscription]:
+    """One subscription per enabled metric and one per tag channel."""
+    subscriptions = [
+        NodeSubscription(
+            client,
+            f"[{server.name}][{name.upper()}]",
+            {name: METRICS[name].node_id(settings.node_prefix)},
+            METRICS[name].config.for_publish_interval(
+                settings.polling_interval_seconds
+            ),
+            ingest.on_metric,
+        )
+        for name in settings.metrics
+    ]
+    for channel, tags in channel_tags.items():
+        label = f"[{server.name}][{channel.upper()}]"
+        if not tags:
+            logger.info(f"{label} No tags found for this channel, skipping.")
+            continue
+        subscriptions.append(
+            NodeSubscription(client, label, tags, SubscriptionConfig(), ingest.on_tag)
+        )
+    return subscriptions
+
+
+async def _run_session(
+    server: ServerConfig,
+    db: IngestorDatabase,
+    ingest: Ingest,
+    channel_tags: dict[str, dict[str, str]],
+) -> None:
+    logger.info(f"[{server.name}] Connecting to {server.url}...")
+    client = OPCUAClient(
+        url=server.url,
+        app_uri=config.app_uri,
+        name=config.application_name,
+        cert_path=server.cert_path,
+        key_path=server.key_path,
+        username=server.username,
+        password=server.password,
+        timeout=OPCUA_REQUEST_TIMEOUT_SECONDS,
+    )
+    await client.setup()
+
+    async with client:
+        host_name = await client.get_node(settings.host_name_node).read_value()
+        db.log_status("active", host_name=host_name)
+        logger.info(f"[{server.name}] Connected — host: {host_name}")
+
+        collector_heartbeat = SystemHeartbeatHandler(
+            client=client,
+            max_heartbeat=MAX_HEARTBEAT_NUMBER,
+            echo=False,
+            send_path=COLLECTOR_HEARTBEAT_SEND_PATH,
+            receive_path=COLLECTOR_HEARTBEAT_RECEIVE_PATH,
+            max_rtt=settings.polling_interval_seconds * 2,
+            stale_after=settings.polling_interval_seconds * 5,
+        )
+        agent_heartbeat = SystemHeartbeatHandler(
+            client=client,
+            max_heartbeat=MAX_HEARTBEAT_NUMBER,
+            echo=True,
+            send_path=AGENT_HEARTBEAT_SEND_PATH,
+            receive_path=AGENT_HEARTBEAT_RECEIVE_PATH,
+            max_rtt=settings.polling_interval_seconds * 2,
+            stale_after=settings.polling_interval_seconds * 5,
+        )
+        ingest.new_session(settings.metrics)
+        subscriptions = _build_subscriptions(client, server, ingest, channel_tags)
         try:
-            logger.info(f"[{server.name}] Connecting to {server.url}...")
-            client = OPCUAClient(
-                url=server.url,
-                app_uri=config.app_uri,
-                name=config.application_name,
-                cert_path=server.cert_path,
-                key_path=server.key_path,
-                username=server.username,
-                password=server.password,
-                timeout=OPCUA_REQUEST_TIMEOUT_SECONDS,
+            await collector_heartbeat.start(
+                on_stale=lambda: db.log_event(
+                    "WARNING", "SYSTEM-HEARTBEAT", TimeoutError("Heartbeat is stale")
+                )
             )
-            await client.setup()
-
-            async with client:
-                host_name = await subscribe_hostname(client, settings.metrics_config)
-                db.log_status("active", host_name=host_name)
-                logger.info(f"[{server.name}] Connected — host: {host_name}")
-                retry_count = 0
-
-                monitor = OPCUAMonitor()
-
-                collector_heartbeat = SystemHeartbeatHandler(
-                    client=client,
-                    max_heartbeat=MAX_HEARTBEAT_NUMBER,
-                    echo=False,
-                    send_path=COLLECTOR_HEARTBEAT_SEND_PATH,
-                    receive_path=COLLECTOR_HEARTBEAT_RECEIVE_PATH,
-                    max_rtt=settings.polling_interval_seconds * 2,
-                    stale_after=settings.polling_interval_seconds * 5,
-                )
-                await collector_heartbeat.start()
-
-                agent_heartbeat = SystemHeartbeatHandler(
-                    client=client,
-                    max_heartbeat=MAX_HEARTBEAT_NUMBER,
-                    echo=True,
-                    send_path=AGENT_HEARTBEAT_SEND_PATH,
-                    receive_path=AGENT_HEARTBEAT_RECEIVE_PATH,
-                    max_rtt=settings.polling_interval_seconds * 2,
-                    stale_after=settings.polling_interval_seconds * 5,
-                )
-                await agent_heartbeat.start()
-
-                heartbeat_task = asyncio.create_task(
-                    collector_heartbeat.run(
-                        HEARTBEAT_INTERVAL_SECONDS,
-                        on_stale=lambda: db.log_event(
-                            "WARNING",
-                            "SYSTEM-HEARTBEAT",
-                            TimeoutError("Heartbeat is stale"),
-                        ),
-                    )
-                )
-                try:
-                    await run_jobs(jobs, client, monitor, db, server.name)
-                finally:
-                    heartbeat_task.cancel()
-
-        except (KeyboardInterrupt, asyncio.CancelledError):
-            db.log_status("inactive", reason="shutdown")
-            logger.info(f"[{server.name}] Shutting down.")
-            raise
-
-        except Exception as e:
-            error_id = db.log_event("ERROR", "RECONNECT", e)
-            db.log_status("inactive", error_id=error_id)
-            logger.exception(
-                f"[{server.name}] Connection lost: {type(e).__name__}: {e}. "
-                f"Retrying in {RECONNECT_DELAY}s... (attempt {retry_count + 1})",
+            await agent_heartbeat.start()
+            for subscription in subscriptions:
+                await subscription.start()
+            async with asyncio.TaskGroup() as tg:
+                tg.create_task(ingest.run())
+                tg.create_task(monitor_subscriptions(subscriptions, db))
+        finally:
+            await asyncio.gather(
+                *(s.stop() for s in subscriptions), return_exceptions=True
             )
-            retry_count += 1
-            await asyncio.sleep(RECONNECT_DELAY)
+            await collector_heartbeat.stop()
+            await agent_heartbeat.stop()
+            await ingest.flush()
 
 
 async def run_all(servers: list) -> None:
@@ -137,13 +175,4 @@ async def run_all(servers: list) -> None:
 
 
 if __name__ == "__main__":
-    servers = load_servers_configs()
-    if MetricType.TAG_CHANNELS in settings.metrics_to_log:
-        tag_channels_config = settings.metrics_config.tag_channels or {}
-        missing = [s.name for s in servers if s.name not in tag_channels_config]
-        if missing:
-            raise ValueError(
-                "metrics_config.tag_channels is missing entries for server(s): "
-                f"{', '.join(missing)}"
-            )
-    asyncio.run(run_all(servers))
+    asyncio.run(run_all(load_servers_configs()))
