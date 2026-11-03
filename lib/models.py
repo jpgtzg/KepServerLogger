@@ -45,6 +45,10 @@ class OPCUAModel(BaseModel):
         data["timestamp"] = ts.strftime(TIMESTAMP_FORMAT)
         return data
 
+    def to_row(self) -> dict:
+        """The values to store in the database, keyed by field name."""
+        return self.model_dump()
+
 
 class TagData(BaseModel):
     tag: str
@@ -94,6 +98,11 @@ class ServiceInfo(OPCUAModel):
 
     def to_opcua(self) -> dict:
         data = super().to_opcua()
+        data["process_ids"] = ",".join(str(pid) for pid in self.process_ids)
+        return data
+
+    def to_row(self) -> dict:
+        data = super().to_row()
         data["process_ids"] = ",".join(str(pid) for pid in self.process_ids)
         return data
 
