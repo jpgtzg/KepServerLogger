@@ -16,7 +16,7 @@ from datetime import datetime
 
 from asyncua import ua
 from lib.metrics import METRICS
-from lib.models import TagData
+from lib.models import OPCUAModel, TagData
 
 from src.db import IngestorDatabase
 
@@ -54,6 +54,10 @@ class Ingest:
 
     def on_tag(self, tag: str, data_value: ua.DataValue, received_at: datetime):
         self._put(("tag", tag, data_value, received_at))
+
+    def add_model(self, table: str, model: OPCUAModel) -> None:
+        """A row measured by the ingestor itself, e.g. a heartbeat RTT."""
+        self._pending.setdefault(table, []).append(model.to_row())
 
     def _put(self, item: tuple) -> None:
         if self._queue.full():
@@ -137,8 +141,7 @@ class Ingest:
 
         self._last_timestamp[name] = newest if last is None else max(newest, last)
         rows = [
-            {metric.columns.get(f, f): v for f, v in m.to_row().items()}
-            for m in models
+            {metric.columns.get(f, f): v for f, v in m.to_row().items()} for m in models
         ]
         self._pending.setdefault(metric.table_name, []).extend(rows)
 

@@ -17,6 +17,7 @@ from asyncua import ua
 
 from lib.models import (
     CPUUsage,
+    HeartbeatRTT,
     KepEvent,
     NetworkUsage,
     OPCUAModel,
@@ -74,6 +75,13 @@ METRICS: dict[str, Metric] = {
         Metric("storage", "Storage", StorageUsage, "storage_usage"),
         Metric("network", "Network", NetworkUsage, "network_usage"),
         Metric("services", "Services", ServiceInfo, "services"),
+        Metric(
+            "heartbeat",
+            "Heartbeat",
+            HeartbeatRTT,
+            "heartbeat_rtt",
+            idempotent=True,
+        ),
         Metric(
             "events",
             "Events",

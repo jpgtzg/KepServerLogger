@@ -73,6 +73,14 @@ class IngestorDatabase(ProjectDatabase):
                     process_ids     TEXT NOT NULL
                 );
 
+                CREATE TABLE IF NOT EXISTS heartbeat_rtt (
+                    timestamp   TIMESTAMPTZ NOT NULL,
+                    pair        TEXT NOT NULL,
+                    value       INTEGER NOT NULL,
+                    rtt_ms      DOUBLE PRECISION NOT NULL,
+                    PRIMARY KEY (pair, value, timestamp)
+                );
+
                 CREATE TABLE IF NOT EXISTS active_log (
                     timestamp   TIMESTAMPTZ NOT NULL,
                     event       TEXT NOT NULL,
@@ -107,6 +115,7 @@ class IngestorDatabase(ProjectDatabase):
                 "CREATE INDEX IF NOT EXISTS idx_storage_timestamp ON storage_usage (timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_services_timestamp ON services (timestamp DESC, name);",
                 "CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events (timestamp DESC);",
+                "CREATE INDEX IF NOT EXISTS idx_heartbeat_rtt_timestamp ON heartbeat_rtt (timestamp DESC, pair);",
                 "CREATE INDEX IF NOT EXISTS idx_active_log_timestamp ON active_log (timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_active_log_error_id ON active_log (error_id);",
                 "CREATE INDEX IF NOT EXISTS idx_ingestor_logs_timestamp ON ingestor_logs (timestamp DESC, level);",
@@ -120,6 +129,7 @@ class IngestorDatabase(ProjectDatabase):
                 ("storage_usage", "timestamp"),
                 ("services", "timestamp"),
                 ("events", "timestamp"),
+                ("heartbeat_rtt", "timestamp"),
                 ("active_log", "timestamp"),
                 ("ingestor_logs", "timestamp"),
             ],
