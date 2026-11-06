@@ -125,6 +125,24 @@ class HeartbeatRTT(OPCUAModel):
         return data
 
 
+class AgentError(OPCUAModel):
+    """
+    A warning or error the agent logged. `timestamp` is when it was logged, and
+    `component` is the `[TAG]` its message started with, or else its logger's name.
+    """
+
+    level: str
+    component: str
+    message: str
+    traceback: str | None = None
+
+    def to_opcua(self) -> dict:
+        data = super().to_opcua()
+        # Two errors in the same second must stay distinct rows.
+        data["timestamp"] = self.timestamp.isoformat()
+        return data
+
+
 class KepEvent(OPCUAModel):
     name: str
     source: str
