@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from asyncua import ua
 
 from lib.models import (
+    AgentError,
     CPUUsage,
     HeartbeatRTT,
     KepEvent,
@@ -82,6 +83,7 @@ METRICS: dict[str, Metric] = {
             "heartbeat_rtt",
             idempotent=True,
         ),
+        Metric("errors", "Errors", AgentError, "agent_logs", idempotent=True),
         Metric(
             "events",
             "Events",

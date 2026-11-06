@@ -81,6 +81,15 @@ class IngestorDatabase(ProjectDatabase):
                     PRIMARY KEY (pair, value, timestamp)
                 );
 
+                CREATE TABLE IF NOT EXISTS agent_logs (
+                    timestamp   TIMESTAMPTZ NOT NULL,
+                    level       TEXT NOT NULL,
+                    component   TEXT NOT NULL,
+                    message     TEXT NOT NULL,
+                    traceback   TEXT,
+                    PRIMARY KEY (timestamp, component, message)
+                );
+
                 CREATE TABLE IF NOT EXISTS active_log (
                     timestamp   TIMESTAMPTZ NOT NULL,
                     event       TEXT NOT NULL,
@@ -116,6 +125,7 @@ class IngestorDatabase(ProjectDatabase):
                 "CREATE INDEX IF NOT EXISTS idx_services_timestamp ON services (timestamp DESC, name);",
                 "CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events (timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_heartbeat_rtt_timestamp ON heartbeat_rtt (timestamp DESC, pair);",
+                "CREATE INDEX IF NOT EXISTS idx_agent_logs_timestamp ON agent_logs (timestamp DESC, level);",
                 "CREATE INDEX IF NOT EXISTS idx_active_log_timestamp ON active_log (timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_active_log_error_id ON active_log (error_id);",
                 "CREATE INDEX IF NOT EXISTS idx_ingestor_logs_timestamp ON ingestor_logs (timestamp DESC, level);",
@@ -130,6 +140,7 @@ class IngestorDatabase(ProjectDatabase):
                 ("services", "timestamp"),
                 ("events", "timestamp"),
                 ("heartbeat_rtt", "timestamp"),
+                ("agent_logs", "timestamp"),
                 ("active_log", "timestamp"),
                 ("ingestor_logs", "timestamp"),
             ],
