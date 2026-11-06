@@ -11,6 +11,7 @@ from collections.abc import Awaitable, Callable, Sequence
 
 from asyncua import ua
 from lib.heartbeat import SystemHeartbeatHandler
+from lib.logging import ErrorBufferHandler
 from lib.metrics import Metric
 from lib.models import OPCUAModel
 from lib.opcua_client import OPCUAClient
@@ -51,6 +52,10 @@ def as_async_getter(
     return get
 
 
+# Process-wide, unlike the heartbeat's: errors logged while disconnected must survive
+# the reconnect so they can be published afterwards.
+error_buffer = ErrorBufferHandler()
+
 _GETTERS: dict[str, MetricGetterModel] = {
     "cpu": as_async_getter(get_total_cpu_usage),
     "ram": as_async_getter(get_memory_info),
@@ -58,6 +63,7 @@ _GETTERS: dict[str, MetricGetterModel] = {
     "network": as_async_getter(get_network_interfaces),
     "services": as_async_getter(get_services, lambda settings: (settings.services,)),
     "events": as_async_getter(get_kepserver_events),
+    "errors": as_async_getter(error_buffer.drain),
 }
 
 

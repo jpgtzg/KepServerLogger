@@ -20,6 +20,7 @@ from lib.utils import (
 
 from src.publish import (
     MetricGetterModel,
+    error_buffer,
     make_getters,
     publish_hostname,
     publish_metric,
@@ -27,6 +28,7 @@ from src.publish import (
 from src.state import config, settings
 
 config_logging()
+logging.getLogger().addHandler(error_buffer)
 logger = logging.getLogger(__name__)
 
 
