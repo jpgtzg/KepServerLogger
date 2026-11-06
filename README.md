@@ -91,6 +91,8 @@ A Python application compiled to a Windows `.exe`. Runs on each KepServer machin
 | Network I/O | `IDL.Metrics.Network.batch` | `network_usage` |
 | Windows services | `IDL.Metrics.Services.batch` | `services` |
 | KepServer events | `IDL.Metrics.Events.batch` | `events` |
+| Heartbeat round trips | `IDL.Metrics.Heartbeat.batch` | `heartbeat_rtt` |
+| Agent errors | `IDL.Metrics.Errors.batch` | `agent_logs` |
 | Hostname | `IDL.Metrics.host_name` | `active_log` |
 
 Every metric node (`*.batch`) carries a JSON-encoded array of samples, written in one call so a sample is always complete. A scalar metric (CPU, RAM, storage) is an array of one. The node names, models and tables are defined once, in `lib/metrics.py`. The hostname is a plain string node.
@@ -251,6 +253,7 @@ Each KepServer instance writes to its own database (named by `db_name` in `serve
 | `events` | `timestamp` | KepServer event log entries |
 | `active_log` | `timestamp` | Ingestor-side active/inactive transitions, with hostname and a link to the causing error |
 | `ingestor_logs` | `timestamp` | Every error/warning the ingestor swallowed while polling that server (per-metric skip, reconnect cause), with full traceback |
+| `agent_logs` | `timestamp` | Every WARNING/ERROR the extractor logged, sent over the `Errors.batch` node (at most 50 per polling interval; oldest dropped past 999 buffered) |
 
 All tables are TimescaleDB hypertables with a retention policy set by `log_retention_days` in `settings.json`.
 

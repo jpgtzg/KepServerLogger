@@ -6,6 +6,7 @@
 "Heartbeat.agent_receive","K0109",Long,1,R/W,100,,,,,,,,,,"",
 "Heartbeat.batch","S0052",String,1,R/W,100,,,,,,,,,,"",
 "CPU.batch","S0000",String,1,R/W,100,,,,,,,,,,"",
+"Errors.batch","S0054",String,1,R/W,100,,,,,,,,,,"",
 "Events.batch","S0046",String,1,R/W,100,,,,,,,,,,"",
 "Network.batch","S0048",String,1,R/W,100,,,,,,,,,,"",
 "RAM.batch","S0002",String,1,R/W,100,,,,,,,,,,"",

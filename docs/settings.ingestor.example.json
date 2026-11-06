@@ -9,6 +9,7 @@
         "network",
         "services",
         "events",
-        "heartbeat"
+        "heartbeat",
+        "errors"
     ]
 }
