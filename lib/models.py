@@ -107,6 +107,24 @@ class ServiceInfo(OPCUAModel):
         return data
 
 
+class HeartbeatRTT(OPCUAModel):
+    """
+    One heartbeat round trip: `value` was written to the send tag and its echo came
+    back `rtt_ms` later. `timestamp` is when the echo arrived. Measured with a
+    monotonic clock by whoever sends, so it is not limited by KEPServer's timestamps.
+    """
+
+    pair: str
+    value: int
+    rtt_ms: float
+
+    def to_opcua(self) -> dict:
+        data = super().to_opcua()
+        # The default wire format has whole-second precision, too coarse for an RTT.
+        data["timestamp"] = self.timestamp.isoformat()
+        return data
+
+
 class KepEvent(OPCUAModel):
     name: str
     source: str
