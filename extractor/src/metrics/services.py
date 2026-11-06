@@ -1,8 +1,11 @@
+import logging
 import platform
 
 import win32service  # pyright: ignore[reportMissingModuleSource]
 from lib.models import ServiceInfo
 from lib.utils import utcnow
+
+logger = logging.getLogger(__name__)
 
 SERVICE_STATE_MAP = {
     win32service.SERVICE_STOPPED: "Stopped",
@@ -89,3 +92,9 @@ def get_service_info(service_name: str) -> ServiceInfo:
         raise RuntimeError(f"Error retrieving service '{service_name}': {exc}") from exc
     finally:
         win32service.CloseServiceHandle(scm)
+
+
+def get_services(service_names: list[str]) -> list[ServiceInfo]:
+    if not service_names:
+        logger.warning("[SERVICES] No service names configured, nothing to publish")
+    return [get_service_info(name) for name in service_names]

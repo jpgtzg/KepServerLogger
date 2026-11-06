@@ -18,7 +18,12 @@ from lib.utils import (
     RECONNECT_DELAY,
 )
 
-from src.publish import publish_hostname, publish_metric
+from src.publish import (
+    MetricGetterModel,
+    make_getters,
+    publish_hostname,
+    publish_metric,
+)
 from src.state import config, settings
 
 config_logging()
@@ -59,40 +64,44 @@ async def _run_session() -> None:
     try:
         async with client:
             logger.info("OPC UA client connected, starting main loop")
-            collector = SystemHeartbeatHandler(
+            collector_heartbeat = SystemHeartbeatHandler(
                 client=client,
                 max_heartbeat=MAX_HEARTBEAT_NUMBER,
                 echo=True,
                 send_path=COLLECTOR_HEARTBEAT_SEND_PATH,
+                pair="collector",
                 receive_path=COLLECTOR_HEARTBEAT_RECEIVE_PATH,
                 max_rtt=settings.polling_interval_seconds * 2,
                 stale_after=settings.polling_interval_seconds * 5,
             )
-            agent = SystemHeartbeatHandler(
+            agent_heartbeat = SystemHeartbeatHandler(
                 client=client,
                 max_heartbeat=MAX_HEARTBEAT_NUMBER,
                 echo=False,
                 send_path=AGENT_HEARTBEAT_SEND_PATH,
+                pair="agent",
                 receive_path=AGENT_HEARTBEAT_RECEIVE_PATH,
                 max_rtt=settings.polling_interval_seconds * 2,
                 stale_after=settings.polling_interval_seconds * 5,
             )
             try:
-                await collector.start()
-                await agent.start(
+                await collector_heartbeat.start()
+                await agent_heartbeat.start(
                     on_stale=lambda: logger.warning(
                         "[SYSTEM-HEARTBEAT] Agent heartbeat is stale"
                     )
                 )
-                await _publish_forever(client)
+                await _publish_forever(client, make_getters(agent_heartbeat))
             finally:
-                await collector.stop()
-                await agent.stop()
+                await collector_heartbeat.stop()
+                await agent_heartbeat.stop()
     finally:
         logger.info(f"Session uptime: {time.monotonic() - start_time:.2f} seconds")
 
 
-async def _publish_forever(client: OPCUAClient) -> None:
+async def _publish_forever(
+    client: OPCUAClient, getters: dict[str, MetricGetterModel]
+) -> None:
     """
     Publishes every enabled metric and the hostname once per cycle, concurrently.
     A failing metric is logged and skipped; a ConnectionError, or the same metric
@@ -108,7 +117,7 @@ async def _publish_forever(client: OPCUAClient) -> None:
                     safe_handle(
                         metric.name.upper(),
                         monitor,
-                        publish_metric(client, metric, settings),
+                        publish_metric(client, metric, settings, getters),
                     )
                 )
             tg.create_task(
