@@ -8,7 +8,7 @@ logger = getLogger(__name__)
 
 class OPCUAMonitor:
     """
-    A class to monitor the number of consecutive failures for each process done on a OPCUA connection.
+    A class to monitor the number of consecutive failures for each process done on a OPCUA connection. When the consecutive failures exceed a specifc number, it triggers a specific action.
     """
 
     def __init__(self):
