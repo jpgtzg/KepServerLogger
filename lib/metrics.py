@@ -35,7 +35,7 @@ class Metric:
     node_name: str
     model: type[OPCUAModel]
     table_name: str
-    config: SubscriptionConfig = SubscriptionConfig()
+    config: SubscriptionConfig = field(default_factory=SubscriptionConfig)
     columns: dict[str, str] = field(default_factory=dict)
     idempotent: bool = False
 

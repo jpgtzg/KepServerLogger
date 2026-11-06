@@ -6,7 +6,7 @@ Receives data from the OPC UA server and ingests it into the database.
 
 import traceback
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from logging import getLogger
 
 from lib.database import ProjectDatabase
@@ -195,7 +195,7 @@ class IngestorDatabase(ProjectDatabase):
                 INSERT INTO active_log (timestamp, event, host_name, reason, error_id)
                 VALUES (%s, %s, %s, %s, %s);
                 """,
-                (datetime.now(timezone.utc), event, host_name, reason, error_id),
+                (datetime.now(UTC), event, host_name, reason, error_id),
             )
 
     def log_event(self, level: str, component: str, exc: BaseException) -> str:
@@ -215,7 +215,7 @@ class IngestorDatabase(ProjectDatabase):
                 """,
                 (
                     event_id,
-                    datetime.now(timezone.utc),
+                    datetime.now(UTC),
                     level,
                     component,
                     f"{type(exc).__name__}: {exc}",

@@ -8,10 +8,10 @@ from src.metrics.storage import get_storage
 
 __all__ = [
     "get_hostname",
-    "get_total_cpu_usage",
+    "get_kepserver_events",
     "get_memory_info",
     "get_network_interfaces",
     "get_services",
-    "get_kepserver_events",
     "get_storage",
+    "get_total_cpu_usage",
 ]

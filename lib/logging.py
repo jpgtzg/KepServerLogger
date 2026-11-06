@@ -4,7 +4,7 @@ import re
 import traceback
 from collections import deque
 from contextvars import ContextVar
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from logging.handlers import TimedRotatingFileHandler
 
 from lib.models import AgentError
@@ -58,7 +58,7 @@ class ErrorBufferHandler(logging.Handler):
             details = details[-MAX_ERROR_TRACEBACK_CHARS:]
         self._errors.append(
             AgentError(
-                timestamp=datetime.fromtimestamp(record.created, timezone.utc),
+                timestamp=datetime.fromtimestamp(record.created, UTC),
                 level=record.levelname,
                 component=tag.group(1) if tag else record.name,
                 message=message,
