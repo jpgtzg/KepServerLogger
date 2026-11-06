@@ -1,12 +1,14 @@
 import asyncio
 import time
+from collections import deque
 from collections.abc import Callable
 from logging import getLogger
 
 from asyncua import Node
 
+from lib.models import HeartbeatRTT
 from lib.opcua_client import OPCUAClient
-from lib.utils import HEARTBEAT_INTERVAL_SECONDS, utcnow
+from lib.utils import HEARTBEAT_INTERVAL_SECONDS, MAX_BUFFERED_RTTS, utcnow
 
 logger = getLogger(__name__)
 
@@ -19,10 +21,14 @@ class SystemHeartbeatHandler:
         echo: bool,
         receive_path: str,
         send_path: str,
+        pair: str,
         max_rtt: float = 2.0,
         stale_after: float = 5.0,
+        on_rtt: Callable[[HeartbeatRTT], None] | None = None,
     ):
         self.client = client
+        self.pair = pair
+        self.on_rtt = on_rtt
         self.max_heartbeat = max_heartbeat
         # The paths are named from the heartbeat owners's point of view, so the echoing
         # side listens on the ownser's send path and answers on its receive path.
@@ -44,6 +50,8 @@ class SystemHeartbeatHandler:
         self._last_received_at = None
 
         self._sent_at_map: dict[int, float] = {}
+        # Measured RTTs waiting to be published; the oldest are dropped when full.
+        self._rtts: deque[HeartbeatRTT] = deque(maxlen=MAX_BUFFERED_RTTS)
 
         self.running_task = None
 
@@ -91,8 +99,9 @@ class SystemHeartbeatHandler:
                         f"[SYSTEM-HEARTBEAT] Unexpected jump: {self._last_received_value} -> {val}"
                     )
             logger.info(
-                "[SYSTEM-HEARTBEAT] Received value %s on (%.3fs since last beat)",
+                "[SYSTEM-HEARTBEAT] Received value %s on %s (%.3fs since last beat)",
                 val,
+                self.receive_path,
                 time_diff.total_seconds() if time_diff else -1,
             )
 
@@ -101,6 +110,15 @@ class SystemHeartbeatHandler:
             sent_at = self._sent_at_map.pop(val, None)
             if sent_at is not None:
                 rtt = time.monotonic() - sent_at
+                heartbeat_rtt = HeartbeatRTT(
+                    timestamp=now,
+                    pair=self.pair,
+                    value=val,
+                    rtt_ms=rtt * 1000,
+                )
+                self._rtts.append(heartbeat_rtt)
+                if self.on_rtt is not None:
+                    self.on_rtt(heartbeat_rtt)
                 if rtt > self.max_rtt:
                     logger.warning(
                         f"[SYSTEM-HEARTBEAT] Slow echo on {self.receive_path}: value {val} took {rtt:.3f}s (max {self.max_rtt:.3f}s)",
@@ -116,6 +134,10 @@ class SystemHeartbeatHandler:
         node = self.client.get_node(self.send_path)
         variant_type = await node.read_data_type_as_variant_type()
         await self.client.write_value(node, val, variant_type)
+
+    def drain_rtts(self) -> list[HeartbeatRTT]:
+        """Returns the buffered RTTs, oldest first, and empties the buffer."""
+        return [self._rtts.popleft() for _ in range(len(self._rtts))]
 
     def is_stale(self) -> bool:
         if self._last_received_at is None:
