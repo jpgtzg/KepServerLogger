@@ -68,7 +68,7 @@ Each server runs as an independent asyncio coroutine. A failure or reconnect on 
 
 **System metrics** — produced by the extractor and published to each KepServer's `IDL` channel (Simulator driver). The extractor writes one JSON sample per metric to a pre-configured UA node each polling interval. The ingestor subscribes to those nodes, so KepServer pushes every new sample; it deserialises each one into a typed model and writes it to a dedicated database table.
 
-**Process tags (PLC/Link tags)** — these live natively in KepServer. The extractor has no involvement. The ingestor subscribes to them at their OPC UA address and stores a raw `(tag, value, status_code, timestamp)` row in the `tags` table each time a value changes. These tags are used in the field and are not modified by this system.
+**Process tags (PLC/Link tags)** — these live natively in KepServer. The extractor has no involvement. The ingestor subscribes to them at their OPC UA address and stores a raw `(address, tag, value, status_code, timestamp)` row, where `address` is the full OPC UA node id (so same-named tags in different channels stay distinct) in the `tags` table each time a value changes. These tags are used in the field and are not modified by this system.
 
 ---
 
@@ -244,7 +244,7 @@ Each KepServer instance writes to its own database (named by `db_name` in `serve
 
 | Table | Hypertable key | Description |
 |---|---|---|
-| `tags` | `logger_timestamp` | All process tag values (raw passthrough) |
+| `tags` | `logger_timestamp` | All process tag values (raw passthrough), keyed by `address` + `tag` |
 | `cpu_usage` | `timestamp` | CPU usage percentage |
 | `ram_usage` | `timestamp` | Total and free RAM in KB |
 | `storage_usage` | `timestamp` | Total, used, and free disk space in GB (`C:\`) |

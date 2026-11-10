@@ -28,12 +28,15 @@ class IngestorDatabase(ProjectDatabase):
 
                 CREATE TABLE IF NOT EXISTS tags (
                     logger_timestamp    TIMESTAMPTZ NOT NULL,
+                    address             TEXT NOT NULL,
                     tag                 TEXT NOT NULL,
                     value               TEXT,
                     status_code         TEXT,
                     source_timestamp    TIMESTAMPTZ,
                     server_timestamp    TIMESTAMPTZ
                 );
+
+                ALTER TABLE tags ADD COLUMN IF NOT EXISTS address TEXT NOT NULL DEFAULT '';
 
                 CREATE TABLE IF NOT EXISTS events (
                     hash        TEXT NOT NULL,
@@ -117,7 +120,7 @@ class IngestorDatabase(ProjectDatabase):
                 """
             ],
             indexes=[
-                "CREATE INDEX IF NOT EXISTS idx_tags_tag_timestamp ON tags (tag, logger_timestamp DESC);",
+                "CREATE INDEX IF NOT EXISTS idx_tags_address_tag_timestamp ON tags (address, tag, logger_timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_cpu_timestamp ON cpu_usage (timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_network_timestamp ON network_usage (timestamp DESC, interface);",
                 "CREATE INDEX IF NOT EXISTS idx_ram_timestamp ON ram_usage (timestamp DESC);",

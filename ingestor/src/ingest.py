@@ -52,8 +52,16 @@ class Ingest:
     def on_metric(self, name: str, data_value: ua.DataValue, received_at: datetime):
         self._put(("metric", name, data_value, received_at))
 
-    def on_tag(self, tag: str, data_value: ua.DataValue, received_at: datetime):
-        self._put(("tag", tag, data_value, received_at))
+    def on_tag(self, tags: dict[str, str]):
+        """
+        The `on_data` callback for a tag channel's subscription. `tags` maps tag name
+        to node id, which is stored with each row as its address.
+        """
+
+        def on_data(tag: str, data_value: ua.DataValue, received_at: datetime):
+            self._put(("tag", (tags[tag], tag), data_value, received_at))
+
+        return on_data
 
     def add_model(self, table: str, model: OPCUAModel) -> None:
         """A row measured by the ingestor itself, e.g. a heartbeat RTT."""
@@ -122,7 +130,7 @@ class Ingest:
                 if kind == "metric":
                     self._add_metric(key, data_value)
                 else:
-                    self._add_tag(key, data_value, received_at)
+                    self._add_tag(*key, data_value, received_at)
             except Exception as e:
                 logger.warning(f"{self.label} Dropped {kind} '{key}': {e}")
 
@@ -145,11 +153,18 @@ class Ingest:
         ]
         self._pending.setdefault(metric.table_name, []).extend(rows)
 
-    def _add_tag(self, tag: str, data_value: ua.DataValue, received_at: datetime):
+    def _add_tag(
+        self,
+        address: str,
+        tag: str,
+        data_value: ua.DataValue,
+        received_at: datetime,
+    ):
         if data_value.Value is None:
             raise ValueError("no value")
         status = data_value.StatusCode
         row = TagData(
+            address=address,
             tag=tag,
             value=str(data_value.Value.Value),
             status_code=status.name if status is not None else "Unknown",

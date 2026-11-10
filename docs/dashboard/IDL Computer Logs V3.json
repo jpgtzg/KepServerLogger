@@ -295,7 +295,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\r\n  source_timestamp AS \"time\",\r\n  tag,\r\n  CASE WHEN value = 'None' THEN NULL ELSE CAST(value AS DOUBLE PRECISION) END AS \"Value\"\r\nFROM tags\r\nWHERE $__timeFilter(logger_timestamp)\r\n  AND tag = '${tag}'\r\nORDER BY 1;",
+          "rawSql": "SELECT\r\n  source_timestamp AS \"time\",\r\n  tag,\r\n  CASE WHEN value = 'None' THEN NULL ELSE CAST(value AS DOUBLE PRECISION) END AS \"Value\"\r\nFROM tags\r\nWHERE $__timeFilter(logger_timestamp)\r\n  AND address = '${tag}'\r\nORDER BY 1;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -377,7 +377,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\r\n  CAST(value AS DOUBLE PRECISION) AS \"Current Value\"\r\nFROM tags\r\nWHERE tag = '${tag}'\r\nORDER BY logger_timestamp DESC\r\nLIMIT 1;",
+          "rawSql": "SELECT\r\n  CAST(value AS DOUBLE PRECISION) AS \"Current Value\"\r\nFROM tags\r\nWHERE address = '${tag}'\r\nORDER BY logger_timestamp DESC\r\nLIMIT 1;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -498,7 +498,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\r\n  logger_timestamp AS \"time\",\r\n  status_code AS \"Status\"\r\nFROM tags\r\nWHERE $__timeFilter(logger_timestamp)\r\n  AND tag = '${tag}'\r\nORDER BY 1 ASC;",
+          "rawSql": "SELECT\r\n  logger_timestamp AS \"time\",\r\n  status_code AS \"Status\"\r\nFROM tags\r\nWHERE $__timeFilter(logger_timestamp)\r\n  AND address = '${tag}'\r\nORDER BY 1 ASC;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -2015,15 +2015,12 @@
         "type": "datasource"
       },
       {
-        "current": {
-          "text": "K2_HbOpW",
-          "value": "K2_HbOpW"
-        },
+        "current": {},
         "datasource": {
           "type": "grafana-postgresql-datasource",
           "uid": "${datasource}"
         },
-        "definition": "SELECT DISTINCT tag FROM tags ORDER BY tag ASC;",
+        "definition": "SELECT DISTINCT address AS __text, address AS __value FROM tags WHERE address <> '' ORDER BY 1;",
         "label": "Select Tag",
         "name": "tag",
         "options": [],
@@ -2031,9 +2028,9 @@
           "dataset": "kepserverlogger",
           "editorMode": "code",
           "format": "table",
-          "query": "SELECT DISTINCT tag FROM tags ORDER BY tag ASC;",
+          "query": "SELECT DISTINCT address AS __text, address AS __value FROM tags WHERE address <> '' ORDER BY 1;",
           "rawQuery": true,
-          "rawSql": "SELECT DISTINCT tag FROM tags ORDER BY tag ASC;",
+          "rawSql": "SELECT DISTINCT address AS __text, address AS __value FROM tags WHERE address <> '' ORDER BY 1;",
           "refId": "SQLVariableQueryEditor-VariableQuery",
           "sql": {
             "columns": [

@@ -51,6 +51,7 @@ class OPCUAModel(BaseModel):
 
 
 class TagData(BaseModel):
+    address: str
     tag: str
     value: str
     status_code: str

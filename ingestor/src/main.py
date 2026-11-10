@@ -95,7 +95,13 @@ def _build_subscriptions(
             logger.info(f"{label} No tags found for this channel, skipping.")
             continue
         subscriptions.append(
-            NodeSubscription(client, label, tags, SubscriptionConfig(), ingest.on_tag)
+            NodeSubscription(
+                client,
+                label,
+                tags,
+                SubscriptionConfig(),
+                ingest.on_tag(tags),
+            )
         )
     return subscriptions
 
