@@ -50,7 +50,6 @@ class SystemHeartbeatHandler:
         self._last_received_at = None
 
         self._sent_at_map: dict[int, float] = {}
-        # Measured RTTs waiting to be published; the oldest are dropped when full.
         self._rtts: deque[HeartbeatRTT] = deque(maxlen=MAX_BUFFERED_RTTS)
 
         self.running_task = None
@@ -69,8 +68,6 @@ class SystemHeartbeatHandler:
             )
 
     async def stop(self) -> None:
-        # Stop the sender first: on a dead connection deleting the subscription
-        # raises, and the task must not be left running into the next session.
         if self.running_task is not None:
             self.running_task.cancel()
             await asyncio.gather(self.running_task, return_exceptions=True)
