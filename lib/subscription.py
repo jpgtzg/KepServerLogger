@@ -34,7 +34,8 @@ class SubscriptionConfig:
     publish_interval_ms: int = 500
     # No change for this long is logged once. It is not a reconnect reason: a quiet
     # plant is legitimate, the system heartbeat is what proves the connection.
-    stale_after_seconds: float = 60
+    # None never logs it, for a node that is only written when something happens.
+    stale_after_seconds: float | None = 60
 
     def for_publish_interval(self, seconds: float) -> "SubscriptionConfig":
         """
@@ -44,7 +45,11 @@ class SubscriptionConfig:
         return replace(
             self,
             sampling_interval_ms=max(100, min(1000, int(seconds * 1000 / 2))),
-            stale_after_seconds=max(self.stale_after_seconds, 5 * seconds),
+            stale_after_seconds=(
+                None
+                if self.stale_after_seconds is None
+                else max(self.stale_after_seconds, 5 * seconds)
+            ),
         )
 
 
@@ -136,7 +141,7 @@ class NodeSubscription:
                 f"{self.label} Subscription failed: {self._failed_status.name}"
             )
         since = self._last_received_at or self._started_at
-        if since is None:
+        if since is None or self.config.stale_after_seconds is None:
             return None
         silent_for = (utcnow() - since).total_seconds()
         stale = silent_for > self.config.stale_after_seconds

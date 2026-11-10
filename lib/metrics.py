@@ -28,6 +28,9 @@ from lib.models import (
 )
 from lib.subscription import SubscriptionConfig
 
+# For a node that is only written when something happens: silence is normal there.
+EVENT_DRIVEN = SubscriptionConfig(stale_after_seconds=None)
+
 
 @dataclass(frozen=True)
 class Metric:
@@ -83,12 +86,20 @@ METRICS: dict[str, Metric] = {
             "heartbeat_rtt",
             idempotent=True,
         ),
-        Metric("errors", "Errors", AgentError, "agent_logs", idempotent=True),
+        Metric(
+            "errors",
+            "Errors",
+            AgentError,
+            "agent_logs",
+            config=EVENT_DRIVEN,
+            idempotent=True,
+        ),
         Metric(
             "events",
             "Events",
             KepEvent,
             "events",
+            config=EVENT_DRIVEN,
             columns={"name": "event_name"},
             idempotent=True,
         ),
